@@ -691,9 +691,9 @@ POST   /analytics/events                      → Batch of anonymous events (onl
 |---|---|---|
 | 0 | Read prompt, ask questions | ✅ Complete |
 | 1 | Reference site study | ✅ Complete |
-| 2 | Project guide (this document) | 🔄 In review |
-| 3 | Project setup: repo, design system, layout shell, CI, Docker | ⬜ Not started |
-| 4 | Home page: hero + content rows from TMDB | ⬜ Not started |
+| 2 | Project guide (this document) | ✅ Complete |
+| 3 | Project setup: repo, design system, layout shell, CI, Docker | ✅ Complete |
+| 4 | Home page: hero + content rows from TMDB | ⬜ Next (Awaiting Approval) |
 | 5 | Movies & Series browse with filters and paging | ⬜ Not started |
 | 6 | Search with instant results | ⬜ Not started |
 | 7 | Title detail page | ⬜ Not started |
