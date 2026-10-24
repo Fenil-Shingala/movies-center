@@ -1,0 +1,26 @@
+<header class="app-header" [class.scrolled]="isScrolled()">
+  <div class="header-container">
+    <div class="left-section">
+      <a routerLink="/" class="logo-link" aria-label="Movies Center Home">
+        <svg lucideFilm class="logo-icon"></svg>
+        <span class="logo-text">MOVIES <span class="accent-text">CENTER</span></span>
+      </a>
+
+      <nav class="desktop-nav" aria-label="Main Navigation">
+        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-item">Home</a>
+        <a routerLink="/movies" routerLinkActive="active" class="nav-item">Movies</a>
+        <a routerLink="/series" routerLinkActive="active" class="nav-item">Series</a>
+      </nav>
+    </div>
+
+    <div class="right-section">
+      <a routerLink="/search" class="icon-button" aria-label="Search titles">
+        <svg lucideSearch class="icon"></svg>
+      </a>
+
+      <a routerLink="/login" class="icon-button user-button" aria-label="User Account">
+        <svg lucideUser class="icon"></svg>
+      </a>
+    </div>
+  </div>
+</header>

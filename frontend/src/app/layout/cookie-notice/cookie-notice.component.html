@@ -1,0 +1,13 @@
+@if (isVisible()) {
+  <div class="cookie-banner" role="region" aria-label="Cookie consent banner">
+    <div class="cookie-content">
+      <p class="cookie-text">
+        We use essential cookies to maintain session states and anonymous telemetry to enhance your streaming experience.
+      </p>
+      <div class="cookie-actions">
+        <button type="button" class="btn btn-outline btn-sm" (click)="reject()">Decline</button>
+        <button type="button" class="btn btn-primary btn-sm" (click)="accept()">Accept</button>
+      </div>
+    </div>
+  </div>
+}

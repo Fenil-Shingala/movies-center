@@ -1,0 +1,67 @@
+// Typography rules and scales
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 2.25rem; // 36px
+  font-weight: 700;
+
+  @media (min-width: 768px) {
+    font-size: 3rem; // 48px
+  }
+
+  @media (min-width: 1280px) {
+    font-size: 3.75rem; // 60px
+  }
+}
+
+h2 {
+  font-size: 1.5rem; // 24px
+
+  @media (min-width: 768px) {
+    font-size: 1.75rem; // 28px
+  }
+}
+
+h3 {
+  font-size: 1.25rem; // 20px
+}
+
+h4 {
+  font-size: 1.125rem; // 18px
+}
+
+p, span, div, li, a {
+  font-family: 'Inter', sans-serif;
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-accent {
+  color: var(--accent);
+}
+
+.text-sm {
+  font-size: 0.875rem; // 14px
+}
+
+.text-xs {
+  font-size: 0.75rem; // 12px
+}
+
+.font-heading {
+  font-family: 'Oswald', sans-serif;
+}

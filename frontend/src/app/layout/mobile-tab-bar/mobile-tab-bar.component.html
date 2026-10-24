@@ -1,0 +1,26 @@
+<nav class="mobile-tab-bar" aria-label="Mobile Navigation">
+  <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="tab-item">
+    <svg lucideHome class="tab-icon"></svg>
+    <span class="tab-label">Home</span>
+  </a>
+
+  <a routerLink="/search" routerLinkActive="active" class="tab-item">
+    <svg lucideSearch class="tab-icon"></svg>
+    <span class="tab-label">Search</span>
+  </a>
+
+  <a routerLink="/movies" routerLinkActive="active" class="tab-item">
+    <svg lucideFilm class="tab-icon"></svg>
+    <span class="tab-label">Movies</span>
+  </a>
+
+  <a routerLink="/series" routerLinkActive="active" class="tab-item">
+    <svg lucideTv class="tab-icon"></svg>
+    <span class="tab-label">Series</span>
+  </a>
+
+  <a routerLink="/login" routerLinkActive="active" class="tab-item">
+    <svg lucideUser class="tab-icon"></svg>
+    <span class="tab-label">Profile</span>
+  </a>
+</nav>

@@ -1,0 +1,59 @@
+// ==============================================================================
+// Movies Center - Design Tokens & Theme Variables
+// ==============================================================================
+
+:root {
+  // Backgrounds
+  --bg-primary: #0E0E10;
+  --bg-surface: #18181C;
+  --bg-raised: #24242A;
+  --bg-hover: #2E2E36;
+  --bg-overlay: rgba(14, 14, 16, 0.85);
+
+  // Accents
+  --accent: #D81F26;
+  --accent-hover: #B8181E;
+  --accent-subtle: rgba(216, 31, 38, 0.15);
+
+  // Text
+  --text-primary: #FFFFFF;
+  --text-secondary: #B3B3B3;
+  --text-muted: #737373;
+
+  // Borders
+  --border: #2E2E36;
+  --border-subtle: #1F1F24;
+
+  // Feedback
+  --error: #E53935;
+  --success: #43A047;
+  --warning: #FB8C00;
+
+  // Layout & Sizing
+  --nav-height: 64px;
+  --mobile-tab-height: 56px;
+  --container-max-width: 1440px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  // Shadows
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+
+  // Transitions
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
+}
+
+// SCSS Variables for media queries
+$bp-xs: 320px;
+$bp-sm: 375px;
+$bp-md: 768px;
+$bp-lg: 1024px;
+$bp-xl: 1280px;
+$bp-2xl: 1440px;
+$bp-3xl: 1920px;

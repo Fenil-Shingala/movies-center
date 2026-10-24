@@ -1,0 +1,61 @@
+<div class="home-page">
+  <!-- Hero Section Preview -->
+  <section class="hero-section" aria-label="Featured Movie">
+    <div class="hero-backdrop"></div>
+    <div class="hero-overlay"></div>
+    
+    <div class="hero-content container">
+      <div class="badge-featured">Featured Spotlight</div>
+      <h1 class="hero-title">DUNE: PART TWO</h1>
+      <p class="hero-meta">
+        <span class="rating">★ 8.6</span>
+        <span class="year">2024</span>
+        <span class="duration">2h 46m</span>
+        <span class="quality">4K Ultra HD</span>
+      </p>
+      <p class="hero-overview">
+        Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.
+      </p>
+
+      <div class="hero-actions">
+        <button type="button" class="btn btn-primary" aria-label="Play Featured Title">
+          <svg lucidePlay class="btn-icon"></svg>
+          <span>Watch Now</span>
+        </button>
+        <button type="button" class="btn btn-outline" aria-label="More information">
+          <svg lucideInfo class="btn-icon"></svg>
+          <span>Details</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Content Rows Section Preview -->
+  <section class="content-section container">
+    <div class="row-header">
+      <h2 class="row-title">Trending This Week</h2>
+      <a routerLink="/movies" class="view-all">Explore All &rarr;</a>
+    </div>
+
+    <div class="poster-grid">
+      @for (item of [1, 2, 3, 4, 5, 6]; track item) {
+        <div class="poster-card skeleton" [attr.aria-label]="'Loading preview poster ' + item">
+          <div class="poster-aspect"></div>
+        </div>
+      }
+    </div>
+
+    <div class="row-header" style="margin-top: 3rem;">
+      <h2 class="row-title">Popular TV Series</h2>
+      <a routerLink="/series" class="view-all">Explore All &rarr;</a>
+    </div>
+
+    <div class="poster-grid">
+      @for (item of [1, 2, 3, 4, 5, 6]; track item) {
+        <div class="poster-card skeleton" [attr.aria-label]="'Loading preview series poster ' + item">
+          <div class="poster-aspect"></div>
+        </div>
+      }
+    </div>
+  </section>
+</div>
