@@ -4,6 +4,8 @@ using MoviesCenter.Application.Common.Models;
 using MoviesCenter.Application.Features.Catalog.Dtos;
 using MoviesCenter.Application.Features.Catalog.Queries;
 using MoviesCenter.Application.Features.Home.Dtos;
+using MoviesCenter.Application.Features.Search.Dtos;
+using MoviesCenter.Application.Features.Search.Queries;
 using MoviesCenter.Domain.Entities;
 using MoviesCenter.Infrastructure.Data;
 
@@ -203,6 +205,88 @@ public class CatalogQueryService : ICatalogQueryService
         }
 
         return genres;
+    }
+
+    public async Task<PagedResult<MediaCardDto>> SearchTitlesAsync(SearchTitlesQuery query, CancellationToken cancellationToken = default)
+    {
+        var page = query.Page < 1 ? 1 : query.Page;
+        var pageSize = query.PageSize is < 1 or > 100 ? 24 : query.PageSize;
+
+        var queryable = _db.Titles
+            .AsNoTracking()
+            .Include(t => t.TitleGenres)
+                .ThenInclude(tg => tg.Genre)
+            .Where(t => t.IsActive);
+
+        if (!string.IsNullOrWhiteSpace(query.Type) && !string.Equals(query.Type, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            var normalizedType = string.Equals(query.Type, "series", StringComparison.OrdinalIgnoreCase) ? "series" : "movie";
+            queryable = queryable.Where(t => t.Type == normalizedType);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Query))
+        {
+            var searchTerm = query.Query.Trim();
+            queryable = queryable.Where(t => 
+                EF.Functions.Like(t.TitleText, $"%{searchTerm}%") ||
+                (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, $"%{searchTerm}%")));
+        }
+
+        queryable = queryable.OrderByDescending(t => t.Popularity).ThenByDescending(t => t.TmdbRating);
+
+        var totalCount = await queryable.CountAsync(cancellationToken);
+        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+        var titles = await queryable
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        var items = titles.Select(t => new MediaCardDto(
+            TmdbId: t.TmdbId,
+            Type: t.Type,
+            Title: t.TitleText,
+            PosterPath: t.PosterPath,
+            BackdropPath: t.BackdropPath,
+            Rating: (double)(t.TmdbRating ?? 0m),
+            Year: t.ReleaseDate?.Year.ToString() ?? t.FirstAirDate?.Year.ToString() ?? string.Empty,
+            Genres: t.TitleGenres.Select(tg => tg.Genre.Name).Take(3).ToList()
+        )).ToList();
+
+        return new PagedResult<MediaCardDto>(items, page, pageSize, totalCount, totalPages);
+    }
+
+    public async Task<List<SearchSuggestionDto>> GetSearchSuggestionsAsync(string query, int limit = 6, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query) || query.Trim().Length < 2)
+        {
+            return [];
+        }
+
+        var searchTerm = query.Trim();
+        var safeLimit = limit is < 1 or > 20 ? 6 : limit;
+
+        var suggestions = await _db.Titles
+            .AsNoTracking()
+            .Include(t => t.TitleGenres)
+                .ThenInclude(tg => tg.Genre)
+            .Where(t => t.IsActive && (
+                EF.Functions.Like(t.TitleText, $"%{searchTerm}%") ||
+                (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, $"%{searchTerm}%"))
+            ))
+            .OrderByDescending(t => t.Popularity)
+            .Take(safeLimit)
+            .ToListAsync(cancellationToken);
+
+        return suggestions.Select(t => new SearchSuggestionDto(
+            TmdbId: t.TmdbId,
+            Type: t.Type,
+            Title: t.TitleText,
+            PosterPath: t.PosterPath,
+            Rating: (double)(t.TmdbRating ?? 0m),
+            Year: t.ReleaseDate?.Year.ToString() ?? t.FirstAirDate?.Year.ToString() ?? string.Empty,
+            Genres: t.TitleGenres.Select(tg => tg.Genre.Name).Take(2).ToList()
+        )).ToList();
     }
 
     private async Task<List<MediaCardDto>> GetTitlesInternalAsync(string category, string type, int limit, CancellationToken cancellationToken)

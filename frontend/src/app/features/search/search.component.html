@@ -1,0 +1,137 @@
+<div class="search-page-container container">
+  <!-- Search Hero Header -->
+  <header class="search-header">
+    <h1 class="search-title">SEARCH <span class="accent-text">CATALOG</span></h1>
+    <p class="search-subtitle">Find your favorite movies, TV shows, and series</p>
+
+    <!-- Main Search Input Bar -->
+    <div class="search-bar-box">
+      <svg lucideSearch class="bar-search-icon"></svg>
+      <input 
+        #searchInput
+        type="text" 
+        class="bar-search-input"
+        placeholder="Search by title, character, or keywords..."
+        [value]="queryText()"
+        (input)="onInputChange($event)"
+        (keydown.enter)="onSearchSubmit()"
+        aria-label="Search query"
+        autofocus
+      />
+      @if (queryText()) {
+        <button type="button" class="bar-clear-btn" (click)="clearQuery(searchInput)" aria-label="Clear query">
+          <svg lucideX class="clear-icon"></svg>
+        </button>
+      }
+      <button type="button" class="bar-submit-btn" (click)="onSearchSubmit()">
+        <span>Search</span>
+      </button>
+    </div>
+
+    <!-- Type Filter Tabs -->
+    <div class="type-filter-tabs" role="tablist">
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="selectedType() === 'all'"
+        (click)="setType('all')"
+        role="tab"
+        [attr.aria-selected]="selectedType() === 'all'"
+      >
+        All Results
+      </button>
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="selectedType() === 'movie'"
+        (click)="setType('movie')"
+        role="tab"
+        [attr.aria-selected]="selectedType() === 'movie'"
+      >
+        <svg lucideFilm class="tab-icon"></svg>
+        Movies
+      </button>
+      <button 
+        type="button" 
+        class="tab-btn" 
+        [class.active]="selectedType() === 'series'"
+        (click)="setType('series')"
+        role="tab"
+        [attr.aria-selected]="selectedType() === 'series'"
+      >
+        <svg lucideTv class="tab-icon"></svg>
+        Series
+      </button>
+    </div>
+  </header>
+
+  <!-- Results Count / Info Bar -->
+  @if (hasSearched()) {
+    <div class="results-info-bar">
+      <div class="info-text">
+        @if (isLoading()) {
+          <span class="loading-label">Searching catalog...</span>
+        } @else {
+          <span>Found <strong class="highlight-count">{{ totalCount() }}</strong> {{ totalCount() === 1 ? 'title' : 'titles' }} for <strong class="highlight-term">"{{ queryText() }}"</strong></span>
+        }
+      </div>
+      @if (!isLoading() && totalCount() > 0) {
+        <div class="page-indicator">
+          Page {{ currentPage() }} of {{ totalPages() }}
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Loading Skeletons -->
+  @if (isLoading()) {
+    <div class="media-grid" aria-busy="true">
+      @for (item of skeletonArray; track $index) {
+        <div class="skeleton-card shimmer">
+          <div class="skeleton-poster"></div>
+          <div class="skeleton-body">
+            <div class="skeleton-title"></div>
+            <div class="skeleton-meta"></div>
+          </div>
+        </div>
+      }
+    </div>
+  } @else if (titles().length > 0) {
+    <!-- Search Results Grid -->
+    <div class="media-grid" role="region" aria-label="Search Results">
+      @for (item of titles(); track item.tmdbId) {
+        <app-media-card [item]="item"></app-media-card>
+      }
+    </div>
+
+    <!-- Pagination -->
+    @if (totalPages() > 1) {
+      <div class="search-pagination">
+        <app-pagination
+          [page]="currentPage()"
+          [totalPages]="totalPages()"
+          [hasPreviousPage]="currentPage() > 1"
+          [hasNextPage]="currentPage() < totalPages()"
+          (pageChange)="onPageChange($event)"
+        ></app-pagination>
+      </div>
+    }
+  } @else if (hasSearched() && queryText().trim()) {
+    <!-- Empty State (No matches) -->
+    <app-empty-state
+      title="No titles found"
+      [message]="'We couldn\'t find any titles matching &quot;' + queryText() + '&quot;. Try checking for typos or searching for a different keyword.'"
+      actionLabel="Clear Search"
+      (actionClick)="clearSearchAndReset(searchInput)"
+    ></app-empty-state>
+  } @else {
+    <!-- Initial Prompt State (No search performed yet) -->
+    <div class="search-initial-prompt">
+      <div class="prompt-icon-box">
+        <svg lucideSearch class="prompt-icon"></svg>
+      </div>
+      <h2 class="prompt-title">Explore Movies & Series</h2>
+      <p class="prompt-desc">Enter any title name, character, or franchise above to search our full catalog.</p>
+    </div>
+  }
+</div>

@@ -1,7 +1,7 @@
-<header class="app-header" [class.scrolled]="isScrolled()">
+<header class="app-header" [class.scrolled]="isScrolled()" [class.mobile-open]="isMobileSearchActive()">
   <div class="header-container">
     <div class="left-section">
-      <a routerLink="/" class="logo-link" aria-label="Movies Center Home">
+      <a routerLink="/" class="logo-link" aria-label="Movies Center Home" (click)="closeSearch()">
         <svg lucideFilm class="logo-icon"></svg>
         <span class="logo-text">MOVIES <span class="accent-text">CENTER</span></span>
       </a>
@@ -13,14 +13,173 @@
       </nav>
     </div>
 
+    <!-- Center Search Bar (Desktop) -->
+    <div class="header-search-wrapper">
+      <div class="search-input-box" [class.active]="isDropdownOpen()">
+        <svg lucideSearch class="search-icon"></svg>
+        <input 
+          #desktopSearchInput
+          type="text" 
+          class="header-search-input"
+          placeholder="Search movies & series..."
+          [value]="searchQuery()"
+          (input)="onSearchInput($event)"
+          (focus)="onSearchFocus()"
+          (keydown.enter)="submitSearch()"
+          aria-label="Search movies and series"
+          autocomplete="off"
+        />
+        @if (isSearching()) {
+          <svg lucideLoader2 class="loading-icon spin"></svg>
+        } @else if (searchQuery()) {
+          <button type="button" class="clear-btn" (click)="clearSearch(desktopSearchInput)" aria-label="Clear search">
+            <svg lucideX class="clear-icon"></svg>
+          </button>
+        }
+      </div>
+
+      <!-- Autocomplete Dropdown -->
+      @if (isDropdownOpen()) {
+        <div class="search-dropdown" role="listbox">
+          @if (isSearching() && suggestions().length === 0) {
+            <div class="dropdown-status">
+              <svg lucideLoader2 class="status-icon spin"></svg>
+              <span>Searching catalog...</span>
+            </div>
+          } @else if (suggestions().length > 0) {
+            <div class="dropdown-results">
+              @for (item of suggestions(); track item.tmdbId) {
+                <button type="button" class="suggestion-item" (click)="selectSuggestion(item)">
+                  <div class="poster-thumbnail">
+                    @if (item.posterPath) {
+                      <img [src]="getPosterUrl(item.posterPath)" [alt]="item.title" loading="lazy" />
+                    } @else {
+                      <div class="poster-placeholder">
+                        <svg lucideFilm class="ph-icon"></svg>
+                      </div>
+                    }
+                  </div>
+                  <div class="item-info">
+                    <div class="item-title">{{ item.title }}</div>
+                    <div class="item-meta">
+                      <span class="type-badge" [class.series]="item.type === 'series'">
+                        {{ item.type === 'series' ? 'SERIES' : 'MOVIE' }}
+                      </span>
+                      @if (item.year) {
+                        <span class="item-year">{{ item.year }}</span>
+                      }
+                      @if (item.rating > 0) {
+                        <span class="item-rating">
+                          <svg lucideStar class="star-icon"></svg>
+                          {{ item.rating.toFixed(1) }}
+                        </span>
+                      }
+                    </div>
+                  </div>
+                </button>
+              }
+            </div>
+            <div class="dropdown-footer">
+              <button type="button" class="view-all-btn" (click)="submitSearch()">
+                <span>View all results for "{{ searchQuery() }}"</span>
+                <svg lucideArrowRight class="btn-icon"></svg>
+              </button>
+            </div>
+          } @else if (searchQuery().trim().length >= 2) {
+            <div class="dropdown-empty">
+              <span>No titles matching "{{ searchQuery() }}"</span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Right Section (Search button toggle for mobile, user account) -->
     <div class="right-section">
-      <a routerLink="/search" class="icon-button" aria-label="Search titles">
-        <svg lucideSearch class="icon"></svg>
-      </a>
+      <button 
+        type="button" 
+        class="icon-button mobile-search-btn" 
+        (click)="toggleMobileSearch()" 
+        aria-label="Toggle search"
+      >
+        @if (isMobileSearchActive()) {
+          <svg lucideX class="icon"></svg>
+        } @else {
+          <svg lucideSearch class="icon"></svg>
+        }
+      </button>
 
       <a routerLink="/login" class="icon-button user-button" aria-label="User Account">
         <svg lucideUser class="icon"></svg>
       </a>
     </div>
   </div>
+
+  <!-- Mobile Search Bar Overlay -->
+  @if (isMobileSearchActive()) {
+    <div class="mobile-search-overlay">
+      <div class="mobile-search-input-box">
+        <svg lucideSearch class="search-icon"></svg>
+        <input 
+          #mobileSearchInput
+          type="text" 
+          class="mobile-search-input"
+          placeholder="Search movies & series..."
+          [value]="searchQuery()"
+          (input)="onSearchInput($event)"
+          (keydown.enter)="submitSearch()"
+          autofocus
+          aria-label="Search movies and series"
+        />
+        @if (isSearching()) {
+          <svg lucideLoader2 class="loading-icon spin"></svg>
+        } @else if (searchQuery()) {
+          <button type="button" class="clear-btn" (click)="clearSearch(mobileSearchInput)" aria-label="Clear search">
+            <svg lucideX class="clear-icon"></svg>
+          </button>
+        }
+      </div>
+
+      @if (isDropdownOpen() && suggestions().length > 0) {
+        <div class="mobile-dropdown-results">
+          @for (item of suggestions(); track item.tmdbId) {
+            <button type="button" class="suggestion-item" (click)="selectSuggestion(item)">
+              <div class="poster-thumbnail">
+                @if (item.posterPath) {
+                  <img [src]="getPosterUrl(item.posterPath)" [alt]="item.title" loading="lazy" />
+                } @else {
+                  <div class="poster-placeholder">
+                    <svg lucideFilm class="ph-icon"></svg>
+                  </div>
+                }
+              </div>
+              <div class="item-info">
+                <div class="item-title">{{ item.title }}</div>
+                <div class="item-meta">
+                  <span class="type-badge" [class.series]="item.type === 'series'">
+                    {{ item.type === 'series' ? 'SERIES' : 'MOVIE' }}
+                  </span>
+                  @if (item.year) {
+                    <span class="item-year">{{ item.year }}</span>
+                  }
+                  @if (item.rating > 0) {
+                    <span class="item-rating">
+                      <svg lucideStar class="star-icon"></svg>
+                      {{ item.rating.toFixed(1) }}
+                    </span>
+                  }
+                </div>
+              </div>
+            </button>
+          }
+          <div class="dropdown-footer">
+            <button type="button" class="view-all-btn" (click)="submitSearch()">
+              <span>View all results for "{{ searchQuery() }}"</span>
+              <svg lucideArrowRight class="btn-icon"></svg>
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
 </header>

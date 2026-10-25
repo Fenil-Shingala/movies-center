@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { CatalogService } from './catalog.service';
-import { PagedResult, MediaCard, GenreItem } from '../models/media.models';
+import { PagedResult, MediaCard, GenreItem, SearchSuggestion } from '../models/media.models';
 
 describe('CatalogService', () => {
   let service: CatalogService;
@@ -66,6 +66,77 @@ describe('CatalogService', () => {
     );
     expect(req.request.method).toBe('GET');
     req.flush(mockPagedResult);
+  });
+
+  it('should search titles with query and type', () => {
+    const mockPagedResult: PagedResult<MediaCard> = {
+      items: [
+        {
+          tmdbId: 155,
+          type: 'movie',
+          title: 'The Dark Knight',
+          backdropPath: '/b.jpg',
+          posterPath: '/p.jpg',
+          rating: 9.0,
+          year: '2008',
+          genres: ['Action', 'Crime']
+        }
+      ],
+      page: 1,
+      pageSize: 24,
+      totalCount: 1,
+      totalPages: 1,
+      hasPreviousPage: false,
+      hasNextPage: false
+    };
+
+    service.searchTitles('dark', 'movie', 1, 24).subscribe(res => {
+      expect(res.items.length).toBe(1);
+      expect(res.items[0].title).toBe('The Dark Knight');
+    });
+
+    const req = httpMock.expectOne(request => 
+      request.url.endsWith('/api/v1/search') &&
+      request.params.get('q') === 'dark' &&
+      request.params.get('type') === 'movie'
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush(mockPagedResult);
+  });
+
+  it('should return empty list if suggestion query is too short', () => {
+    service.getSearchSuggestions('a').subscribe(suggestions => {
+      expect(suggestions).toEqual([]);
+    });
+
+    httpMock.expectNone(request => request.url.includes('/api/v1/search/suggest'));
+  });
+
+  it('should fetch search suggestions when query is valid', () => {
+    const mockSuggestions: SearchSuggestion[] = [
+      {
+        tmdbId: 155,
+        type: 'movie',
+        title: 'The Dark Knight',
+        posterPath: '/p.jpg',
+        rating: 9.0,
+        year: '2008',
+        genres: ['Action', 'Crime']
+      }
+    ];
+
+    service.getSearchSuggestions('dark', 6).subscribe(suggestions => {
+      expect(suggestions.length).toBe(1);
+      expect(suggestions[0].title).toBe('The Dark Knight');
+    });
+
+    const req = httpMock.expectOne(request => 
+      request.url.endsWith('/api/v1/search/suggest') &&
+      request.params.get('q') === 'dark' &&
+      request.params.get('limit') === '6'
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush(mockSuggestions);
   });
 
   it('should fetch genres from /api/v1/genres and cache result', () => {

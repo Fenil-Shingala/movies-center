@@ -62,3 +62,13 @@ export interface BrowseFilter {
   page?: number;
   pageSize?: number;
 }
+
+export interface SearchSuggestion {
+  tmdbId: number;
+  type: 'movie' | 'series';
+  title: string;
+  posterPath: string | null;
+  rating: number;
+  year: string;
+  genres: string[];
+}

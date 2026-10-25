@@ -12,4 +12,6 @@ public interface ICatalogQueryService
     Task<HeroItemDto?> GetFeaturedHeroAsync(CancellationToken cancellationToken = default);
     Task<PagedResult<MediaCardDto>> BrowseTitlesAsync(BrowseTitlesQuery query, CancellationToken cancellationToken = default);
     Task<List<GenreDto>> GetGenresAsync(CancellationToken cancellationToken = default);
+    Task<PagedResult<MediaCardDto>> SearchTitlesAsync(MoviesCenter.Application.Features.Search.Queries.SearchTitlesQuery query, CancellationToken cancellationToken = default);
+    Task<List<MoviesCenter.Application.Features.Search.Dtos.SearchSuggestionDto>> GetSearchSuggestionsAsync(string query, int limit = 6, CancellationToken cancellationToken = default);
 }

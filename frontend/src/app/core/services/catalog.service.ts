@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, shareReplay } from 'rxjs';
-import { MediaCard, PagedResult, GenreItem, BrowseFilter } from '../models/media.models';
+import { Observable, of, shareReplay } from 'rxjs';
+import { MediaCard, PagedResult, GenreItem, BrowseFilter, SearchSuggestion } from '../models/media.models';
 import { environment } from '../../../environments/environment';
 
 @Injectable({
@@ -35,6 +35,32 @@ export class CatalogService {
     }
 
     return this.http.get<PagedResult<MediaCard>>(`${this.apiUrl}/titles`, { params });
+  }
+
+  searchTitles(query: string, type?: 'movie' | 'series' | 'all', page: number = 1, pageSize: number = 24): Observable<PagedResult<MediaCard>> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('pageSize', pageSize.toString());
+
+    if (query && query.trim()) {
+      params = params.set('q', query.trim());
+    }
+    if (type && type !== 'all') {
+      params = params.set('type', type);
+    }
+
+    return this.http.get<PagedResult<MediaCard>>(`${this.apiUrl}/search`, { params });
+  }
+
+  getSearchSuggestions(query: string, limit: number = 6): Observable<SearchSuggestion[]> {
+    if (!query || query.trim().length < 2) {
+      return of([]);
+    }
+    const params = new HttpParams()
+      .set('q', query.trim())
+      .set('limit', limit.toString());
+
+    return this.http.get<SearchSuggestion[]>(`${this.apiUrl}/search/suggest`, { params });
   }
 
   getGenres(): Observable<GenreItem[]> {
