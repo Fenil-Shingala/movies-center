@@ -72,3 +72,79 @@ export interface SearchSuggestion {
   year: string;
   genres: string[];
 }
+
+export interface CastMember {
+  personId: number;
+  tmdbId: number;
+  name: string;
+  character: string;
+  profilePath: string | null;
+  displayOrder: number;
+}
+
+export interface VideoItem {
+  id: number;
+  key: string;
+  name: string;
+  type: string;
+  site: string;
+}
+
+export interface WatchProvider {
+  providerId: number;
+  tmdbId: number;
+  name: string;
+  logoPath: string | null;
+  type: string;
+  country: string;
+}
+
+export interface EpisodeItem {
+  id: number;
+  tmdbId: number;
+  episodeNumber: number;
+  name: string;
+  overview: string | null;
+  stillPath: string | null;
+  airDate: string | null;
+  runtimeMinutes: number | null;
+}
+
+export interface SeasonItem {
+  id: number;
+  tmdbId: number;
+  seasonNumber: number;
+  name: string;
+  overview: string | null;
+  posterPath: string | null;
+  airDate: string | null;
+  episodeCount: number;
+  episodes: EpisodeItem[];
+}
+
+export interface TitleDetail {
+  id: number;
+  tmdbId: number;
+  type: 'movie' | 'series';
+  title: string;
+  originalTitle: string | null;
+  tagline: string | null;
+  overview: string | null;
+  posterPath: string | null;
+  backdropPath: string | null;
+  rating: number;
+  voteCount: number;
+  releaseDate: string | null;
+  year: string;
+  runtimeMinutes: number | null;
+  status: string | null;
+  contentRating: string | null;
+  originalLanguage: string;
+  totalSeasons: number | null;
+  totalEpisodes: number | null;
+  genres: string[];
+  cast: CastMember[];
+  videos: VideoItem[];
+  providers: WatchProvider[];
+  seasons: SeasonItem[];
+}

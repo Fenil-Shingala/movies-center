@@ -25,6 +25,18 @@ export const routes: Routes = [
         path: 'search',
         loadComponent: () => import('./features/search/search.component').then(m => m.SearchComponent),
         title: 'Search - Movies Center'
+      },
+      {
+        path: 'movie/:id',
+        loadComponent: () => import('./features/title-detail/title-detail.component').then(m => m.TitleDetailComponent)
+      },
+      {
+        path: 'series/:id',
+        loadComponent: () => import('./features/title-detail/title-detail.component').then(m => m.TitleDetailComponent)
+      },
+      {
+        path: 'title/:id',
+        loadComponent: () => import('./features/title-detail/title-detail.component').then(m => m.TitleDetailComponent)
       }
     ]
   },

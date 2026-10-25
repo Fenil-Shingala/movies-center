@@ -1,0 +1,281 @@
+@if (isLoading()) {
+  <div class="detail-loading-skeleton container">
+    <div class="skeleton-hero shimmer"></div>
+    <div class="skeleton-content">
+      <div class="skeleton-text-lg shimmer"></div>
+      <div class="skeleton-text-md shimmer"></div>
+      <div class="skeleton-text-sm shimmer"></div>
+    </div>
+  </div>
+} @else if (title(); as item) {
+  <div class="title-detail-page">
+    <!-- Hero Backdrop Banner -->
+    <div class="detail-hero-banner" [style.background-image]="backdropUrl() ? 'url(' + backdropUrl() + ')' : 'none'">
+      <div class="backdrop-gradient-overlay"></div>
+
+      <div class="hero-container container">
+        <div class="hero-layout">
+          <!-- Poster Column -->
+          <div class="poster-column">
+            <div class="detail-poster-card">
+              @if (posterUrl()) {
+                <img [src]="posterUrl()" [alt]="item.title" class="detail-poster-img" />
+              } @else {
+                <div class="poster-fallback-box">
+                  <svg [class.series]="item.type === 'series'" lucideFilm class="ph-icon"></svg>
+                  <span>{{ item.title }}</span>
+                </div>
+              }
+              <div class="type-ribbon">{{ item.type === 'series' ? 'TV SERIES' : 'MOVIE' }}</div>
+            </div>
+          </div>
+
+          <!-- Info Column -->
+          <div class="info-column">
+            @if (item.tagline) {
+              <div class="detail-tagline">"{{ item.tagline }}"</div>
+            }
+
+            <h1 class="detail-title">{{ item.title }}</h1>
+            @if (item.originalTitle && item.originalTitle !== item.title) {
+              <div class="original-title">Original: {{ item.originalTitle }}</div>
+            }
+
+            <!-- Metadata Badges -->
+            <div class="detail-meta-row">
+              @if (item.rating > 0) {
+                <div class="meta-pill rating-pill">
+                  <svg lucideStar class="star-icon"></svg>
+                  <strong>{{ item.rating.toFixed(1) }}</strong>
+                  <span class="vote-count">({{ item.voteCount | number }})</span>
+                </div>
+              }
+
+              @if (item.year) {
+                <div class="meta-pill year-pill">{{ item.year }}</div>
+              }
+
+              @if (formattedRuntime()) {
+                <div class="meta-pill runtime-pill">
+                  <svg lucideClock class="pill-icon"></svg>
+                  <span>{{ formattedRuntime() }}</span>
+                </div>
+              }
+
+              @if (item.contentRating) {
+                <div class="meta-pill cert-pill">{{ item.contentRating }}</div>
+              }
+
+              @if (item.originalLanguage) {
+                <div class="meta-pill lang-pill">{{ item.originalLanguage.toUpperCase() }}</div>
+              }
+
+              <div class="meta-pill quality-pill">4K ULTRA HD</div>
+            </div>
+
+            <!-- Genre Badges -->
+            @if (item.genres.length > 0) {
+              <div class="detail-genres-row">
+                @for (genre of item.genres; track genre) {
+                  <span class="genre-pill">{{ genre }}</span>
+                }
+              </div>
+            }
+
+            <!-- Synopsis / Overview -->
+            <div class="detail-overview">
+              <h2 class="section-heading-sm">Overview</h2>
+              <p class="overview-text">{{ item.overview || 'No overview available for this title.' }}</p>
+            </div>
+
+            <!-- CTA Actions -->
+            <div class="detail-actions-row">
+              <a [routerLink]="watchLink()" class="btn btn-primary" aria-label="Watch Now">
+                <svg lucidePlay class="btn-icon"></svg>
+                <span>Watch Now</span>
+              </a>
+
+              @if (mainTrailer()) {
+                <button type="button" class="btn btn-secondary" (click)="openTrailer(mainTrailer()!)">
+                  <svg lucideFilm class="btn-icon"></svg>
+                  <span>Watch Trailer</span>
+                </button>
+              }
+
+              <button type="button" class="btn btn-outline" (click)="toggleWatchlist()" [class.active]="isInWatchlist()">
+                <svg lucideBookmark class="btn-icon"></svg>
+                <span>{{ isInWatchlist() ? 'In Watchlist' : 'Add to Watchlist' }}</span>
+              </button>
+            </div>
+
+            <!-- Where To Watch (Providers) -->
+            @if (item.providers.length > 0) {
+              <div class="detail-providers-section">
+                <span class="provider-label">Where to Watch:</span>
+                <div class="provider-logos">
+                  @for (provider of item.providers; track provider.providerId) {
+                    <div class="provider-badge" [title]="provider.name + ' (' + provider.type + ')'">
+                      @if (provider.logoPath) {
+                        <img [src]="getProviderLogoUrl(provider.logoPath)" [alt]="provider.name" class="provider-logo" />
+                      } @else {
+                        <span class="provider-name-fallback">{{ provider.name }}</span>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Tabs / Sections -->
+    <div class="detail-body-container container">
+      <!-- Series Seasons & Episodes (for series) -->
+      @if (item.type === 'series' && item.seasons.length > 0) {
+        <section class="seasons-section">
+          <div class="section-header-row">
+            <h2 class="section-title">
+              <svg lucideTv class="sec-icon"></svg>
+              <span>Seasons & Episodes</span>
+            </h2>
+
+            <!-- Season Selector -->
+            <div class="season-selector-wrapper">
+              <label for="seasonSelect" class="season-label">Season:</label>
+              <select 
+                id="seasonSelect" 
+                class="season-select" 
+                [value]="selectedSeasonNumber()"
+                (change)="onSeasonChange($event)"
+              >
+                @for (season of item.seasons; track season.seasonNumber) {
+                  <option [value]="season.seasonNumber">
+                    {{ season.name }} ({{ season.episodeCount }} Ep)
+                  </option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <!-- Episodes Grid -->
+          @if (activeSeason(); as currentSeason) {
+            <div class="episodes-grid">
+              @for (ep of currentSeason.episodes; track ep.episodeNumber) {
+                <div class="episode-card">
+                  <div class="ep-still-wrapper">
+                    @if (ep.stillPath) {
+                      <img [src]="getStillUrl(ep.stillPath)" [alt]="ep.name" class="ep-still" loading="lazy" />
+                    } @else {
+                      <div class="ep-still-placeholder">
+                        <svg lucideTv class="ph-icon"></svg>
+                      </div>
+                    }
+                    <div class="ep-number-badge">EP {{ ep.episodeNumber }}</div>
+                  </div>
+
+                  <div class="ep-info">
+                    <div class="ep-title-row">
+                      <h3 class="ep-title">{{ ep.episodeNumber }}. {{ ep.name }}</h3>
+                      @if (ep.runtimeMinutes) {
+                        <span class="ep-runtime">{{ ep.runtimeMinutes }}m</span>
+                      }
+                    </div>
+                    <p class="ep-overview">{{ ep.overview || 'Episode summary coming soon.' }}</p>
+                    <a [routerLink]="['/watch', item.type, item.tmdbId]" [queryParams]="{ season: currentSeason.seasonNumber, ep: ep.episodeNumber }" class="ep-play-btn">
+                      <svg lucidePlay class="play-icon"></svg>
+                      <span>Play Episode</span>
+                    </a>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </section>
+      }
+
+      <!-- Cast & Crew -->
+      @if (item.cast.length > 0) {
+        <section class="cast-section">
+          <h2 class="section-title">
+            <svg lucideUsers class="sec-icon"></svg>
+            <span>Top Cast</span>
+          </h2>
+          <div class="cast-row-scroller">
+            @for (actor of item.cast; track actor.personId) {
+              <div class="cast-card">
+                <div class="cast-avatar">
+                  @if (actor.profilePath) {
+                    <img [src]="getProfileUrl(actor.profilePath)" [alt]="actor.name" loading="lazy" />
+                  } @else {
+                    <div class="avatar-placeholder">{{ getInitials(actor.name) }}</div>
+                  }
+                </div>
+                <div class="actor-name">{{ actor.name }}</div>
+                <div class="character-name">{{ actor.character }}</div>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- Official Videos / Trailers -->
+      @if (item.videos.length > 0) {
+        <section class="videos-section">
+          <h2 class="section-title">
+            <svg lucideFilm class="sec-icon"></svg>
+            <span>Videos & Trailers</span>
+          </h2>
+          <div class="videos-grid">
+            @for (vid of item.videos; track vid.key) {
+              <div class="video-preview-card" (click)="openTrailer(vid)">
+                <div class="video-thumbnail-box">
+                  <img [src]="'https://img.youtube.com/vi/' + vid.key + '/hqdefault.jpg'" [alt]="vid.name" loading="lazy" />
+                  <div class="play-overlay-button">
+                    <svg lucidePlay class="play-triangle"></svg>
+                  </div>
+                </div>
+                <div class="video-card-title">{{ vid.name }}</div>
+                <div class="video-card-type">{{ vid.type }}</div>
+              </div>
+            }
+          </div>
+        </section>
+      }
+    </div>
+
+    <!-- Video Modal / Trailer Overlay -->
+    @if (activeTrailer(); as trailer) {
+      <div class="trailer-modal-backdrop" (click)="closeTrailer()">
+        <div class="trailer-modal-dialog" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h3 class="modal-title">{{ trailer.name }}</h3>
+            <button type="button" class="close-modal-btn" (click)="closeTrailer()" aria-label="Close trailer">
+              <svg lucideX class="close-icon"></svg>
+            </button>
+          </div>
+          <div class="modal-video-frame">
+            <iframe 
+              [src]="getTrailerEmbedUrl(trailer.key)" 
+              title="Official Trailer" 
+              frameborder="0" 
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+              allowfullscreen
+            ></iframe>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+} @else {
+  <!-- Not Found State -->
+  <div class="container not-found-wrapper">
+    <app-empty-state
+      title="Title not found"
+      message="We couldn't locate the details for this title. It may have been removed or the link is incorrect."
+      actionLabel="Back to Catalog"
+      (actionClick)="goBack()"
+    ></app-empty-state>
+  </div>
+}

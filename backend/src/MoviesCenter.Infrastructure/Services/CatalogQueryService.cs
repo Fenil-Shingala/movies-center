@@ -345,4 +345,185 @@ public class CatalogQueryService : ICatalogQueryService
             Genres: t.TitleGenres.Select(tg => tg.Genre.Name).Take(3).ToList()
         )).ToList();
     }
+
+    public async Task<TitleDetailDto?> GetTitleDetailAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var title = await _db.Titles
+            .AsNoTracking()
+            .Include(t => t.TitleGenres)
+                .ThenInclude(tg => tg.Genre)
+            .Include(t => t.TitleCasts)
+                .ThenInclude(tc => tc.Person)
+            .Include(t => t.Videos)
+            .Include(t => t.TitleProviders)
+                .ThenInclude(tp => tp.Provider)
+            .Include(t => t.Seasons)
+                .ThenInclude(s => s.Episodes)
+            .FirstOrDefaultAsync(t => t.IsActive && (t.Id == id || t.TmdbId == id), cancellationToken);
+
+        if (title == null)
+        {
+            return null;
+        }
+
+        var cast = title.TitleCasts
+            .OrderBy(tc => tc.DisplayOrder)
+            .Take(15)
+            .Select(tc => new CastMemberDto(
+                PersonId: tc.PersonId,
+                TmdbId: tc.Person.TmdbId,
+                Name: tc.Person.Name,
+                Character: tc.Character,
+                ProfilePath: tc.Person.ProfilePath,
+                DisplayOrder: tc.DisplayOrder
+            ))
+            .ToList();
+
+        var videos = title.Videos
+            .Select(v => new VideoDto(
+                Id: v.Id,
+                Key: v.TmdbKey,
+                Name: v.Name,
+                Type: v.Type,
+                Site: v.Site
+            ))
+            .ToList();
+
+        var providers = title.TitleProviders
+            .OrderBy(tp => tp.Provider.Name)
+            .Select(tp => new WatchProviderDto(
+                ProviderId: tp.ProviderId,
+                TmdbId: tp.Provider.TmdbId,
+                Name: tp.Provider.Name,
+                LogoPath: tp.Provider.LogoPath,
+                Type: tp.Type,
+                Country: tp.Country
+            ))
+            .ToList();
+
+        var seasons = title.Seasons
+            .OrderBy(s => s.SeasonNumber)
+            .Select(s => new SeasonDto(
+                Id: s.Id,
+                TmdbId: s.TmdbId,
+                SeasonNumber: s.SeasonNumber,
+                Name: s.Name,
+                Overview: s.Overview,
+                PosterPath: s.PosterPath,
+                AirDate: s.AirDate?.ToString("yyyy-MM-dd"),
+                EpisodeCount: s.EpisodeCount,
+                Episodes: s.Episodes
+                    .OrderBy(e => e.EpisodeNumber)
+                    .Select(e => new EpisodeDto(
+                        Id: e.Id,
+                        TmdbId: e.TmdbId,
+                        EpisodeNumber: e.EpisodeNumber,
+                        Name: e.Name,
+                        Overview: e.Overview,
+                        StillPath: e.StillPath,
+                        AirDate: e.AirDate?.ToString("yyyy-MM-dd"),
+                        RuntimeMinutes: e.RuntimeMinutes
+                    ))
+                    .ToList()
+            ))
+            .ToList();
+
+        return new TitleDetailDto(
+            Id: title.Id,
+            TmdbId: title.TmdbId,
+            Type: title.Type,
+            Title: title.TitleText,
+            OriginalTitle: title.OriginalTitle,
+            Tagline: title.Tagline,
+            Overview: title.Overview,
+            PosterPath: title.PosterPath,
+            BackdropPath: title.BackdropPath,
+            Rating: (double)(title.TmdbRating ?? 0m),
+            VoteCount: title.VoteCount,
+            ReleaseDate: title.ReleaseDate?.ToString("yyyy-MM-dd") ?? title.FirstAirDate?.ToString("yyyy-MM-dd"),
+            Year: title.ReleaseDate?.Year.ToString() ?? title.FirstAirDate?.Year.ToString() ?? string.Empty,
+            RuntimeMinutes: title.RuntimeMinutes,
+            Status: title.Status,
+            ContentRating: title.ContentRating,
+            OriginalLanguage: title.OriginalLanguage,
+            TotalSeasons: title.TotalSeasons,
+            TotalEpisodes: title.TotalEpisodes,
+            Genres: title.TitleGenres.Select(tg => tg.Genre.Name).ToList(),
+            Cast: cast,
+            Videos: videos,
+            Providers: providers,
+            Seasons: seasons
+        );
+    }
+
+    public async Task<List<SeasonDto>> GetTitleSeasonsAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var title = await _db.Titles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.IsActive && (t.Id == id || t.TmdbId == id), cancellationToken);
+
+        if (title == null)
+        {
+            return [];
+        }
+
+        var seasons = await _db.Seasons
+            .AsNoTracking()
+            .Include(s => s.Episodes)
+            .Where(s => s.TitleId == title.Id)
+            .OrderBy(s => s.SeasonNumber)
+            .ToListAsync(cancellationToken);
+
+        return seasons.Select(s => new SeasonDto(
+            Id: s.Id,
+            TmdbId: s.TmdbId,
+            SeasonNumber: s.SeasonNumber,
+            Name: s.Name,
+            Overview: s.Overview,
+            PosterPath: s.PosterPath,
+            AirDate: s.AirDate?.ToString("yyyy-MM-dd"),
+            EpisodeCount: s.EpisodeCount,
+            Episodes: s.Episodes
+                .OrderBy(e => e.EpisodeNumber)
+                .Select(e => new EpisodeDto(
+                    Id: e.Id,
+                    TmdbId: e.TmdbId,
+                    EpisodeNumber: e.EpisodeNumber,
+                    Name: e.Name,
+                    Overview: e.Overview,
+                    StillPath: e.StillPath,
+                    AirDate: e.AirDate?.ToString("yyyy-MM-dd"),
+                    RuntimeMinutes: e.RuntimeMinutes
+                ))
+                .ToList()
+        )).ToList();
+    }
+
+    public async Task<List<WatchProviderDto>> GetTitleWhereToWatchAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var title = await _db.Titles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.IsActive && (t.Id == id || t.TmdbId == id), cancellationToken);
+
+        if (title == null)
+        {
+            return [];
+        }
+
+        var providers = await _db.TitleProviders
+            .AsNoTracking()
+            .Include(tp => tp.Provider)
+            .Where(tp => tp.TitleId == title.Id)
+            .OrderBy(tp => tp.Provider.Name)
+            .ToListAsync(cancellationToken);
+
+        return providers.Select(tp => new WatchProviderDto(
+            ProviderId: tp.ProviderId,
+            TmdbId: tp.Provider.TmdbId,
+            Name: tp.Provider.Name,
+            LogoPath: tp.Provider.LogoPath,
+            Type: tp.Type,
+            Country: tp.Country
+        )).ToList();
+    }
 }

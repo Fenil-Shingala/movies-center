@@ -706,8 +706,8 @@ POST   /analytics/events                      → Batch of anonymous events (onl
 | 4 | Home page: hero + content rows from TMDB | ✅ Complete |
 | 5 | Movies & Series browse with filters and paging | ✅ Complete |
 | 6 | Search with instant results | ✅ Complete |
-| 7 | Title detail page | ⬜ Next (Awaiting Approval) |
-| 8 | Video player page with dual-source model | ⬜ Not started |
+| 7 | Title detail page | ✅ Complete |
+| 8 | Video player page with dual-source model | ⬜ Next (Awaiting Approval) |
 | 9 | Login and register + guest-to-account merge | ⬜ Not started |
 | 10 | Watchlist and Continue Watching | ⬜ Not started |
 | 11 | Ratings (1–5 stars) | ⬜ Not started |
@@ -1043,6 +1043,7 @@ Stored in `.env` (git-ignored). Template in `.env.example`.
 | 18 | 2026-10-25 | Local SQL persistence for TMDB data | Zero runtime TMDB calls. All data stored in SQL Server via Hangfire daily sync and Admin Sync Now button. Public endpoints query SQL Server |
 | 19 | 2026-10-25 | Movies & Series Browse with Reactive Filters & SQL Paging | Implemented GET /api/v1/titles and GET /api/v1/genres querying SQL Server; Angular standalone browse views with FilterBar, Pagination, EmptyState, responsive grid, and query param synchronization |
 | 20 | 2026-10-25 | Instant Search & Dedicated Search Page | Implemented /api/v1/search and /api/v1/search/suggest querying SQL Server with debouncing (300ms); global header search dropdown and dedicated /search view with type tabs, responsive grid, pagination, and empty state |
+| 21 | 2026-10-25 | Title Detail View & Deep Metadata Surface | Implemented GET /api/v1/titles/{id}, /seasons, and /where-to-watch querying local SQL Server; created rich TitleDetailComponent with hero backdrop, metadata pills, season/episode selector, cast scroller, and YouTube trailer modal |
 
 ---
 

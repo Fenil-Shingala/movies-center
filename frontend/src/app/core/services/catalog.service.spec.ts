@@ -159,4 +159,53 @@ describe('CatalogService', () => {
       expect(genres.length).toBe(2);
     });
   });
+
+  it('should fetch title details by id', () => {
+    const mockDetail = {
+      id: 1,
+      tmdbId: 155,
+      type: 'movie' as const,
+      title: 'The Dark Knight',
+      rating: 9.0
+    } as any;
+
+    service.getTitleDetail(155).subscribe(res => {
+      expect(res.title).toBe('The Dark Knight');
+      expect(res.tmdbId).toBe(155);
+    });
+
+    const req = httpMock.expectOne(request => request.url.endsWith('/api/v1/titles/155'));
+    expect(req.request.method).toBe('GET');
+    req.flush(mockDetail);
+  });
+
+  it('should fetch title seasons by id', () => {
+    const mockSeasons = [
+      { id: 1, tmdbId: 100, seasonNumber: 1, name: 'Season 1', episodeCount: 8, episodes: [] }
+    ] as any;
+
+    service.getTitleSeasons(50).subscribe(res => {
+      expect(res.length).toBe(1);
+      expect(res[0].name).toBe('Season 1');
+    });
+
+    const req = httpMock.expectOne(request => request.url.endsWith('/api/v1/titles/50/seasons'));
+    expect(req.request.method).toBe('GET');
+    req.flush(mockSeasons);
+  });
+
+  it('should fetch where-to-watch providers by id', () => {
+    const mockProviders = [
+      { providerId: 1, tmdbId: 8, name: 'Netflix', logoPath: '/n.jpg', type: 'flatrate', country: 'US' }
+    ] as any;
+
+    service.getTitleWhereToWatch(50).subscribe(res => {
+      expect(res.length).toBe(1);
+      expect(res[0].name).toBe('Netflix');
+    });
+
+    const req = httpMock.expectOne(request => request.url.endsWith('/api/v1/titles/50/where-to-watch'));
+    expect(req.request.method).toBe('GET');
+    req.flush(mockProviders);
+  });
 });

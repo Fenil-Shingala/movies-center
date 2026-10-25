@@ -1,7 +1,16 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of, shareReplay } from 'rxjs';
-import { MediaCard, PagedResult, GenreItem, BrowseFilter, SearchSuggestion } from '../models/media.models';
+import { 
+  MediaCard, 
+  PagedResult, 
+  GenreItem, 
+  BrowseFilter, 
+  SearchSuggestion, 
+  TitleDetail, 
+  SeasonItem, 
+  WatchProvider 
+} from '../models/media.models';
 import { environment } from '../../../environments/environment';
 
 @Injectable({
@@ -61,6 +70,18 @@ export class CatalogService {
       .set('limit', limit.toString());
 
     return this.http.get<SearchSuggestion[]>(`${this.apiUrl}/search/suggest`, { params });
+  }
+
+  getTitleDetail(id: number): Observable<TitleDetail> {
+    return this.http.get<TitleDetail>(`${this.apiUrl}/titles/${id}`);
+  }
+
+  getTitleSeasons(id: number): Observable<SeasonItem[]> {
+    return this.http.get<SeasonItem[]>(`${this.apiUrl}/titles/${id}/seasons`);
+  }
+
+  getTitleWhereToWatch(id: number): Observable<WatchProvider[]> {
+    return this.http.get<WatchProvider[]>(`${this.apiUrl}/titles/${id}/where-to-watch`);
   }
 
   getGenres(): Observable<GenreItem[]> {
