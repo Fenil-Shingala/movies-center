@@ -1,0 +1,300 @@
+<!-- Lights Off Dimmer Overlay -->
+@if (isLightsOff()) {
+  <div class="lights-off-overlay" (click)="toggleLights()" title="Click anywhere to turn lights on">
+    <button type="button" class="exit-lights-btn" (click)="toggleLights()">
+      <svg lucideSun class="btn-icon"></svg>
+      <span>Turn Lights On</span>
+    </button>
+  </div>
+}
+
+<div class="player-page-container" [class.theater-mode]="isTheaterMode()" [class.lights-dimmed]="isLightsOff()">
+  <!-- Top Navigation & Controls Bar -->
+  <header class="player-topbar">
+    <div class="topbar-left">
+      <a [routerLink]="backLink()" class="back-link" title="Back to Details">
+        <svg lucideArrowLeft class="icon"></svg>
+        <span class="back-text">Back</span>
+      </a>
+
+      <div class="title-info">
+        @if (title(); as t) {
+          <h1 class="now-playing-title">{{ t.title }}</h1>
+          @if (mediaType() === 'series' && currentEpisodeObj(); as ep) {
+            <span class="episode-tag">
+              S{{ currentSeason() < 10 ? '0' + currentSeason() : currentSeason() }}E{{ currentEpisode() < 10 ? '0' + currentEpisode() : currentEpisode() }}: {{ ep.name }}
+            </span>
+          }
+        } @else {
+          <h1 class="now-playing-title">Playing Media</h1>
+        }
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <!-- Lights Off Toggle -->
+      <button 
+        type="button" 
+        class="action-btn" 
+        (click)="toggleLights()" 
+        [class.active]="isLightsOff()"
+        title="Lights Off (Cinema Mode)">
+        @if (isLightsOff()) {
+          <svg lucideSun class="icon"></svg>
+          <span class="btn-text">Lights On</span>
+        } @else {
+          <svg lucideMoon class="icon"></svg>
+          <span class="btn-text">Lights Off</span>
+        }
+      </button>
+
+      <!-- Theater Mode Toggle -->
+      <button 
+        type="button" 
+        class="action-btn" 
+        (click)="toggleTheater()" 
+        [class.active]="isTheaterMode()"
+        title="Toggle Theater Mode">
+        @if (isTheaterMode()) {
+          <svg lucideMinimize2 class="icon"></svg>
+          <span class="btn-text">Default</span>
+        } @else {
+          <svg lucideMaximize2 class="icon"></svg>
+          <span class="btn-text">Theater</span>
+        }
+      </button>
+
+      <!-- Report Problem Button -->
+      <button 
+        type="button" 
+        class="action-btn report-btn" 
+        (click)="openReportModal()"
+        title="Report Video Issue">
+        <svg lucideFlag class="icon"></svg>
+        <span class="btn-text">Report</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Video Frame Container -->
+  <main class="player-main-section">
+    <div class="video-aspect-wrapper">
+      @if (isLoading()) {
+        <div class="player-loading-overlay">
+          <div class="loading-spinner"></div>
+          <p class="loading-text">Connecting to streaming server...</p>
+        </div>
+      }
+
+      @if (errorMessage()) {
+        <div class="player-error-overlay">
+          <svg lucideAlertCircle class="error-icon"></svg>
+          <h3 class="error-title">Source Unavailable</h3>
+          <p class="error-desc">{{ errorMessage() }}</p>
+          <button type="button" class="retry-btn" (click)="loadTitleAndSources()">
+            <svg lucideRotateCw class="icon"></svg>
+            <span>Retry</span>
+          </button>
+        </div>
+      }
+
+      @if (sanitizedUrl(); as streamUrl) {
+        <iframe 
+          [src]="streamUrl" 
+          class="video-iframe"
+          title="Video Player"
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+          referrerpolicy="no-referrer"
+          allowfullscreen>
+        </iframe>
+      }
+    </div>
+  </main>
+
+  <!-- Multi-Source Switcher & Servers Bar -->
+  <section class="sources-bar-section">
+    <div class="sources-bar-container">
+      <div class="server-label-group">
+        <svg lucideServer class="server-icon"></svg>
+        <span class="server-label">Servers:</span>
+      </div>
+
+      <div class="sources-list">
+        @for (source of sources(); track source.id) {
+          <button 
+            type="button" 
+            class="source-pill-btn" 
+            [class.selected]="selectedSource()?.id === source.id"
+            (click)="selectSource(source)">
+            <span class="source-status-dot"></span>
+            <span class="source-name">{{ source.label }}</span>
+            <span class="source-quality-tag">{{ source.quality }}</span>
+          </button>
+        }
+      </div>
+
+      <div class="source-hint">
+        <svg lucideInfo class="info-icon"></svg>
+        <span>If current server is slow or buffering, switch to another server.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- TV Series Episode Browser & Navigation (Only shown for Series) -->
+  @if (mediaType() === 'series' && title(); as t) {
+    <section class="series-controls-section">
+      <!-- Quick Episode Prev / Next Bar -->
+      <div class="episode-nav-header">
+        <div class="season-selector-wrapper">
+          <label for="seasonSelect" class="season-select-label">Season:</label>
+          <select 
+            id="seasonSelect"
+            class="season-dropdown" 
+            [ngModel]="currentSeason()" 
+            (ngModelChange)="selectSeason($event)">
+            @for (s of t.seasons; track s.seasonNumber) {
+              <option [value]="s.seasonNumber">Season {{ s.seasonNumber }} ({{ s.episodeCount }} Ep)</option>
+            }
+          </select>
+        </div>
+
+        <div class="nav-buttons-group">
+          <button 
+            type="button" 
+            class="ep-nav-btn" 
+            [disabled]="!hasPreviousEpisode()" 
+            (click)="goToPreviousEpisode()"
+            title="Previous Episode">
+            <svg lucideChevronLeft class="icon"></svg>
+            <span>Previous Episode</span>
+          </button>
+
+          <button 
+            type="button" 
+            class="ep-nav-btn" 
+            [disabled]="!hasNextEpisode()" 
+            (click)="goToNextEpisode()"
+            title="Next Episode">
+            <span>Next Episode</span>
+            <svg lucideChevronRight class="icon"></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Episodes Horizontal Grid -->
+      @if (activeSeasonObj(); as season) {
+        <div class="episodes-scroller-box">
+          <div class="episodes-grid">
+            @for (ep of season.episodes; track ep.episodeNumber) {
+              <button 
+                type="button" 
+                class="episode-card-btn" 
+                [class.active-episode]="ep.episodeNumber === currentEpisode()"
+                (click)="selectEpisode(ep.episodeNumber)">
+                <div class="ep-thumb-wrapper">
+                  <img [src]="getEpisodeThumb(ep.stillPath)" [alt]="ep.name" loading="lazy" />
+                  <div class="ep-number-badge">EP {{ ep.episodeNumber }}</div>
+                  @if (ep.episodeNumber === currentEpisode()) {
+                    <div class="now-playing-badge">
+                      <svg lucidePlay class="play-tiny"></svg>
+                      <span>Playing</span>
+                    </div>
+                  }
+                </div>
+                <div class="ep-info">
+                  <div class="ep-card-title">{{ ep.episodeNumber }}. {{ ep.name }}</div>
+                  @if (ep.runtimeMinutes) {
+                    <div class="ep-card-runtime">{{ ep.runtimeMinutes }}m</div>
+                  }
+                </div>
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </section>
+  }
+</div>
+
+<!-- Report Problem Modal -->
+@if (showReportModal()) {
+  <div class="modal-backdrop" (click)="closeReportModal()">
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <svg lucideAlertTriangle class="modal-alert-icon"></svg>
+          <h2 class="modal-title">Report Video Issue</h2>
+        </div>
+        <button type="button" class="close-btn" (click)="closeReportModal()" aria-label="Close modal">
+          <svg lucideX class="icon"></svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        @if (reportSuccessMessage()) {
+          <div class="report-alert success">
+            <svg lucideCheckCircle class="alert-icon"></svg>
+            <span>{{ reportSuccessMessage() }}</span>
+          </div>
+        } @else {
+          @if (reportErrorMessage()) {
+            <div class="report-alert error">
+              <svg lucideAlertCircle class="alert-icon"></svg>
+              <span>{{ reportErrorMessage() }}</span>
+            </div>
+          }
+
+          <p class="modal-desc">
+            Having trouble watching? Let us know what went wrong so we can quickly fix it or update sources.
+          </p>
+
+          <div class="form-group">
+            <label for="reportReasonSelect" class="form-label">Issue Type</label>
+            <select 
+              id="reportReasonSelect"
+              class="form-select" 
+              [ngModel]="reportReason()" 
+              (ngModelChange)="reportReason.set($event)">
+              <option value="playback">Video not playing / black screen</option>
+              <option value="audio">Audio out of sync or missing</option>
+              <option value="content">Wrong movie or episode playing</option>
+              <option value="buffering">Constant buffering or extremely slow</option>
+              <option value="other">Other issue</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="reportDetailsInput" class="form-label">Details (optional)</label>
+            <textarea 
+              id="reportDetailsInput"
+              class="form-textarea" 
+              rows="3" 
+              placeholder="e.g. Video stopped at 15:30, or subtitles are out of sync..."
+              [ngModel]="reportDetails()"
+              (ngModelChange)="reportDetails.set($event)">
+            </textarea>
+          </div>
+        }
+      </div>
+
+      @if (!reportSuccessMessage()) {
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" (click)="closeReportModal()">Cancel</button>
+          <button 
+            type="button" 
+            class="btn-submit" 
+            [disabled]="isReporting()" 
+            (click)="submitReport()">
+            @if (isReporting()) {
+              <span class="mini-spinner"></span>
+              <span>Submitting...</span>
+            } @else {
+              <svg lucideSend class="btn-icon"></svg>
+              <span>Submit Report</span>
+            }
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}

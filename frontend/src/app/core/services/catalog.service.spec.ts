@@ -208,4 +208,45 @@ describe('CatalogService', () => {
     expect(req.request.method).toBe('GET');
     req.flush(mockProviders);
   });
+
+  it('should fetch title sources with season and episode params', () => {
+    const mockSources = [
+      {
+        id: 1,
+        providerName: 'VidSrc',
+        sourceType: 'embed',
+        url: 'https://vidsrc.to/embed/tv/100/1/2',
+        quality: '1080p',
+        label: 'Server 1 (VidSrc)',
+        priority: 1,
+        isDirectStream: false
+      }
+    ];
+
+    service.getTitleSources(50, 1, 2).subscribe(sources => {
+      expect(sources.length).toBe(1);
+      expect(sources[0].providerName).toBe('VidSrc');
+    });
+
+    const req = httpMock.expectOne(request => 
+      request.url.endsWith('/api/v1/titles/50/sources') &&
+      request.params.get('season') === '1' &&
+      request.params.get('episode') === '2'
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush(mockSources);
+  });
+
+  it('should post report source request', () => {
+    const mockResponse = { success: true, message: 'Report submitted' };
+
+    service.reportSource(1, { titleId: 50, reason: 'buffering', details: 'Laggy' }).subscribe(res => {
+      expect(res.success).toBe(true);
+    });
+
+    const req = httpMock.expectOne(request => request.url.endsWith('/api/v1/sources/1/report'));
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ titleId: 50, reason: 'buffering', details: 'Laggy' });
+    req.flush(mockResponse);
+  });
 });

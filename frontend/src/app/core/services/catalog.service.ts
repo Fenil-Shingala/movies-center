@@ -9,7 +9,10 @@ import {
   SearchSuggestion, 
   TitleDetail, 
   SeasonItem, 
-  WatchProvider 
+  WatchProvider,
+  TitleSource,
+  ReportSourceRequest,
+  SourceReportResponse
 } from '../models/media.models';
 import { environment } from '../../../environments/environment';
 
@@ -82,6 +85,21 @@ export class CatalogService {
 
   getTitleWhereToWatch(id: number): Observable<WatchProvider[]> {
     return this.http.get<WatchProvider[]>(`${this.apiUrl}/titles/${id}/where-to-watch`);
+  }
+
+  getTitleSources(titleId: number, season?: number | null, episode?: number | null): Observable<TitleSource[]> {
+    let params = new HttpParams();
+    if (season !== undefined && season !== null) {
+      params = params.set('season', season.toString());
+    }
+    if (episode !== undefined && episode !== null) {
+      params = params.set('episode', episode.toString());
+    }
+    return this.http.get<TitleSource[]>(`${this.apiUrl}/titles/${titleId}/sources`, { params });
+  }
+
+  reportSource(sourceId: number, request: ReportSourceRequest): Observable<SourceReportResponse> {
+    return this.http.post<SourceReportResponse>(`${this.apiUrl}/sources/${sourceId}/report`, request);
   }
 
   getGenres(): Observable<GenreItem[]> {

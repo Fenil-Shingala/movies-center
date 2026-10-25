@@ -37,6 +37,11 @@ export const routes: Routes = [
       {
         path: 'title/:id',
         loadComponent: () => import('./features/title-detail/title-detail.component').then(m => m.TitleDetailComponent)
+      },
+      {
+        path: 'watch/:type/:id',
+        loadComponent: () => import('./features/player/player.component').then(m => m.PlayerComponent),
+        title: 'Watch - Movies Center'
       }
     ]
   },

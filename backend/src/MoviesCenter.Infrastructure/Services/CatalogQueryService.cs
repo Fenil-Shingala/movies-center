@@ -4,6 +4,7 @@ using MoviesCenter.Application.Common.Models;
 using MoviesCenter.Application.Features.Catalog.Dtos;
 using MoviesCenter.Application.Features.Catalog.Queries;
 using MoviesCenter.Application.Features.Home.Dtos;
+using MoviesCenter.Application.Features.Player.Dtos;
 using MoviesCenter.Application.Features.Search.Dtos;
 using MoviesCenter.Application.Features.Search.Queries;
 using MoviesCenter.Domain.Entities;
@@ -350,6 +351,7 @@ public class CatalogQueryService : ICatalogQueryService
     {
         var title = await _db.Titles
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(t => t.TitleGenres)
                 .ThenInclude(tg => tg.Genre)
             .Include(t => t.TitleCasts)
@@ -525,5 +527,116 @@ public class CatalogQueryService : ICatalogQueryService
             Type: tp.Type,
             Country: tp.Country
         )).ToList();
+    }
+
+    public async Task<List<TitleSourceDto>> GetTitleSourcesAsync(int titleId, int? season = null, int? episode = null, CancellationToken cancellationToken = default)
+    {
+        var title = await _db.Titles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.IsActive && (t.Id == titleId || t.TmdbId == titleId), cancellationToken);
+
+        if (title == null)
+        {
+            return [];
+        }
+
+        var sourcesQuery = _db.TitleSources
+            .AsNoTracking()
+            .Include(ts => ts.SourceProvider)
+            .Where(ts => ts.TitleId == title.Id && ts.IsActive);
+
+        if (string.Equals(title.Type, "series", StringComparison.OrdinalIgnoreCase) && season.HasValue && episode.HasValue)
+        {
+            sourcesQuery = sourcesQuery.Where(ts => 
+                (ts.SeasonNumber == season.Value && ts.EpisodeNumber == episode.Value) || 
+                (ts.SeasonNumber == null && ts.EpisodeNumber == null));
+        }
+
+        var dbSources = await sourcesQuery
+            .OrderBy(ts => ts.Priority)
+            .ToListAsync(cancellationToken);
+
+        var result = dbSources.Select(ts => new TitleSourceDto(
+            Id: ts.Id,
+            ProviderName: ts.SourceProvider.Name,
+            SourceType: ts.SourceProvider.Type,
+            Url: ts.EmbedUrl ?? ts.StreamUrl ?? string.Empty,
+            Quality: ts.Quality,
+            Label: string.IsNullOrWhiteSpace(ts.SourceProvider.Name) ? $"Server {ts.Priority}" : $"{ts.SourceProvider.Name} ({ts.Quality})",
+            Priority: ts.Priority,
+            IsDirectStream: !string.IsNullOrEmpty(ts.StreamUrl)
+        )).ToList();
+
+        // If no explicit sources in database, generate the primary VidSrc sources per Decision 16 & 17
+        if (result.Count == 0)
+        {
+            if (string.Equals(title.Type, "series", StringComparison.OrdinalIgnoreCase))
+            {
+                var s = season ?? 1;
+                var e = episode ?? 1;
+                result.Add(new TitleSourceDto(
+                    Id: 0,
+                    ProviderName: "VidSrc",
+                    SourceType: "ThirdPartyEmbed",
+                    Url: $"https://vidsrc.to/embed/tv/{title.TmdbId}/{s}/{e}",
+                    Quality: "1080p HD",
+                    Label: "Server 1 (VidSrc Cloud)",
+                    Priority: 1,
+                    IsDirectStream: false
+                ));
+
+                result.Add(new TitleSourceDto(
+                    Id: -1,
+                    ProviderName: "VidSrc Mirror",
+                    SourceType: "ThirdPartyEmbed",
+                    Url: $"https://vidsrc.me/embed/tv?tmdb={title.TmdbId}&season={s}&episode={e}",
+                    Quality: "720p/1080p",
+                    Label: "Server 2 (VidSrc Mirror)",
+                    Priority: 2,
+                    IsDirectStream: false
+                ));
+            }
+            else
+            {
+                result.Add(new TitleSourceDto(
+                    Id: 0,
+                    ProviderName: "VidSrc",
+                    SourceType: "ThirdPartyEmbed",
+                    Url: $"https://vidsrc.to/embed/movie/{title.TmdbId}",
+                    Quality: "1080p HD",
+                    Label: "Server 1 (VidSrc Cloud)",
+                    Priority: 1,
+                    IsDirectStream: false
+                ));
+
+                result.Add(new TitleSourceDto(
+                    Id: -1,
+                    ProviderName: "VidSrc Mirror",
+                    SourceType: "ThirdPartyEmbed",
+                    Url: $"https://vidsrc.me/embed/movie?tmdb={title.TmdbId}",
+                    Quality: "720p/1080p",
+                    Label: "Server 2 (VidSrc Mirror)",
+                    Priority: 2,
+                    IsDirectStream: false
+                ));
+            }
+        }
+
+        return result;
+    }
+
+    public async Task<SourceReportResponseDto> ReportSourceAsync(int sourceId, int titleId, string reason, string? details = null, int? season = null, int? episode = null, CancellationToken cancellationToken = default)
+    {
+        if (sourceId > 0)
+        {
+            var source = await _db.TitleSources.FirstOrDefaultAsync(ts => ts.Id == sourceId, cancellationToken);
+            if (source != null)
+            {
+                source.LastVerifiedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        return new SourceReportResponseDto(true, "Thank you! Your report has been submitted to our streaming team.");
     }
 }

@@ -95,4 +95,20 @@ public class TitlesController : ControllerBase
         var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Get playback streaming and embed sources for a title or TV episode.
+    /// </summary>
+    [HttpGet("{id:int}/sources")]
+    [ProducesResponseType(typeof(List<MoviesCenter.Application.Features.Player.Dtos.TitleSourceDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<MoviesCenter.Application.Features.Player.Dtos.TitleSourceDto>>> GetTitleSources(
+        int id,
+        [FromQuery] int? season = null,
+        [FromQuery] int? episode = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new MoviesCenter.Application.Features.Player.Queries.GetTitleSourcesQuery(id, season, episode);
+        var result = await _mediator.Send(query, cancellationToken);
+        return Ok(result);
+    }
 }

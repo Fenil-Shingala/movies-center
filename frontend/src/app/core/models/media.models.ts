@@ -148,3 +148,27 @@ export interface TitleDetail {
   providers: WatchProvider[];
   seasons: SeasonItem[];
 }
+
+export interface TitleSource {
+  id: number;
+  providerName: string;
+  sourceType: string;
+  url: string;
+  quality: string;
+  label: string;
+  priority: number;
+  isDirectStream: boolean;
+}
+
+export interface ReportSourceRequest {
+  titleId: number;
+  reason: string;
+  details?: string | null;
+  season?: number | null;
+  episode?: number | null;
+}
+
+export interface SourceReportResponse {
+  success: boolean;
+  message: string;
+}
