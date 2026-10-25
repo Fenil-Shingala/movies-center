@@ -1,5 +1,6 @@
 using System.Text;
 using System.Threading.RateLimiting;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -152,6 +153,26 @@ try
 catch (Exception ex)
 {
     Log.Warning(ex, "Could not apply database migrations on startup. Please ensure SQL Server is running.");
+}
+
+// Hangfire Dashboard and Recurring Daily Sync Job
+try
+{
+    app.UseHangfireDashboard("/admin/hangfire", new Hangfire.DashboardOptions
+    {
+        Authorization = [] // Accessible locally / dev; can add role check filter in production
+    });
+
+    var cronSchedule = builder.Configuration["TmdbSync:CronSchedule"] ?? "0 3 * * *"; // Daily at 3 AM UTC
+    Hangfire.RecurringJob.AddOrUpdate<MoviesCenter.Application.Common.Interfaces.ITmdbSyncService>(
+        "daily-tmdb-sync",
+        service => service.RunFullSyncAsync("HangfireJob", CancellationToken.None),
+        cronSchedule
+    );
+}
+catch (Exception ex)
+{
+    Log.Warning(ex, "Could not initialize Hangfire dashboard or recurring job.");
 }
 
 app.Run();

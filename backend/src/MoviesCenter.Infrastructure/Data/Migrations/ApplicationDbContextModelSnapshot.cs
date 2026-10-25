@@ -159,6 +159,67 @@ namespace MoviesCenter.Infrastructure.Data.Migrations
                     b.ToTable("user_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.Episode", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("AirDate")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("air_date");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("EpisodeNumber")
+                        .HasColumnType("int")
+                        .HasColumnName("episode_number");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Overview")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("overview");
+
+                    b.Property<int?>("RuntimeMinutes")
+                        .HasColumnType("int")
+                        .HasColumnName("runtime_minutes");
+
+                    b.Property<int>("SeasonId")
+                        .HasColumnType("int")
+                        .HasColumnName("season_id");
+
+                    b.Property<string>("StillPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("still_path");
+
+                    b.Property<int>("TmdbId")
+                        .HasColumnType("int")
+                        .HasColumnName("tmdb_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_episodes");
+
+                    b.HasIndex("SeasonId", "EpisodeNumber")
+                        .HasDatabaseName("i_x_episodes_season_id_episode_number");
+
+                    b.ToTable("episodes");
+                });
+
             modelBuilder.Entity("MoviesCenter.Domain.Entities.Genre", b =>
                 {
                     b.Property<int>("Id")
@@ -557,13 +618,158 @@ namespace MoviesCenter.Infrastructure.Data.Migrations
                             LockoutEnabled = false,
                             NormalizedEmail = "ADMIN.MOVIES@GMAIL.COM",
                             NormalizedUserName = "ADMIN.MOVIES@GMAIL.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAEHyTExCf0a3qNoZP8kS2xFRsTuTaumN5encVKv+5LoqHYDp+Q/qRMjGyKVk5GuCQ0g==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEEJ7J969P+HcTqhCi+a6XFHWxBRT2GFmP4qeD0teG8cs4L9zBX2KEyaFpJ/Tzjmamg==",
                             PhoneNumberConfirmed = false,
                             SecurityStamp = "STATIC_SECURITY_STAMP_SEED_2026",
                             TwoFactorEnabled = false,
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             UserName = "admin.movies@gmail.com"
                         });
+                });
+
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.Person", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("ProfilePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("profile_path");
+
+                    b.Property<int>("TmdbId")
+                        .HasColumnType("int")
+                        .HasColumnName("tmdb_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_people");
+
+                    b.HasIndex("TmdbId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_people_tmdb_id");
+
+                    b.ToTable("people");
+                });
+
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.Provider", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("LogoPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("logo_path");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("TmdbId")
+                        .HasColumnType("int")
+                        .HasColumnName("tmdb_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_providers");
+
+                    b.HasIndex("TmdbId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_providers_tmdb_id");
+
+                    b.ToTable("providers");
+                });
+
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.Season", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("AirDate")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("air_date");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("EpisodeCount")
+                        .HasColumnType("int")
+                        .HasColumnName("episode_count");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Overview")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("overview");
+
+                    b.Property<string>("PosterPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("poster_path");
+
+                    b.Property<int>("SeasonNumber")
+                        .HasColumnType("int")
+                        .HasColumnName("season_number");
+
+                    b.Property<int>("TitleId")
+                        .HasColumnType("int")
+                        .HasColumnName("title_id");
+
+                    b.Property<int>("TmdbId")
+                        .HasColumnType("int")
+                        .HasColumnName("tmdb_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_seasons");
+
+                    b.HasIndex("TitleId", "SeasonNumber")
+                        .HasDatabaseName("i_x_seasons_title_id_season_number");
+
+                    b.ToTable("seasons");
                 });
 
             modelBuilder.Entity("MoviesCenter.Domain.Entities.SourceProvider", b =>
@@ -667,14 +873,26 @@ namespace MoviesCenter.Infrastructure.Data.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("created_at");
 
+                    b.Property<DateTime?>("FirstAirDate")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("first_air_date");
+
                     b.Property<decimal?>("ImdbRating")
                         .HasPrecision(3, 1)
                         .HasColumnType("decimal(3,1)")
                         .HasColumnName("imdb_rating");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_active");
+
                     b.Property<bool>("IsFeatured")
                         .HasColumnType("bit")
                         .HasColumnName("is_featured");
+
+                    b.Property<DateTimeOffset?>("LastTmdbSyncAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("last_tmdb_sync_at");
 
                     b.Property<string>("OriginalLanguage")
                         .IsRequired()
@@ -690,6 +908,10 @@ namespace MoviesCenter.Infrastructure.Data.Migrations
                     b.Property<string>("Overview")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("overview");
+
+                    b.Property<double>("Popularity")
+                        .HasColumnType("float")
+                        .HasColumnName("popularity");
 
                     b.Property<string>("PosterPath")
                         .HasMaxLength(500)
@@ -709,6 +931,11 @@ namespace MoviesCenter.Infrastructure.Data.Migrations
                         .HasColumnType("nvarchar(50)")
                         .HasColumnName("status");
 
+                    b.Property<string>("Tagline")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("tagline");
+
                     b.Property<string>("TitleText")
                         .IsRequired()
                         .HasMaxLength(300)
@@ -718,6 +945,11 @@ namespace MoviesCenter.Infrastructure.Data.Migrations
                     b.Property<int>("TmdbId")
                         .HasColumnType("int")
                         .HasColumnName("tmdb_id");
+
+                    b.Property<string>("TmdbListCategory")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("tmdb_list_category");
 
                     b.Property<decimal?>("TmdbRating")
                         .HasPrecision(3, 1)
@@ -746,11 +978,21 @@ namespace MoviesCenter.Infrastructure.Data.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("view_count");
 
+                    b.Property<int>("VoteCount")
+                        .HasColumnType("int")
+                        .HasColumnName("vote_count");
+
                     b.HasKey("Id")
                         .HasName("p_k_titles");
 
                     b.HasIndex("IsFeatured")
                         .HasDatabaseName("i_x_titles_is_featured");
+
+                    b.HasIndex("Popularity")
+                        .HasDatabaseName("i_x_titles_popularity");
+
+                    b.HasIndex("ReleaseDate")
+                        .HasDatabaseName("i_x_titles_release_date");
 
                     b.HasIndex("TmdbId")
                         .IsUnique()
@@ -760,6 +1002,53 @@ namespace MoviesCenter.Infrastructure.Data.Migrations
                         .HasDatabaseName("i_x_titles_type");
 
                     b.ToTable("titles");
+                });
+
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.TitleCast", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Character")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("character");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("display_order");
+
+                    b.Property<int>("PersonId")
+                        .HasColumnType("int")
+                        .HasColumnName("person_id");
+
+                    b.Property<int>("TitleId")
+                        .HasColumnType("int")
+                        .HasColumnName("title_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_title_casts");
+
+                    b.HasIndex("PersonId")
+                        .HasDatabaseName("i_x_title_casts_person_id");
+
+                    b.HasIndex("TitleId", "PersonId")
+                        .HasDatabaseName("i_x_title_casts_title_id_person_id");
+
+                    b.ToTable("title_casts");
                 });
 
             modelBuilder.Entity("MoviesCenter.Domain.Entities.TitleGenre", b =>
@@ -779,6 +1068,55 @@ namespace MoviesCenter.Infrastructure.Data.Migrations
                         .HasDatabaseName("i_x_title_genres_genre_id");
 
                     b.ToTable("title_genres");
+                });
+
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.TitleProvider", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("country");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("ProviderId")
+                        .HasColumnType("int")
+                        .HasColumnName("provider_id");
+
+                    b.Property<int>("TitleId")
+                        .HasColumnType("int")
+                        .HasColumnName("title_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_title_providers");
+
+                    b.HasIndex("ProviderId")
+                        .HasDatabaseName("i_x_title_providers_provider_id");
+
+                    b.HasIndex("TitleId", "ProviderId")
+                        .HasDatabaseName("i_x_title_providers_title_id_provider_id");
+
+                    b.ToTable("title_providers");
                 });
 
             modelBuilder.Entity("MoviesCenter.Domain.Entities.TitleSource", b =>
@@ -858,6 +1196,118 @@ namespace MoviesCenter.Infrastructure.Data.Migrations
                     b.ToTable("title_sources");
                 });
 
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.TmdbSyncLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("error_message");
+
+                    b.Property<int>("Errors")
+                        .HasColumnType("int")
+                        .HasColumnName("errors");
+
+                    b.Property<int>("ItemsSynced")
+                        .HasColumnType("int")
+                        .HasColumnName("items_synced");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TriggeredBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("triggered_by");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_tmdb_sync_logs");
+
+                    b.HasIndex("StartedAt")
+                        .HasDatabaseName("i_x_tmdb_sync_logs_started_at");
+
+                    b.ToTable("tmdb_sync_logs");
+                });
+
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.Video", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Site")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("site");
+
+                    b.Property<int>("TitleId")
+                        .HasColumnType("int")
+                        .HasColumnName("title_id");
+
+                    b.Property<string>("TmdbKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("tmdb_key");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_videos");
+
+                    b.HasIndex("TitleId")
+                        .HasDatabaseName("i_x_videos_title_id");
+
+                    b.ToTable("videos");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("MoviesCenter.Domain.Entities.Identity.ApplicationRole", null)
@@ -915,6 +1365,51 @@ namespace MoviesCenter.Infrastructure.Data.Migrations
                         .HasConstraintName("f_k_user_tokens__asp_net_users_user_id");
                 });
 
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.Episode", b =>
+                {
+                    b.HasOne("MoviesCenter.Domain.Entities.Season", "Season")
+                        .WithMany("Episodes")
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_episodes__seasons_season_id");
+
+                    b.Navigation("Season");
+                });
+
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.Season", b =>
+                {
+                    b.HasOne("MoviesCenter.Domain.Entities.Title", "Title")
+                        .WithMany("Seasons")
+                        .HasForeignKey("TitleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_seasons__titles_title_id");
+
+                    b.Navigation("Title");
+                });
+
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.TitleCast", b =>
+                {
+                    b.HasOne("MoviesCenter.Domain.Entities.Person", "Person")
+                        .WithMany("TitleCasts")
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_title_casts_people_person_id");
+
+                    b.HasOne("MoviesCenter.Domain.Entities.Title", "Title")
+                        .WithMany("TitleCasts")
+                        .HasForeignKey("TitleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_title_casts_titles_title_id");
+
+                    b.Navigation("Person");
+
+                    b.Navigation("Title");
+                });
+
             modelBuilder.Entity("MoviesCenter.Domain.Entities.TitleGenre", b =>
                 {
                     b.HasOne("MoviesCenter.Domain.Entities.Genre", "Genre")
@@ -932,6 +1427,27 @@ namespace MoviesCenter.Infrastructure.Data.Migrations
                         .HasConstraintName("f_k_title_genres_titles_title_id");
 
                     b.Navigation("Genre");
+
+                    b.Navigation("Title");
+                });
+
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.TitleProvider", b =>
+                {
+                    b.HasOne("MoviesCenter.Domain.Entities.Provider", "Provider")
+                        .WithMany("TitleProviders")
+                        .HasForeignKey("ProviderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_title_providers_providers_provider_id");
+
+                    b.HasOne("MoviesCenter.Domain.Entities.Title", "Title")
+                        .WithMany("TitleProviders")
+                        .HasForeignKey("TitleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_title_providers_titles_title_id");
+
+                    b.Navigation("Provider");
 
                     b.Navigation("Title");
                 });
@@ -957,9 +1473,36 @@ namespace MoviesCenter.Infrastructure.Data.Migrations
                     b.Navigation("Title");
                 });
 
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.Video", b =>
+                {
+                    b.HasOne("MoviesCenter.Domain.Entities.Title", "Title")
+                        .WithMany("Videos")
+                        .HasForeignKey("TitleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_videos_titles_title_id");
+
+                    b.Navigation("Title");
+                });
+
             modelBuilder.Entity("MoviesCenter.Domain.Entities.Genre", b =>
                 {
                     b.Navigation("TitleGenres");
+                });
+
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.Person", b =>
+                {
+                    b.Navigation("TitleCasts");
+                });
+
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.Provider", b =>
+                {
+                    b.Navigation("TitleProviders");
+                });
+
+            modelBuilder.Entity("MoviesCenter.Domain.Entities.Season", b =>
+                {
+                    b.Navigation("Episodes");
                 });
 
             modelBuilder.Entity("MoviesCenter.Domain.Entities.SourceProvider", b =>
@@ -969,9 +1512,17 @@ namespace MoviesCenter.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("MoviesCenter.Domain.Entities.Title", b =>
                 {
+                    b.Navigation("Seasons");
+
+                    b.Navigation("TitleCasts");
+
                     b.Navigation("TitleGenres");
 
+                    b.Navigation("TitleProviders");
+
                     b.Navigation("TitleSources");
+
+                    b.Navigation("Videos");
                 });
 #pragma warning restore 612, 618
         }

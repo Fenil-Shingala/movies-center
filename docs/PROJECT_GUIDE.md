@@ -214,12 +214,22 @@ When a guest taps a login-required feature:
 5. **Infrastructure** talks to SQL Server (via EF Core), Redis (cache), TMDB API (via HTTP client with Polly), or other external services.
 6. Response flows back as a DTO.
 
-### TMDB Data Flow
-- TMDB is the **source of truth** for metadata (titles, posters, backdrops, cast, genres, ratings, trailers, watch providers).
-- A Hangfire job syncs trending/popular titles daily.
-- Admin can trigger an on-demand TMDB import for specific titles.
-- TMDB responses are **cached aggressively** in Redis (TTL 1–24 hours depending on endpoint).
-- Poster and backdrop URLs use TMDB's CDN directly (e.g., `https://image.tmdb.org/t/p/w500/...`). We never download or re-host images.
+### TMDB Data Flow & SQL Persistence
+- **Zero runtime TMDB API calls**: All public API requests (home feed, browse, search, title details) read strictly from local SQL Server (with Redis caching on top).
+- TMDB API is accessed **only** by the background sync service (`ITmdbSyncService`).
+- **Sync triggers**:
+  1. **Admin Panel**: On-demand manual sync button (`POST /api/v1/admin/tmdb/sync`).
+  2. **Hangfire Recurring Job**: Daily scheduled sync at a configurable time (default 3:00 AM UTC).
+- **Data synced & persisted**:
+  - Titles (movies and series) with full metadata, categories (trending, popular, top-rated, upcoming), vote counts, and status.
+  - Genres and title-genre associations.
+  - TV Seasons and Episodes.
+  - Cast, crew, and People.
+  - Trailers & videos.
+  - Streaming watch providers.
+  - Auto-generated `TitleSources` (VidSrc embeds).
+- Sync history, run duration, items updated, and errors are tracked in the `TmdbSyncLogs` table.
+- Poster and backdrop URLs still use TMDB's CDN directly (`https://image.tmdb.org/t/p/...`) without re-hosting files.
 - TMDB attribution is displayed in the footer.
 
 ### Video Source Flow
@@ -694,8 +704,8 @@ POST   /analytics/events                      → Batch of anonymous events (onl
 | 2 | Project guide (this document) | ✅ Complete |
 | 3 | Project setup: repo, design system, layout shell, CI, Docker | ✅ Complete |
 | 4 | Home page: hero + content rows from TMDB | ✅ Complete |
-| 5 | Movies & Series browse with filters and paging | ⬜ Next (Awaiting Approval) |
-| 6 | Search with instant results | ⬜ Not started |
+| 5 | Movies & Series browse with filters and paging | ✅ Complete |
+| 6 | Search with instant results | ⬜ Next (Awaiting Approval) |
 | 7 | Title detail page | ⬜ Not started |
 | 8 | Video player page with dual-source model | ⬜ Not started |
 | 9 | Login and register + guest-to-account merge | ⬜ Not started |
@@ -1030,6 +1040,8 @@ Stored in `.env` (git-ignored). Template in `.env.example`.
 | 15 | 2026-10-24 | GitHub Actions CI | Simple, free for public repos |
 | 16 | 2026-10-24 | VidSrc (`vidsrc.to`) for third-party embeds | Auto-generate embed URLs from TMDB ID; admin can manually override. Start with one provider, add more later |
 | 17 | 2026-10-24 | Auto-generated sources with admin override | Sources auto-created on TMDB import using URL template; admin can edit/add/disable per title |
+| 18 | 2026-10-25 | Local SQL persistence for TMDB data | Zero runtime TMDB calls. All data stored in SQL Server via Hangfire daily sync and Admin Sync Now button. Public endpoints query SQL Server |
+| 19 | 2026-10-25 | Movies & Series Browse with Reactive Filters & SQL Paging | Implemented GET /api/v1/titles and GET /api/v1/genres querying SQL Server; Angular standalone browse views with FilterBar, Pagination, EmptyState, responsive grid, and query param synchronization |
 
 ---
 

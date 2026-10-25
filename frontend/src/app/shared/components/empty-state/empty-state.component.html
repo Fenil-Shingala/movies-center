@@ -1,0 +1,13 @@
+<div class="empty-state">
+  <div class="icon-circle">
+    <svg lucideFilm class="empty-icon"></svg>
+  </div>
+  <h3 class="empty-title">{{ title() }}</h3>
+  <p class="empty-message">{{ message() }}</p>
+  @if (showReset()) {
+    <button type="button" class="empty-reset-btn" (click)="onReset()">
+      <svg lucideRotateCcw class="reset-icon"></svg>
+      <span>Reset Filters</span>
+    </button>
+  }
+</div>

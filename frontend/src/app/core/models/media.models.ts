@@ -37,3 +37,28 @@ export interface HomeFeed {
   hero: HeroItem;
   rows: ContentRow[];
 }
+
+export interface PagedResult<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
+export interface GenreItem {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export interface BrowseFilter {
+  genre?: number | null;
+  year?: number | null;
+  language?: string | null;
+  sort?: string;
+  page?: number;
+  pageSize?: number;
+}

@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MoviesCenter.Application.Common.Interfaces;
+using MoviesCenter.Application.Common.Models;
 using MoviesCenter.Application.Features.Home.Dtos;
 
 namespace MoviesCenter.Infrastructure.Services;
@@ -30,13 +31,14 @@ public class TmdbService : ITmdbService
             ?? configuration["Tmdb:ApiKey"] 
             ?? "4afe98c4e5ae2c05958c237fb4dca934";
 
-        var baseUrl = configuration["Tmdb:BaseUrl"] ?? "https://api.themoviedb.org/3";
+        var baseUrl = configuration["Tmdb:BaseUrl"] ?? "https://api.themoviedb.org/3/";
         if (_httpClient.BaseAddress == null)
         {
             _httpClient.BaseAddress = new Uri(baseUrl);
         }
     }
 
+    #region Direct / Legacy Fetchers
     public async Task<List<MediaCardDto>> GetTrendingMoviesAsync(CancellationToken cancellationToken = default)
     {
         return await FetchListAsync<TmdbMovieResult>(
@@ -154,6 +156,235 @@ public class TmdbService : ITmdbService
             return null;
         }
     }
+    #endregion
+
+    #region Sync Endpoints
+    public async Task<List<TmdbItemSummary>> GetListEndpointAsync(string endpoint, string type, CancellationToken cancellationToken = default)
+    {
+        var separator = endpoint.Contains('?') ? "&" : "?";
+        var url = $"{endpoint}{separator}api_key={_apiKey}";
+
+        try
+        {
+            if (type.Equals("series", StringComparison.OrdinalIgnoreCase))
+            {
+                var response = await _httpClient.GetFromJsonAsync<TmdbPagedResponse<TmdbTvResult>>(url, JsonOptions, cancellationToken);
+                if (response?.Results == null) return [];
+
+                return response.Results.Select(tv => new TmdbItemSummary(
+                    Id: tv.Id,
+                    Type: "series",
+                    Title: tv.Name ?? "Untitled Series",
+                    OriginalTitle: null,
+                    Overview: tv.Overview,
+                    PosterPath: tv.PosterPath,
+                    BackdropPath: tv.BackdropPath,
+                    ReleaseDate: tv.FirstAirDate,
+                    VoteAverage: tv.VoteAverage,
+                    VoteCount: tv.VoteCount,
+                    Popularity: tv.Popularity,
+                    OriginalLanguage: tv.OriginalLanguage ?? "en",
+                    GenreIds: tv.GenreIds
+                )).ToList();
+            }
+            else
+            {
+                var response = await _httpClient.GetFromJsonAsync<TmdbPagedResponse<TmdbMovieResult>>(url, JsonOptions, cancellationToken);
+                if (response?.Results == null) return [];
+
+                return response.Results.Select(m => new TmdbItemSummary(
+                    Id: m.Id,
+                    Type: "movie",
+                    Title: m.Title ?? "Untitled Movie",
+                    OriginalTitle: m.OriginalTitle,
+                    Overview: m.Overview,
+                    PosterPath: m.PosterPath,
+                    BackdropPath: m.BackdropPath,
+                    ReleaseDate: m.ReleaseDate,
+                    VoteAverage: m.VoteAverage,
+                    VoteCount: m.VoteCount,
+                    Popularity: m.Popularity,
+                    OriginalLanguage: m.OriginalLanguage ?? "en",
+                    GenreIds: m.GenreIds
+                )).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch list endpoint {Url}", url);
+            return [];
+        }
+    }
+
+    public async Task<TmdbFullDetail?> GetFullDetailsAsync(int tmdbId, string type, CancellationToken cancellationToken = default)
+    {
+        var isSeries = type.Equals("series", StringComparison.OrdinalIgnoreCase);
+        var path = isSeries ? $"tv/{tmdbId}" : $"movie/{tmdbId}";
+        var url = $"{path}?api_key={_apiKey}&append_to_response=credits,videos,watch/providers";
+
+        try
+        {
+            if (isSeries)
+            {
+                var response = await _httpClient.GetFromJsonAsync<TmdbTvFullResponse>(url, JsonOptions, cancellationToken);
+                if (response == null) return null;
+
+                var cast = response.Credits?.Cast?.Take(15).Select(c => new TmdbCastMember(
+                    PersonTmdbId: c.Id,
+                    Name: c.Name ?? string.Empty,
+                    ProfilePath: c.ProfilePath,
+                    Character: c.Character ?? string.Empty,
+                    DisplayOrder: c.Order
+                )).ToList() ?? [];
+
+                var videos = response.Videos?.Results?.Where(v => v.Site == "YouTube")
+                    .Select(v => new TmdbVideoItem(v.Key ?? string.Empty, v.Name ?? string.Empty, v.Type ?? "Trailer", v.Site ?? "YouTube"))
+                    .ToList() ?? [];
+
+                var providers = ExtractProviders(response.WatchProviders);
+
+                var seasons = response.Seasons?.Select(s => new TmdbSeasonSummary(
+                    TmdbId: s.Id,
+                    SeasonNumber: s.SeasonNumber,
+                    Name: s.Name ?? $"Season {s.SeasonNumber}",
+                    Overview: s.Overview,
+                    PosterPath: s.PosterPath,
+                    AirDate: s.AirDate,
+                    EpisodeCount: s.EpisodeCount
+                )).ToList() ?? [];
+
+                return new TmdbFullDetail(
+                    TmdbId: response.Id,
+                    Type: "series",
+                    Title: response.Name ?? "Untitled Series",
+                    OriginalTitle: response.OriginalName,
+                    Overview: response.Overview,
+                    Tagline: response.Tagline,
+                    PosterPath: response.PosterPath,
+                    BackdropPath: response.BackdropPath,
+                    ReleaseDate: null,
+                    FirstAirDate: response.FirstAirDate,
+                    RuntimeMinutes: null,
+                    TotalSeasons: response.NumberOfSeasons,
+                    TotalEpisodes: response.NumberOfEpisodes,
+                    VoteAverage: response.VoteAverage,
+                    VoteCount: response.VoteCount,
+                    Popularity: response.Popularity,
+                    OriginalLanguage: response.OriginalLanguage ?? "en",
+                    Status: response.Status,
+                    GenreIds: response.Genres.Select(g => g.Id).ToList(),
+                    Cast: cast,
+                    Videos: videos,
+                    Providers: providers,
+                    Seasons: seasons
+                );
+            }
+            else
+            {
+                var response = await _httpClient.GetFromJsonAsync<TmdbMovieFullResponse>(url, JsonOptions, cancellationToken);
+                if (response == null) return null;
+
+                var cast = response.Credits?.Cast?.Take(15).Select(c => new TmdbCastMember(
+                    PersonTmdbId: c.Id,
+                    Name: c.Name ?? string.Empty,
+                    ProfilePath: c.ProfilePath,
+                    Character: c.Character ?? string.Empty,
+                    DisplayOrder: c.Order
+                )).ToList() ?? [];
+
+                var videos = response.Videos?.Results?.Where(v => v.Site == "YouTube")
+                    .Select(v => new TmdbVideoItem(v.Key ?? string.Empty, v.Name ?? string.Empty, v.Type ?? "Trailer", v.Site ?? "YouTube"))
+                    .ToList() ?? [];
+
+                var providers = ExtractProviders(response.WatchProviders);
+
+                return new TmdbFullDetail(
+                    TmdbId: response.Id,
+                    Type: "movie",
+                    Title: response.Title ?? "Untitled Movie",
+                    OriginalTitle: response.OriginalTitle,
+                    Overview: response.Overview,
+                    Tagline: response.Tagline,
+                    PosterPath: response.PosterPath,
+                    BackdropPath: response.BackdropPath,
+                    ReleaseDate: response.ReleaseDate,
+                    FirstAirDate: null,
+                    RuntimeMinutes: response.Runtime,
+                    TotalSeasons: null,
+                    TotalEpisodes: null,
+                    VoteAverage: response.VoteAverage,
+                    VoteCount: response.VoteCount,
+                    Popularity: response.Popularity,
+                    OriginalLanguage: response.OriginalLanguage ?? "en",
+                    Status: response.Status,
+                    GenreIds: response.Genres.Select(g => g.Id).ToList(),
+                    Cast: cast,
+                    Videos: videos,
+                    Providers: providers,
+                    Seasons: []
+                );
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load full TMDB details for {Type} {TmdbId}", type, tmdbId);
+            return null;
+        }
+    }
+
+    public async Task<List<TmdbEpisodeSummary>> GetSeasonEpisodesAsync(int tmdbId, int seasonNumber, CancellationToken cancellationToken = default)
+    {
+        var url = $"tv/{tmdbId}/season/{seasonNumber}?api_key={_apiKey}";
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<TmdbSeasonEpisodesResponse>(url, JsonOptions, cancellationToken);
+            if (response?.Episodes == null) return [];
+
+            return response.Episodes.Select(e => new TmdbEpisodeSummary(
+                TmdbId: e.Id,
+                EpisodeNumber: e.EpisodeNumber,
+                Name: e.Name ?? $"Episode {e.EpisodeNumber}",
+                Overview: e.Overview,
+                StillPath: e.StillPath,
+                AirDate: e.AirDate,
+                RuntimeMinutes: e.Runtime
+            )).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to fetch episodes for TV {TmdbId} Season {SeasonNumber}", tmdbId, seasonNumber);
+            return [];
+        }
+    }
+
+    private static List<TmdbProviderItem> ExtractProviders(TmdbWatchProvidersResponse? wp)
+    {
+        if (wp?.Results == null || !wp.Results.TryGetValue("US", out var usProviders))
+            return [];
+
+        var list = new List<TmdbProviderItem>();
+
+        if (usProviders.Flatrate != null)
+        {
+            foreach (var p in usProviders.Flatrate)
+                list.Add(new TmdbProviderItem(p.ProviderId, p.ProviderName ?? string.Empty, p.LogoPath, "stream", "US"));
+        }
+
+        if (usProviders.Rent != null)
+        {
+            foreach (var p in usProviders.Rent)
+                list.Add(new TmdbProviderItem(p.ProviderId, p.ProviderName ?? string.Empty, p.LogoPath, "rent", "US"));
+        }
+
+        if (usProviders.Buy != null)
+        {
+            foreach (var p in usProviders.Buy)
+                list.Add(new TmdbProviderItem(p.ProviderId, p.ProviderName ?? string.Empty, p.LogoPath, "buy", "US"));
+        }
+
+        return list;
+    }
+    #endregion
 
     public async Task<Dictionary<int, string>> GetGenreMapAsync(CancellationToken cancellationToken = default)
     {
@@ -224,7 +455,7 @@ public class TmdbService : ITmdbService
 
             if (response?.Results == null)
             {
-                return new List<MediaCardDto>();
+                return [];
             }
 
             return response.Results.Select(mapper).ToList();
@@ -232,7 +463,7 @@ public class TmdbService : ITmdbService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error calling TMDB endpoint: {Endpoint}", endpoint);
-            return new List<MediaCardDto>();
+            return [];
         }
     }
 
@@ -280,10 +511,10 @@ public class TmdbService : ITmdbService
 
     private List<string> MapGenreIds(List<int>? genreIds)
     {
-        if (genreIds == null || genreIds.Count == 0) return new List<string>();
+        if (genreIds == null || genreIds.Count == 0) return [];
 
         var map = _cachedGenreMap;
-        if (map == null || map.Count == 0) return new List<string>();
+        if (map == null || map.Count == 0) return [];
 
         return genreIds
             .Where(id => map.ContainsKey(id))
@@ -296,13 +527,15 @@ public class TmdbService : ITmdbService
     private class TmdbPagedResponse<T>
     {
         [JsonPropertyName("results")]
-        public List<T> Results { get; set; } = new();
+        public List<T> Results { get; set; } = [];
     }
 
     private class TmdbMovieResult
     {
         public int Id { get; set; }
         public string? Title { get; set; }
+        [JsonPropertyName("original_title")]
+        public string? OriginalTitle { get; set; }
         public string? Overview { get; set; }
         [JsonPropertyName("poster_path")]
         public string? PosterPath { get; set; }
@@ -310,16 +543,23 @@ public class TmdbService : ITmdbService
         public string? BackdropPath { get; set; }
         [JsonPropertyName("vote_average")]
         public double VoteAverage { get; set; }
+        [JsonPropertyName("vote_count")]
+        public int VoteCount { get; set; }
+        public double Popularity { get; set; }
         [JsonPropertyName("release_date")]
         public string? ReleaseDate { get; set; }
+        [JsonPropertyName("original_language")]
+        public string? OriginalLanguage { get; set; }
         [JsonPropertyName("genre_ids")]
-        public List<int> GenreIds { get; set; } = new();
+        public List<int> GenreIds { get; set; } = [];
     }
 
     private class TmdbTvResult
     {
         public int Id { get; set; }
         public string? Name { get; set; }
+        [JsonPropertyName("original_name")]
+        public string? OriginalName { get; set; }
         public string? Overview { get; set; }
         [JsonPropertyName("poster_path")]
         public string? PosterPath { get; set; }
@@ -327,10 +567,15 @@ public class TmdbService : ITmdbService
         public string? BackdropPath { get; set; }
         [JsonPropertyName("vote_average")]
         public double VoteAverage { get; set; }
+        [JsonPropertyName("vote_count")]
+        public int VoteCount { get; set; }
+        public double Popularity { get; set; }
         [JsonPropertyName("first_air_date")]
         public string? FirstAirDate { get; set; }
+        [JsonPropertyName("original_language")]
+        public string? OriginalLanguage { get; set; }
         [JsonPropertyName("genre_ids")]
-        public List<int> GenreIds { get; set; } = new();
+        public List<int> GenreIds { get; set; } = [];
     }
 
     private class TmdbMovieDetails
@@ -347,7 +592,7 @@ public class TmdbService : ITmdbService
         [JsonPropertyName("release_date")]
         public string? ReleaseDate { get; set; }
         public int? Runtime { get; set; }
-        public List<TmdbGenreItem> Genres { get; set; } = new();
+        public List<TmdbGenreItem> Genres { get; set; } = [];
     }
 
     private class TmdbTvDetails
@@ -365,12 +610,160 @@ public class TmdbService : ITmdbService
         public string? FirstAirDate { get; set; }
         [JsonPropertyName("number_of_seasons")]
         public int? NumberOfSeasons { get; set; }
-        public List<TmdbGenreItem> Genres { get; set; } = new();
+        public List<TmdbGenreItem> Genres { get; set; } = [];
+    }
+
+    private class TmdbMovieFullResponse
+    {
+        public int Id { get; set; }
+        public string? Title { get; set; }
+        [JsonPropertyName("original_title")]
+        public string? OriginalTitle { get; set; }
+        public string? Overview { get; set; }
+        public string? Tagline { get; set; }
+        [JsonPropertyName("poster_path")]
+        public string? PosterPath { get; set; }
+        [JsonPropertyName("backdrop_path")]
+        public string? BackdropPath { get; set; }
+        [JsonPropertyName("release_date")]
+        public string? ReleaseDate { get; set; }
+        public int? Runtime { get; set; }
+        [JsonPropertyName("vote_average")]
+        public double VoteAverage { get; set; }
+        [JsonPropertyName("vote_count")]
+        public int VoteCount { get; set; }
+        public double Popularity { get; set; }
+        [JsonPropertyName("original_language")]
+        public string? OriginalLanguage { get; set; }
+        public string? Status { get; set; }
+        public List<TmdbGenreItem> Genres { get; set; } = [];
+        public TmdbCreditsResponse? Credits { get; set; }
+        public TmdbVideosResponse? Videos { get; set; }
+        [JsonPropertyName("watch/providers")]
+        public TmdbWatchProvidersResponse? WatchProviders { get; set; }
+    }
+
+    private class TmdbTvFullResponse
+    {
+        public int Id { get; set; }
+        public string? Name { get; set; }
+        [JsonPropertyName("original_name")]
+        public string? OriginalName { get; set; }
+        public string? Overview { get; set; }
+        public string? Tagline { get; set; }
+        [JsonPropertyName("poster_path")]
+        public string? PosterPath { get; set; }
+        [JsonPropertyName("backdrop_path")]
+        public string? BackdropPath { get; set; }
+        [JsonPropertyName("first_air_date")]
+        public string? FirstAirDate { get; set; }
+        [JsonPropertyName("number_of_seasons")]
+        public int? NumberOfSeasons { get; set; }
+        [JsonPropertyName("number_of_episodes")]
+        public int? NumberOfEpisodes { get; set; }
+        [JsonPropertyName("vote_average")]
+        public double VoteAverage { get; set; }
+        [JsonPropertyName("vote_count")]
+        public int VoteCount { get; set; }
+        public double Popularity { get; set; }
+        [JsonPropertyName("original_language")]
+        public string? OriginalLanguage { get; set; }
+        public string? Status { get; set; }
+        public List<TmdbGenreItem> Genres { get; set; } = [];
+        public List<TmdbSeasonItem> Seasons { get; set; } = [];
+        public TmdbCreditsResponse? Credits { get; set; }
+        public TmdbVideosResponse? Videos { get; set; }
+        [JsonPropertyName("watch/providers")]
+        public TmdbWatchProvidersResponse? WatchProviders { get; set; }
+    }
+
+    private class TmdbCreditsResponse
+    {
+        public List<TmdbCastItem>? Cast { get; set; }
+    }
+
+    private class TmdbCastItem
+    {
+        public int Id { get; set; }
+        public string? Name { get; set; }
+        [JsonPropertyName("profile_path")]
+        public string? ProfilePath { get; set; }
+        public string? Character { get; set; }
+        public int Order { get; set; }
+    }
+
+    private class TmdbVideosResponse
+    {
+        public List<TmdbVideoRawItem>? Results { get; set; }
+    }
+
+    private class TmdbVideoRawItem
+    {
+        public string? Key { get; set; }
+        public string? Name { get; set; }
+        public string? Type { get; set; }
+        public string? Site { get; set; }
+    }
+
+    private class TmdbWatchProvidersResponse
+    {
+        public Dictionary<string, TmdbCountryProviders>? Results { get; set; }
+    }
+
+    private class TmdbCountryProviders
+    {
+        public List<TmdbProviderRawItem>? Flatrate { get; set; }
+        public List<TmdbProviderRawItem>? Rent { get; set; }
+        public List<TmdbProviderRawItem>? Buy { get; set; }
+    }
+
+    private class TmdbProviderRawItem
+    {
+        [JsonPropertyName("provider_id")]
+        public int ProviderId { get; set; }
+        [JsonPropertyName("provider_name")]
+        public string? ProviderName { get; set; }
+        [JsonPropertyName("logo_path")]
+        public string? LogoPath { get; set; }
+    }
+
+    private class TmdbSeasonItem
+    {
+        public int Id { get; set; }
+        [JsonPropertyName("season_number")]
+        public int SeasonNumber { get; set; }
+        public string? Name { get; set; }
+        public string? Overview { get; set; }
+        [JsonPropertyName("poster_path")]
+        public string? PosterPath { get; set; }
+        [JsonPropertyName("air_date")]
+        public string? AirDate { get; set; }
+        [JsonPropertyName("episode_count")]
+        public int EpisodeCount { get; set; }
+    }
+
+    private class TmdbSeasonEpisodesResponse
+    {
+        public List<TmdbEpisodeRawItem>? Episodes { get; set; }
+    }
+
+    private class TmdbEpisodeRawItem
+    {
+        public int Id { get; set; }
+        [JsonPropertyName("episode_number")]
+        public int EpisodeNumber { get; set; }
+        public string? Name { get; set; }
+        public string? Overview { get; set; }
+        [JsonPropertyName("still_path")]
+        public string? StillPath { get; set; }
+        [JsonPropertyName("air_date")]
+        public string? AirDate { get; set; }
+        public int? Runtime { get; set; }
     }
 
     private class TmdbGenreListResponse
     {
-        public List<TmdbGenreItem> Genres { get; set; } = new();
+        public List<TmdbGenreItem> Genres { get; set; } = [];
     }
 
     private class TmdbGenreItem

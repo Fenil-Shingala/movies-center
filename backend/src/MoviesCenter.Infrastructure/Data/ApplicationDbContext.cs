@@ -19,6 +19,20 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<Title> Titles => Set<Title>();
     public DbSet<TitleGenre> TitleGenres => Set<TitleGenre>();
     public DbSet<TitleSource> TitleSources => Set<TitleSource>();
+    public DbSet<Season> Seasons => Set<Season>();
+    public DbSet<Episode> Episodes => Set<Episode>();
+    public DbSet<Person> People => Set<Person>();
+    public DbSet<TitleCast> TitleCasts => Set<TitleCast>();
+    public DbSet<Video> Videos => Set<Video>();
+    public DbSet<Provider> Providers => Set<Provider>();
+    public DbSet<TitleProvider> TitleProviders => Set<TitleProvider>();
+    public DbSet<TmdbSyncLog> TmdbSyncLogs => Set<TmdbSyncLog>();
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+        optionsBuilder.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+    }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -31,16 +45,121 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
             entity.HasIndex(t => t.TmdbId).IsUnique();
             entity.HasIndex(t => t.Type);
             entity.HasIndex(t => t.IsFeatured);
+            entity.HasIndex(t => t.Popularity);
+            entity.HasIndex(t => t.ReleaseDate);
             entity.Property(t => t.TitleText).IsRequired().HasMaxLength(300);
             entity.Property(t => t.OriginalTitle).HasMaxLength(300);
             entity.Property(t => t.Type).IsRequired().HasMaxLength(50);
             entity.Property(t => t.PosterPath).HasMaxLength(500);
             entity.Property(t => t.BackdropPath).HasMaxLength(500);
+            entity.Property(t => t.Tagline).HasMaxLength(500);
             entity.Property(t => t.ContentRating).HasMaxLength(20);
             entity.Property(t => t.OriginalLanguage).HasMaxLength(10);
             entity.Property(t => t.Status).HasMaxLength(50);
+            entity.Property(t => t.TmdbListCategory).HasMaxLength(200);
             entity.Property(t => t.ImdbRating).HasPrecision(3, 1);
             entity.Property(t => t.TmdbRating).HasPrecision(3, 1);
+        });
+
+        // Configure Season
+        builder.Entity<Season>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.HasIndex(s => new { s.TitleId, s.SeasonNumber });
+            entity.Property(s => s.Name).IsRequired().HasMaxLength(200);
+            entity.Property(s => s.PosterPath).HasMaxLength(500);
+            entity.HasOne(s => s.Title)
+                  .WithMany(t => t.Seasons)
+                  .HasForeignKey(s => s.TitleId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure Episode
+        builder.Entity<Episode>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.SeasonId, e.EpisodeNumber });
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.StillPath).HasMaxLength(500);
+            entity.HasOne(e => e.Season)
+                  .WithMany(s => s.Episodes)
+                  .HasForeignKey(e => e.SeasonId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure Person
+        builder.Entity<Person>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.HasIndex(p => p.TmdbId).IsUnique();
+            entity.Property(p => p.Name).IsRequired().HasMaxLength(200);
+            entity.Property(p => p.ProfilePath).HasMaxLength(500);
+        });
+
+        // Configure TitleCast
+        builder.Entity<TitleCast>(entity =>
+        {
+            entity.HasKey(tc => tc.Id);
+            entity.HasIndex(tc => new { tc.TitleId, tc.PersonId });
+            entity.Property(tc => tc.Character).HasMaxLength(200);
+            entity.HasOne(tc => tc.Title)
+                  .WithMany(t => t.TitleCasts)
+                  .HasForeignKey(tc => tc.TitleId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(tc => tc.Person)
+                  .WithMany(p => p.TitleCasts)
+                  .HasForeignKey(tc => tc.PersonId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure Video
+        builder.Entity<Video>(entity =>
+        {
+            entity.HasKey(v => v.Id);
+            entity.HasIndex(v => v.TitleId);
+            entity.Property(v => v.TmdbKey).IsRequired().HasMaxLength(100);
+            entity.Property(v => v.Name).HasMaxLength(200);
+            entity.Property(v => v.Type).HasMaxLength(50);
+            entity.Property(v => v.Site).HasMaxLength(50);
+            entity.HasOne(v => v.Title)
+                  .WithMany(t => t.Videos)
+                  .HasForeignKey(v => v.TitleId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure Provider
+        builder.Entity<Provider>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.HasIndex(p => p.TmdbId).IsUnique();
+            entity.Property(p => p.Name).IsRequired().HasMaxLength(100);
+            entity.Property(p => p.LogoPath).HasMaxLength(500);
+        });
+
+        // Configure TitleProvider
+        builder.Entity<TitleProvider>(entity =>
+        {
+            entity.HasKey(tp => tp.Id);
+            entity.HasIndex(tp => new { tp.TitleId, tp.ProviderId });
+            entity.Property(tp => tp.Type).HasMaxLength(50);
+            entity.Property(tp => tp.Country).HasMaxLength(10);
+            entity.HasOne(tp => tp.Title)
+                  .WithMany(t => t.TitleProviders)
+                  .HasForeignKey(tp => tp.TitleId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(tp => tp.Provider)
+                  .WithMany(p => p.TitleProviders)
+                  .HasForeignKey(tp => tp.ProviderId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure TmdbSyncLog
+        builder.Entity<TmdbSyncLog>(entity =>
+        {
+            entity.HasKey(l => l.Id);
+            entity.HasIndex(l => l.StartedAt);
+            entity.Property(l => l.Status).IsRequired().HasMaxLength(50);
+            entity.Property(l => l.TriggeredBy).IsRequired().HasMaxLength(50);
         });
 
         // Configure Genre

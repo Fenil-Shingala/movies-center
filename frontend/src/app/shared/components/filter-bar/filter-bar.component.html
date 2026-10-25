@@ -1,0 +1,63 @@
+<div class="filter-bar">
+  <div class="filter-controls">
+    <!-- Genre Filter -->
+    <div class="filter-group">
+      <svg lucideLayers class="filter-icon"></svg>
+      <select 
+        class="filter-select" 
+        [value]="selectedGenre() ?? ''" 
+        (change)="onGenreSelect($event)"
+        aria-label="Filter by genre">
+        <option value="">All Genres</option>
+        @for (g of genres(); track g.id) {
+          <option [value]="g.id">{{ g.name }}</option>
+        }
+      </select>
+    </div>
+
+    <!-- Year Filter -->
+    <div class="filter-group">
+      <svg lucideCalendar class="filter-icon"></svg>
+      <select 
+        class="filter-select" 
+        [value]="selectedYear() ?? ''" 
+        (change)="onYearSelect($event)"
+        aria-label="Filter by year">
+        <option value="">All Years</option>
+        @for (y of yearOptions; track y) {
+          <option [value]="y">{{ y }}</option>
+        }
+      </select>
+    </div>
+
+    <!-- Sort Filter -->
+    <div class="filter-group">
+      <svg lucideArrowDownUp class="filter-icon"></svg>
+      <select 
+        class="filter-select" 
+        [value]="selectedSort()" 
+        (change)="onSortSelect($event)"
+        aria-label="Sort by">
+        @for (s of sortOptions; track s.value) {
+          <option [value]="s.value">{{ s.label }}</option>
+        }
+      </select>
+    </div>
+
+    <!-- Reset Action -->
+    @if (hasActiveFilters) {
+      <button 
+        type="button" 
+        class="reset-btn" 
+        (click)="onReset()" 
+        aria-label="Reset all filters">
+        <svg lucideRotateCcw class="reset-icon"></svg>
+        <span>Reset</span>
+      </button>
+    }
+  </div>
+
+  <div class="filter-meta">
+    <span class="results-count">{{ totalResults() }} titles</span>
+  </div>
+</div>

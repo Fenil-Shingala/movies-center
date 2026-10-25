@@ -1,0 +1,62 @@
+<div class="container page-container">
+  <header class="page-header">
+    <h1 class="page-title">TV Series</h1>
+    <p class="page-subtitle">
+      Discover binge-worthy TV series, new seasons, and acclaimed miniseries. Filter by genre, year, or rating.
+    </p>
+  </header>
+
+  <!-- Filter Bar -->
+  <app-filter-bar
+    [genres]="genres()"
+    [selectedGenre]="selectedGenre()"
+    [selectedYear]="selectedYear()"
+    [selectedSort]="selectedSort()"
+    [totalResults]="totalCount()"
+    (genreChange)="onGenreChange($event)"
+    (yearChange)="onYearChange($event)"
+    (sortChange)="onSortChange($event)"
+    (resetFilters)="onResetFilters()"
+  ></app-filter-bar>
+
+  <!-- Error Alert -->
+  @if (error()) {
+    <div class="error-banner" role="alert">
+      <span>{{ error() }}</span>
+      <button type="button" class="retry-btn" (click)="loadTitles()">Retry</button>
+    </div>
+  }
+
+  <!-- Loading Skeletons -->
+  @if (loading()) {
+    <div class="catalog-grid" aria-busy="true">
+      @for (item of skeletonCount(); track item) {
+        <div class="skeleton-card skeleton"></div>
+      }
+    </div>
+  } @else if (titles().length === 0) {
+    <!-- Empty State -->
+    <app-empty-state
+      title="No TV Series Found"
+      message="We couldn't find any TV series matching your current filters. Try resetting the filters or selecting a different genre."
+      [showReset]="selectedGenre() !== null || selectedYear() !== null"
+      (reset)="onResetFilters()"
+    ></app-empty-state>
+  } @else {
+    <!-- Series Grid -->
+    <div class="catalog-grid" aria-label="TV Series list">
+      @for (series of titles(); track series.tmdbId) {
+        <app-media-card [item]="series"></app-media-card>
+      }
+    </div>
+
+    <!-- Pagination -->
+    <app-pagination
+      [page]="page()"
+      [totalPages]="totalPages()"
+      [hasPreviousPage]="hasPreviousPage()"
+      [hasNextPage]="hasNextPage()"
+      (pageChange)="onPageChange($event)"
+    ></app-pagination>
+  }
+</div>

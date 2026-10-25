@@ -1,0 +1,49 @@
+@if (totalPages() > 1) {
+  <nav class="pagination-nav" aria-label="Catalog pagination">
+    <button 
+      type="button" 
+      class="pagination-btn" 
+      [disabled]="!hasPreviousPage()" 
+      (click)="onPrev()" 
+      aria-label="Previous page">
+      <svg lucideChevronLeft class="chevron-icon"></svg>
+      <span class="btn-text">Previous</span>
+    </button>
+
+    <div class="page-numbers">
+      @if (pages()[0] > 1) {
+        <button type="button" class="page-number-btn" (click)="onSelectPage(1)">1</button>
+        @if (pages()[0] > 2) {
+          <span class="ellipsis">...</span>
+        }
+      }
+
+      @for (p of pages(); track p) {
+        <button 
+          type="button" 
+          class="page-number-btn" 
+          [class.active]="p === page()" 
+          (click)="onSelectPage(p)">
+          {{ p }}
+        </button>
+      }
+
+      @if (pages()[pages().length - 1] < totalPages()) {
+        @if (pages()[pages().length - 1] < totalPages() - 1) {
+          <span class="ellipsis">...</span>
+        }
+        <button type="button" class="page-number-btn" (click)="onSelectPage(totalPages())">{{ totalPages() }}</button>
+      }
+    </div>
+
+    <button 
+      type="button" 
+      class="pagination-btn" 
+      [disabled]="!hasNextPage()" 
+      (click)="onNext()" 
+      aria-label="Next page">
+      <span class="btn-text">Next</span>
+      <svg lucideChevronRight class="chevron-icon"></svg>
+    </button>
+  </nav>
+}

@@ -1,3 +1,4 @@
+using Hangfire;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -52,7 +53,29 @@ public static class DependencyInjection
             var baseUrl = configuration["Tmdb:BaseUrl"] ?? "https://api.themoviedb.org/3/";
             if (!baseUrl.EndsWith('/')) baseUrl += "/";
             client.BaseAddress = new Uri(baseUrl);
-            client.Timeout = TimeSpan.FromSeconds(15);
+            client.Timeout = TimeSpan.FromSeconds(20);
+        });
+
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.ITmdbSyncService, MoviesCenter.Infrastructure.Services.TmdbSyncService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.ICatalogQueryService, MoviesCenter.Infrastructure.Services.CatalogQueryService>();
+
+        // Hangfire Background Processing
+        services.AddHangfire(config => config
+            .SetDataCompatibilityLevel(Hangfire.CompatibilityLevel.Version_180)
+            .UseSimpleAssemblyNameTypeSerializer()
+            .UseRecommendedSerializerSettings()
+            .UseSqlServerStorage(connectionString, new Hangfire.SqlServer.SqlServerStorageOptions
+            {
+                CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+                SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+                QueuePollInterval = TimeSpan.Zero,
+                UseRecommendedIsolationLevel = true,
+                DisableGlobalLocks = true
+            }));
+
+        services.AddHangfireServer(options =>
+        {
+            options.WorkerCount = 2;
         });
 
         return services;
