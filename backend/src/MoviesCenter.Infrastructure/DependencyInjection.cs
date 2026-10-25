@@ -45,6 +45,16 @@ public static class DependencyInjection
             services.AddDistributedMemoryCache();
         }
 
+        services.AddSingleton<MoviesCenter.Application.Common.Interfaces.ICacheService, MoviesCenter.Infrastructure.Services.DistributedCacheService>();
+
+        services.AddHttpClient<MoviesCenter.Application.Common.Interfaces.ITmdbService, MoviesCenter.Infrastructure.Services.TmdbService>(client =>
+        {
+            var baseUrl = configuration["Tmdb:BaseUrl"] ?? "https://api.themoviedb.org/3/";
+            if (!baseUrl.EndsWith('/')) baseUrl += "/";
+            client.BaseAddress = new Uri(baseUrl);
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
+
         return services;
     }
 }

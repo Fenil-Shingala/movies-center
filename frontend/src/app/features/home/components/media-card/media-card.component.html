@@ -1,0 +1,46 @@
+<a [routerLink]="detailRoute()" class="card-link" [attr.aria-label]="item().title">
+  <div class="poster-container">
+    @if (posterUrl()) {
+      <img 
+        [src]="posterUrl()" 
+        [alt]="item().title" 
+        class="poster-image"
+        loading="lazy"
+        (error)="onImageError()"
+      />
+    } @else {
+      <div class="poster-fallback">
+        @if (item().type === 'series') {
+          <svg lucideTv class="fallback-icon"></svg>
+        } @else {
+          <svg lucideFilm class="fallback-icon"></svg>
+        }
+        <span class="fallback-title">{{ item().title }}</span>
+      </div>
+    }
+
+    <!-- Rating badge in top-right -->
+    @if (item().rating > 0) {
+      <div class="rating-badge">
+        <span class="star">★</span>
+        <span class="score">{{ item().rating }}</span>
+      </div>
+    }
+
+    <!-- Type badge in top-left -->
+    <div class="type-badge">{{ item().type === 'series' ? 'TV' : 'HD' }}</div>
+
+    <!-- Desktop Hover Overlay -->
+    <div class="card-overlay">
+      <h3 class="card-title">{{ item().title }}</h3>
+      <div class="card-meta">
+        @if (item().year) {
+          <span class="year">{{ item().year }}</span>
+        }
+        @if (item().genres.length > 0) {
+          <span class="genre">{{ item().genres[0] }}</span>
+        }
+      </div>
+    </div>
+  </div>
+</a>

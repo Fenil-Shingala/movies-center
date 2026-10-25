@@ -1,0 +1,54 @@
+<section class="hero-banner" aria-label="Featured Title">
+  @if (backdropUrl()) {
+    <div class="backdrop-wrapper">
+      <img 
+        [src]="backdropUrl()" 
+        [alt]="hero().title" 
+        class="backdrop-image"
+        fetchpriority="high"
+        loading="eager"
+      />
+    </div>
+  }
+
+  <div class="hero-overlay"></div>
+
+  <div class="hero-content container">
+    <div class="featured-badge">Featured Spotlight</div>
+    
+    <h1 class="hero-title">{{ hero().title }}</h1>
+
+    <div class="hero-meta">
+      <span class="rating">★ {{ hero().rating }}</span>
+      <span class="year">{{ hero().year }}</span>
+      @if (formattedRuntime()) {
+        <span class="runtime">{{ formattedRuntime() }}</span>
+      }
+      <span class="quality-badge">{{ hero().quality }}</span>
+
+      @if (hero().genres.length > 0) {
+        <div class="genre-tags">
+          @for (genre of hero().genres.slice(0, 3); track genre) {
+            <span class="genre-tag">{{ genre }}</span>
+          }
+        </div>
+      }
+    </div>
+
+    <p class="hero-overview">
+      {{ hero().overview }}
+    </p>
+
+    <div class="hero-actions">
+      <a [routerLink]="watchLink()" class="btn btn-primary" aria-label="Watch Now">
+        <svg lucidePlay class="btn-icon"></svg>
+        <span>Watch Now</span>
+      </a>
+
+      <a [routerLink]="detailsLink()" class="btn btn-outline" aria-label="More Information">
+        <svg lucideInfo class="btn-icon"></svg>
+        <span>Details</span>
+      </a>
+    </div>
+  </div>
+</section>

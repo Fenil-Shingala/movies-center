@@ -1,0 +1,40 @@
+<section class="content-row" [attr.aria-label]="row().title">
+  <div class="row-header">
+    <h2 class="row-title">{{ row().title }}</h2>
+    <a [routerLink]="row().viewAllRoute" class="view-all-link">
+      <span>View All</span>
+      <span class="arrow">&rarr;</span>
+    </a>
+  </div>
+
+  <div class="carousel-wrapper">
+    <!-- Left Navigation Button (Desktop Hover) -->
+    <button 
+      type="button" 
+      class="nav-arrow nav-arrow-left" 
+      (click)="scrollLeft()"
+      aria-label="Scroll left"
+    >
+      <svg lucideChevronLeft class="arrow-icon"></svg>
+    </button>
+
+    <!-- Scrollable Items Container -->
+    <div class="items-container" #scrollContainer>
+      @for (item of row().items; track item.tmdbId) {
+        <div class="card-item">
+          <app-media-card [item]="item" />
+        </div>
+      }
+    </div>
+
+    <!-- Right Navigation Button (Desktop Hover) -->
+    <button 
+      type="button" 
+      class="nav-arrow nav-arrow-right" 
+      (click)="scrollRight()"
+      aria-label="Scroll right"
+    >
+      <svg lucideChevronRight class="arrow-icon"></svg>
+    </button>
+  </div>
+</section>
