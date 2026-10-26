@@ -1045,6 +1045,7 @@ Stored in `.env` (git-ignored). Template in `.env.example`.
 | 20 | 2026-10-25 | Instant Search & Dedicated Search Page | Implemented /api/v1/search and /api/v1/search/suggest querying SQL Server with debouncing (300ms); global header search dropdown and dedicated /search view with type tabs, responsive grid, pagination, and empty state |
 | 21 | 2026-10-25 | Title Detail View & Deep Metadata Surface | Implemented GET /api/v1/titles/{id}, /seasons, and /where-to-watch querying local SQL Server; created rich TitleDetailComponent with hero backdrop, metadata pills, season/episode selector, cast scroller, and YouTube trailer modal |
 | 22 | 2026-10-25 | Video Player with Multi-Source Switcher & Broken Source Reporting | Implemented GET /api/v1/titles/{id}/sources and POST /api/v1/sources/{id}/report; built PlayerComponent (/watch/:type/:id) with dual-source toggle (VidSrc + Mirror fallback), TV episode stepper/scroller, theater and lights-off cinema dimmer, and problem reporting modal with feedback dialog |
+| 23 | 2026-10-25 | Player Multi-Server Expansion, Ad-Shield Sandbox & Episode Navigation | Expanded streaming options to 5 high-speed providers (VidSrc Pro, SuperEmbed, VidSrc Mirror, AutoEmbed, 2Embed); introduced Ad-Shield sandbox restricting popups and top-navigation in Chrome/Edge; added reusable CustomSelectComponent; fixed route scroll-to-top restoration; enabled resilient episode fallback generation |
 
 ---
 

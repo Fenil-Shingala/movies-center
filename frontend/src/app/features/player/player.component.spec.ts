@@ -143,6 +143,14 @@ describe('PlayerComponent', () => {
     expect(component.isTheaterMode()).toBe(true);
   });
 
+  it('should toggle ad shield on and off', () => {
+    expect(component.isAdShieldActive()).toBe(true);
+    component.toggleAdShield();
+    expect(component.isAdShieldActive()).toBe(false);
+    component.toggleAdShield();
+    expect(component.isAdShieldActive()).toBe(true);
+  });
+
   it('should switch selected source', () => {
     component.selectSource(mockSources[1]);
     expect(component.selectedSource()?.id).toBe(2);

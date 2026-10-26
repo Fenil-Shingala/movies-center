@@ -414,19 +414,7 @@ public class CatalogQueryService : ICatalogQueryService
                 PosterPath: s.PosterPath,
                 AirDate: s.AirDate?.ToString("yyyy-MM-dd"),
                 EpisodeCount: s.EpisodeCount,
-                Episodes: s.Episodes
-                    .OrderBy(e => e.EpisodeNumber)
-                    .Select(e => new EpisodeDto(
-                        Id: e.Id,
-                        TmdbId: e.TmdbId,
-                        EpisodeNumber: e.EpisodeNumber,
-                        Name: e.Name,
-                        Overview: e.Overview,
-                        StillPath: e.StillPath,
-                        AirDate: e.AirDate?.ToString("yyyy-MM-dd"),
-                        RuntimeMinutes: e.RuntimeMinutes
-                    ))
-                    .ToList()
+                Episodes: MapEpisodes(s.Episodes, s)
             ))
             .ToList();
 
@@ -485,20 +473,46 @@ public class CatalogQueryService : ICatalogQueryService
             PosterPath: s.PosterPath,
             AirDate: s.AirDate?.ToString("yyyy-MM-dd"),
             EpisodeCount: s.EpisodeCount,
-            Episodes: s.Episodes
+            Episodes: MapEpisodes(s.Episodes, s)
+        )).ToList();
+    }
+
+    private static List<EpisodeDto> MapEpisodes(ICollection<Episode> episodes, Season season)
+    {
+        if (episodes != null && episodes.Count > 0)
+        {
+            return episodes
                 .OrderBy(e => e.EpisodeNumber)
                 .Select(e => new EpisodeDto(
                     Id: e.Id,
                     TmdbId: e.TmdbId,
                     EpisodeNumber: e.EpisodeNumber,
-                    Name: e.Name,
+                    Name: string.IsNullOrWhiteSpace(e.Name) ? $"Episode {e.EpisodeNumber}" : e.Name,
                     Overview: e.Overview,
-                    StillPath: e.StillPath,
+                    StillPath: e.StillPath ?? season.PosterPath,
                     AirDate: e.AirDate?.ToString("yyyy-MM-dd"),
                     RuntimeMinutes: e.RuntimeMinutes
                 ))
-                .ToList()
-        )).ToList();
+                .ToList();
+        }
+
+        if (season.EpisodeCount > 0)
+        {
+            return Enumerable.Range(1, season.EpisodeCount)
+                .Select(epNum => new EpisodeDto(
+                    Id: epNum,
+                    TmdbId: season.TmdbId * 100 + epNum,
+                    EpisodeNumber: epNum,
+                    Name: $"Episode {epNum}",
+                    Overview: null,
+                    StillPath: season.PosterPath,
+                    AirDate: season.AirDate?.ToString("yyyy-MM-dd"),
+                    RuntimeMinutes: null
+                ))
+                .ToList();
+        }
+
+        return [];
     }
 
     public async Task<List<WatchProviderDto>> GetTitleWhereToWatchAsync(int id, CancellationToken cancellationToken = default)
@@ -567,62 +581,38 @@ public class CatalogQueryService : ICatalogQueryService
             IsDirectStream: !string.IsNullOrEmpty(ts.StreamUrl)
         )).ToList();
 
-        // If no explicit sources in database, generate the primary VidSrc sources per Decision 16 & 17
-        if (result.Count == 0)
-        {
-            if (string.Equals(title.Type, "series", StringComparison.OrdinalIgnoreCase))
-            {
-                var s = season ?? 1;
-                var e = episode ?? 1;
-                result.Add(new TitleSourceDto(
-                    Id: 0,
-                    ProviderName: "VidSrc",
-                    SourceType: "ThirdPartyEmbed",
-                    Url: $"https://vidsrc.to/embed/tv/{title.TmdbId}/{s}/{e}",
-                    Quality: "1080p HD",
-                    Label: "Server 1 (VidSrc Cloud)",
-                    Priority: 1,
-                    IsDirectStream: false
-                ));
+        // Ensure multiple fallback servers are always available so users have options if one buffers or displays ads
+        var isSeries = string.Equals(title.Type, "series", StringComparison.OrdinalIgnoreCase);
+        var s = season ?? 1;
+        var e = episode ?? 1;
 
-                result.Add(new TitleSourceDto(
-                    Id: -1,
-                    ProviderName: "VidSrc Mirror",
-                    SourceType: "ThirdPartyEmbed",
-                    Url: $"https://vidsrc.me/embed/tv?tmdb={title.TmdbId}&season={s}&episode={e}",
-                    Quality: "720p/1080p",
-                    Label: "Server 2 (VidSrc Mirror)",
-                    Priority: 2,
-                    IsDirectStream: false
-                ));
+        var standardSources = isSeries
+            ? new List<TitleSourceDto>
+            {
+                new(101, "VidSrc", "ThirdPartyEmbed", $"https://vidsrc.to/embed/tv/{title.TmdbId}/{s}/{e}", "1080p HD", "Server 1 (VidSrc Pro)", 1, false),
+                new(102, "SuperEmbed", "ThirdPartyEmbed", $"https://multiembed.mov/?video_id={title.TmdbId}&tmdb=1&s={s}&e={e}", "1080p/Auto", "Server 2 (SuperEmbed)", 2, false),
+                new(103, "VidSrc Mirror", "ThirdPartyEmbed", $"https://vidsrc.me/embed/tv?tmdb={title.TmdbId}&season={s}&episode={e}", "720p/1080p", "Server 3 (VidSrc Mirror)", 3, false),
+                new(104, "AutoEmbed", "ThirdPartyEmbed", $"https://player.autoembed.cc/embed/tv/{title.TmdbId}/{s}/{e}", "1080p", "Server 4 (AutoEmbed)", 4, false),
+                new(105, "2Embed", "ThirdPartyEmbed", $"https://www.2embed.cc/embedtv/{title.TmdbId}&s={s}&e={e}", "Auto", "Server 5 (2Embed)", 5, false)
             }
-            else
+            : new List<TitleSourceDto>
             {
-                result.Add(new TitleSourceDto(
-                    Id: 0,
-                    ProviderName: "VidSrc",
-                    SourceType: "ThirdPartyEmbed",
-                    Url: $"https://vidsrc.to/embed/movie/{title.TmdbId}",
-                    Quality: "1080p HD",
-                    Label: "Server 1 (VidSrc Cloud)",
-                    Priority: 1,
-                    IsDirectStream: false
-                ));
+                new(101, "VidSrc", "ThirdPartyEmbed", $"https://vidsrc.to/embed/movie/{title.TmdbId}", "1080p HD", "Server 1 (VidSrc Pro)", 1, false),
+                new(102, "SuperEmbed", "ThirdPartyEmbed", $"https://multiembed.mov/?video_id={title.TmdbId}&tmdb=1", "1080p/Auto", "Server 2 (SuperEmbed)", 2, false),
+                new(103, "VidSrc Mirror", "ThirdPartyEmbed", $"https://vidsrc.me/embed/movie?tmdb={title.TmdbId}", "720p/1080p", "Server 3 (VidSrc Mirror)", 3, false),
+                new(104, "AutoEmbed", "ThirdPartyEmbed", $"https://player.autoembed.cc/embed/movie/{title.TmdbId}", "1080p", "Server 4 (AutoEmbed)", 4, false),
+                new(105, "2Embed", "ThirdPartyEmbed", $"https://www.2embed.cc/embed/{title.TmdbId}", "Auto", "Server 5 (2Embed)", 5, false)
+            };
 
-                result.Add(new TitleSourceDto(
-                    Id: -1,
-                    ProviderName: "VidSrc Mirror",
-                    SourceType: "ThirdPartyEmbed",
-                    Url: $"https://vidsrc.me/embed/movie?tmdb={title.TmdbId}",
-                    Quality: "720p/1080p",
-                    Label: "Server 2 (VidSrc Mirror)",
-                    Priority: 2,
-                    IsDirectStream: false
-                ));
+        foreach (var standard in standardSources)
+        {
+            if (!result.Any(r => r.ProviderName.Equals(standard.ProviderName, StringComparison.OrdinalIgnoreCase) || r.Url == standard.Url))
+            {
+                result.Add(standard);
             }
         }
 
-        return result;
+        return result.OrderBy(r => r.Priority).ToList();
     }
 
     public async Task<SourceReportResponseDto> ReportSourceAsync(int sourceId, int titleId, string reason, string? details = null, int? season = null, int? episode = null, CancellationToken cancellationToken = default)

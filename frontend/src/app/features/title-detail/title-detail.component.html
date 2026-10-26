@@ -143,19 +143,12 @@
 
             <!-- Season Selector -->
             <div class="season-selector-wrapper">
-              <label for="seasonSelect" class="season-label">Season:</label>
-              <select 
-                id="seasonSelect" 
-                class="season-select" 
+              <label class="season-label">Season:</label>
+              <app-custom-select
+                [options]="seasonOptions()"
                 [value]="selectedSeasonNumber()"
-                (change)="onSeasonChange($event)"
-              >
-                @for (season of item.seasons; track season.seasonNumber) {
-                  <option [value]="season.seasonNumber">
-                    {{ season.name }} ({{ season.episodeCount }} Ep)
-                  </option>
-                }
-              </select>
+                (valueChange)="onSeasonSelect($event)">
+              </app-custom-select>
             </div>
           </div>
 

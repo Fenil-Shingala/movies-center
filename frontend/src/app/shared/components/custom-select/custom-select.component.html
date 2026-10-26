@@ -1,0 +1,48 @@
+<div class="custom-select-container" [class.is-open]="isOpen()">
+  <button 
+    type="button" 
+    class="select-trigger-btn" 
+    (click)="toggleDropdown()"
+    [attr.aria-expanded]="isOpen()">
+    <div class="trigger-content">
+      @if (showIcon) {
+        <svg lucideTv class="trigger-icon"></svg>
+      }
+      <span class="trigger-label">{{ getSelectedLabel() }}</span>
+      @if (getSelectedBadge(); as badge) {
+        <span class="trigger-badge">{{ badge }}</span>
+      }
+    </div>
+    <svg lucideChevronDown class="chevron-icon" [class.rotated]="isOpen()"></svg>
+  </button>
+
+  @if (isOpen()) {
+    <div class="dropdown-menu-panel">
+      <div class="dropdown-scroll-box">
+        @for (opt of options; track opt.value) {
+          <button 
+            type="button" 
+            class="dropdown-option-btn" 
+            [class.selected]="opt.value === value"
+            (click)="selectOption(opt)">
+            <div class="option-content">
+              <span class="option-label">{{ opt.label }}</span>
+              @if (opt.subtext) {
+                <span class="option-subtext">{{ opt.subtext }}</span>
+              }
+            </div>
+            
+            <div class="option-right">
+              @if (opt.badge) {
+                <span class="option-badge">{{ opt.badge }}</span>
+              }
+              @if (opt.value === value) {
+                <svg lucideCheck class="check-icon"></svg>
+              }
+            </div>
+          </button>
+        }
+      </div>
+    </div>
+  }
+</div>

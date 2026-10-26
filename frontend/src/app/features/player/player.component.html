@@ -32,6 +32,17 @@
     </div>
 
     <div class="topbar-actions">
+      <!-- Ad Shield (Popup & Redirect Blocker for Chrome/Edge) -->
+      <button 
+        type="button" 
+        class="action-btn ad-shield-btn" 
+        [class.active]="isAdShieldActive()" 
+        (click)="toggleAdShield()"
+        [title]="isAdShieldActive() ? 'Ad Shield: Active (Popups and Redirects Blocked)' : 'Ad Shield: Paused (Popups Allowed)'">
+        <svg lucideShieldCheck class="icon shield-icon"></svg>
+        <span class="btn-text">{{ isAdShieldActive() ? 'Ad Shield ON' : 'Ad Shield OFF' }}</span>
+      </button>
+
       <!-- Lights Off Toggle -->
       <button 
         type="button" 
@@ -99,14 +110,27 @@
       }
 
       @if (sanitizedUrl(); as streamUrl) {
-        <iframe 
-          [src]="streamUrl" 
-          class="video-iframe"
-          title="Video Player"
-          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-          referrerpolicy="no-referrer"
-          allowfullscreen>
-        </iframe>
+        @if (isAdShieldActive()) {
+          <iframe 
+            [src]="streamUrl" 
+            class="video-iframe"
+            title="Video Player"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+            referrerpolicy="no-referrer"
+            allowfullscreen>
+          </iframe>
+        } @else {
+          <iframe 
+            [src]="streamUrl" 
+            class="video-iframe"
+            title="Video Player"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups"
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+            referrerpolicy="no-referrer"
+            allowfullscreen>
+          </iframe>
+        }
       }
     </div>
   </main>
@@ -116,7 +140,7 @@
     <div class="sources-bar-container">
       <div class="server-label-group">
         <svg lucideServer class="server-icon"></svg>
-        <span class="server-label">Servers:</span>
+        <span class="server-label">Streaming Servers:</span>
       </div>
 
       <div class="sources-list">
@@ -124,7 +148,7 @@
           <button 
             type="button" 
             class="source-pill-btn" 
-            [class.selected]="selectedSource()?.id === source.id"
+            [class.selected]="selectedSource()?.id === source.id || selectedSource()?.url === source.url"
             (click)="selectSource(source)">
             <span class="source-status-dot"></span>
             <span class="source-name">{{ source.label }}</span>
@@ -135,7 +159,7 @@
 
       <div class="source-hint">
         <svg lucideInfo class="info-icon"></svg>
-        <span>If current server is slow or buffering, switch to another server.</span>
+        <span>Multiple fast servers available. If one is buffering, switch to another.</span>
       </div>
     </div>
   </section>
@@ -143,19 +167,15 @@
   <!-- TV Series Episode Browser & Navigation (Only shown for Series) -->
   @if (mediaType() === 'series' && title(); as t) {
     <section class="series-controls-section">
-      <!-- Quick Episode Prev / Next Bar -->
+      <!-- Quick Episode Prev / Next Bar with Custom Dropdown -->
       <div class="episode-nav-header">
         <div class="season-selector-wrapper">
-          <label for="seasonSelect" class="season-select-label">Season:</label>
-          <select 
-            id="seasonSelect"
-            class="season-dropdown" 
-            [ngModel]="currentSeason()" 
-            (ngModelChange)="selectSeason($event)">
-            @for (s of t.seasons; track s.seasonNumber) {
-              <option [value]="s.seasonNumber">Season {{ s.seasonNumber }} ({{ s.episodeCount }} Ep)</option>
-            }
-          </select>
+          <label class="season-select-label">Season:</label>
+          <app-custom-select
+            [options]="seasonOptions()"
+            [value]="currentSeason()"
+            (valueChange)="selectSeason($event)">
+          </app-custom-select>
         </div>
 
         <div class="nav-buttons-group">

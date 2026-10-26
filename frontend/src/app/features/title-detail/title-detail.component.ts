@@ -24,7 +24,8 @@ import { CatalogService } from '../../core/services/catalog.service';
 import { 
   TitleDetail, 
   SeasonItem, 
-  VideoItem 
+  VideoItem,
+  EpisodeItem 
 } from '../../core/models/media.models';
 import { 
   TMDB_IMAGE_BASE_URL, 
@@ -32,6 +33,7 @@ import {
   TMDB_BACKDROP_SIZE 
 } from '../../core/constants/app.constants';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
+import { CustomSelectComponent, SelectOption } from '../../shared/components/custom-select/custom-select.component';
 
 @Component({
   selector: 'app-title-detail',
@@ -39,6 +41,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state/empty-s
   imports: [
     CommonModule, 
     RouterLink, 
+    CustomSelectComponent,
     LucidePlay, 
     LucideStar, 
     LucideClock, 
@@ -108,12 +111,45 @@ export class TitleDetailComponent implements OnInit {
     return `/watch/${item.type}/${item.tmdbId}`;
   });
 
+  readonly seasonOptions = computed<SelectOption<number>[]>(() => {
+    const item = this.title();
+    if (!item || item.type !== 'series') return [];
+    return item.seasons.map(s => ({
+      value: s.seasonNumber,
+      label: s.name || `Season ${s.seasonNumber}`,
+      badge: `${s.episodeCount || s.episodes.length} Ep`,
+      subtext: s.airDate ? `Premiered ${s.airDate}` : undefined
+    }));
+  });
+
   readonly activeSeason = computed(() => {
     const item = this.title();
     if (!item || item.seasons.length === 0) return null;
     const num = this.selectedSeasonNumber();
-    return item.seasons.find(s => s.seasonNumber === num) ?? item.seasons[0];
+    const season = item.seasons.find(s => s.seasonNumber === num) ?? item.seasons[0];
+
+    // Ensure episodes array is never empty if episodeCount is known
+    if (season.episodes.length === 0 && (season.episodeCount > 0 || season.seasonNumber > 0)) {
+      const count = season.episodeCount > 0 ? season.episodeCount : 10;
+      const fallbackEpisodes: EpisodeItem[] = Array.from({ length: count }, (_, i) => ({
+        id: i + 1,
+        tmdbId: season.tmdbId * 100 + (i + 1),
+        episodeNumber: i + 1,
+        name: `Episode ${i + 1}`,
+        overview: null,
+        stillPath: season.posterPath,
+        airDate: season.airDate,
+        runtimeMinutes: null
+      }));
+      return { ...season, episodes: fallbackEpisodes };
+    }
+
+    return season;
   });
+
+  onSeasonSelect(seasonNumber: number): void {
+    this.selectedSeasonNumber.set(seasonNumber);
+  }
 
   ngOnInit(): void {
     this.route.paramMap.subscribe(params => {

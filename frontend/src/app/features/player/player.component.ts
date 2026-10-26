@@ -11,9 +11,10 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
-import { Subscription, switchMap, catchError, of } from 'rxjs';
+import { Subscription, catchError, of } from 'rxjs';
 import { CatalogService } from '../../core/services/catalog.service';
 import { TitleDetail, TitleSource, SeasonItem, EpisodeItem } from '../../core/models/media.models';
+import { CustomSelectComponent, SelectOption } from '../../shared/components/custom-select/custom-select.component';
 import { 
   LucidePlay, 
   LucideSun, 
@@ -31,7 +32,8 @@ import {
   LucideChevronRight, 
   LucideCheckCircle, 
   LucideX, 
-  LucideSend 
+  LucideSend,
+  LucideShieldCheck
 } from '@lucide/angular';
 
 @Component({
@@ -41,6 +43,7 @@ import {
     CommonModule, 
     RouterModule, 
     FormsModule,
+    CustomSelectComponent,
     LucidePlay, 
     LucideSun, 
     LucideMoon, 
@@ -57,7 +60,8 @@ import {
     LucideChevronRight, 
     LucideCheckCircle, 
     LucideX, 
-    LucideSend
+    LucideSend,
+    LucideShieldCheck
   ],
   templateUrl: './player.component.html',
   styleUrls: ['./player.component.scss']
@@ -84,6 +88,7 @@ export class PlayerComponent implements OnInit, OnDestroy {
   // View & UI Toggles
   readonly isLightsOff = signal<boolean>(false);
   readonly isTheaterMode = signal<boolean>(false);
+  readonly isAdShieldActive = signal<boolean>(true);
   readonly isLoading = signal<boolean>(true);
   readonly errorMessage = signal<string | null>(null);
 
@@ -98,22 +103,73 @@ export class PlayerComponent implements OnInit, OnDestroy {
   // Computed Properties
   readonly activeSeasonObj = computed(() => {
     const item = this.title();
-    if (!item || item.type !== 'series') return null;
+    if (!item || item.type !== 'series' || item.seasons.length === 0) return null;
     const seasonNum = this.currentSeason();
-    return item.seasons.find(s => s.seasonNumber === seasonNum) ?? item.seasons[0] ?? null;
+    const season = item.seasons.find(s => s.seasonNumber === seasonNum) ?? item.seasons[0];
+    
+    // Ensure episodes array is never empty if episodeCount is known
+    if (season.episodes.length === 0 && (season.episodeCount > 0 || season.seasonNumber > 0)) {
+      const count = season.episodeCount > 0 ? season.episodeCount : 10;
+      const fallbackEpisodes: EpisodeItem[] = Array.from({ length: count }, (_, i) => ({
+        id: i + 1,
+        tmdbId: season.tmdbId * 100 + (i + 1),
+        episodeNumber: i + 1,
+        name: `Episode ${i + 1}`,
+        overview: null,
+        stillPath: season.posterPath,
+        airDate: season.airDate,
+        runtimeMinutes: null
+      }));
+      return { ...season, episodes: fallbackEpisodes };
+    }
+
+    return season;
+  });
+
+  readonly totalEpisodesInCurrentSeason = computed(() => {
+    const season = this.activeSeasonObj();
+    if (!season) return 0;
+    return season.episodes.length > 0 ? season.episodes.length : (season.episodeCount || 1);
   });
 
   readonly currentEpisodeObj = computed(() => {
     const season = this.activeSeasonObj();
     if (!season) return null;
     const epNum = this.currentEpisode();
-    return season.episodes.find(e => e.episodeNumber === epNum) ?? null;
+    return season.episodes.find(e => e.episodeNumber === epNum) ?? {
+      id: epNum,
+      tmdbId: season.tmdbId * 100 + epNum,
+      episodeNumber: epNum,
+      name: `Episode ${epNum}`,
+      overview: null,
+      stillPath: season.posterPath,
+      airDate: season.airDate,
+      runtimeMinutes: null
+    };
+  });
+
+  readonly seasonOptions = computed<SelectOption<number>[]>(() => {
+    const item = this.title();
+    if (!item || item.type !== 'series') return [];
+    return item.seasons.map(s => ({
+      value: s.seasonNumber,
+      label: s.name || `Season ${s.seasonNumber}`,
+      badge: `${s.episodeCount || s.episodes.length} Ep`,
+      subtext: s.airDate ? `Air Date: ${s.airDate}` : undefined
+    }));
   });
 
   readonly sanitizedUrl = computed<SafeResourceUrl | null>(() => {
     const src = this.selectedSource();
     if (!src || !src.url) return null;
     return this.sanitizer.bypassSecurityTrustResourceUrl(src.url);
+  });
+
+  readonly sandboxPermissions = computed(() => {
+    // When Ad Shield is active, omit allow-popups and allow-top-navigation to block popup windows and page redirects
+    return this.isAdShieldActive()
+      ? 'allow-scripts allow-same-origin allow-forms allow-presentation'
+      : 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups';
   });
 
   readonly backLink = computed(() => {
@@ -128,7 +184,7 @@ export class PlayerComponent implements OnInit, OnDestroy {
     const s = this.currentSeason();
     const e = this.currentEpisode();
     if (e > 1) return true;
-    return s > 1;
+    return item.seasons.some(season => season.seasonNumber < s);
   });
 
   readonly hasNextEpisode = computed(() => {
@@ -136,10 +192,9 @@ export class PlayerComponent implements OnInit, OnDestroy {
     if (!item || item.type !== 'series') return false;
     const s = this.currentSeason();
     const e = this.currentEpisode();
-    const currentSeason = this.activeSeasonObj();
-    if (currentSeason && e < currentSeason.episodes.length) return true;
-    const nextSeason = item.seasons.find(season => season.seasonNumber === s + 1);
-    return !!nextSeason && nextSeason.episodes.length > 0;
+    const maxEp = this.totalEpisodesInCurrentSeason();
+    if (e < maxEp) return true;
+    return item.seasons.some(season => season.seasonNumber > s);
   });
 
   ngOnInit(): void {
@@ -255,14 +310,20 @@ export class PlayerComponent implements OnInit, OnDestroy {
 
     if (e > 1) {
       this.selectEpisode(e - 1);
-    } else if (s > 1) {
-      const prevSeason = item.seasons.find(season => season.seasonNumber === s - 1);
-      const targetEp = prevSeason?.episodes.length ? prevSeason.episodes.length : 1;
-      this.router.navigate([], {
-        relativeTo: this.route,
-        queryParams: { season: s - 1, ep: targetEp },
-        queryParamsHandling: 'merge'
-      });
+    } else {
+      // Find previous season with highest season number < s
+      const prevSeason = item.seasons
+        .filter(season => season.seasonNumber < s)
+        .sort((a, b) => b.seasonNumber - a.seasonNumber)[0];
+
+      if (prevSeason) {
+        const prevTotalEp = prevSeason.episodes.length > 0 ? prevSeason.episodes.length : (prevSeason.episodeCount || 1);
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { season: prevSeason.seasonNumber, ep: prevTotalEp },
+          queryParamsHandling: 'merge'
+        });
+      }
     }
   }
 
@@ -272,16 +333,20 @@ export class PlayerComponent implements OnInit, OnDestroy {
 
     const s = this.currentSeason();
     const e = this.currentEpisode();
-    const currentSeason = this.activeSeasonObj();
+    const maxEp = this.totalEpisodesInCurrentSeason();
 
-    if (currentSeason && e < currentSeason.episodes.length) {
+    if (e < maxEp) {
       this.selectEpisode(e + 1);
     } else {
-      const nextSeason = item.seasons.find(season => season.seasonNumber === s + 1);
+      // Find next season with lowest season number > s
+      const nextSeason = item.seasons
+        .filter(season => season.seasonNumber > s)
+        .sort((a, b) => a.seasonNumber - b.seasonNumber)[0];
+
       if (nextSeason) {
         this.router.navigate([], {
           relativeTo: this.route,
-          queryParams: { season: s + 1, ep: 1 },
+          queryParams: { season: nextSeason.seasonNumber, ep: 1 },
           queryParamsHandling: 'merge'
         });
       }
@@ -294,6 +359,10 @@ export class PlayerComponent implements OnInit, OnDestroy {
 
   toggleTheater(): void {
     this.isTheaterMode.update(val => !val);
+  }
+
+  toggleAdShield(): void {
+    this.isAdShieldActive.update(val => !val);
   }
 
   openReportModal(): void {
