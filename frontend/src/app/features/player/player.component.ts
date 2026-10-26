@@ -13,6 +13,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { Subscription, catchError, of } from 'rxjs';
 import { CatalogService } from '../../core/services/catalog.service';
+import { UserDataService } from '../../core/services/user-data.service';
 import { TitleDetail, TitleSource, SeasonItem, EpisodeItem } from '../../core/models/media.models';
 import { CustomSelectComponent, SelectOption } from '../../shared/components/custom-select/custom-select.component';
 import { 
@@ -71,8 +72,11 @@ export class PlayerComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly catalogService = inject(CatalogService);
   private readonly sanitizer = inject(DomSanitizer);
+  readonly userDataService = inject(UserDataService);
 
   private sub?: Subscription;
+  private progressTimer?: ReturnType<typeof setInterval>;
+  private watchedSeconds = 0;
 
   // Title & Source State
   readonly titleId = signal<number>(0);
@@ -226,6 +230,47 @@ export class PlayerComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    if (this.progressTimer) {
+      clearInterval(this.progressTimer);
+    }
+    this.saveProgress();
+  }
+
+  private startProgressTracking(): void {
+    if (this.progressTimer) {
+      clearInterval(this.progressTimer);
+    }
+    // Record initial 30s playback point, then update every 15s
+    this.watchedSeconds = Math.max(this.watchedSeconds, 30);
+    this.saveProgress();
+
+    this.progressTimer = setInterval(() => {
+      this.watchedSeconds += 15;
+      this.saveProgress();
+    }, 15000);
+  }
+
+  private saveProgress(): void {
+    const t = this.title();
+    if (!t) return;
+
+    const duration = (t.runtimeMinutes ?? 120) * 60;
+    const isSeries = this.mediaType() === 'series';
+
+    this.userDataService.updateProgress(
+      t.id,
+      this.watchedSeconds,
+      duration,
+      isSeries ? this.currentEpisode() : undefined,
+      isSeries ? this.currentSeason() : undefined,
+      isSeries ? this.currentEpisode() : undefined,
+      {
+        title: t.title,
+        posterPath: t.posterPath,
+        backdropPath: t.backdropPath,
+        type: t.type
+      }
+    ).subscribe();
   }
 
   @HostListener('document:keydown.escape')
@@ -274,6 +319,7 @@ export class PlayerComponent implements OnInit, OnDestroy {
       if (sources.length > 0) {
         // Default to highest priority source
         this.selectedSource.set(sources[0]);
+        this.startProgressTracking();
       } else {
         this.selectedSource.set(null);
         this.errorMessage.set('No video sources are currently available for this title. Please check back later.');

@@ -1,0 +1,133 @@
+<div class="history-view container">
+  <!-- Page Header -->
+  <header class="page-header">
+    <div class="header-content">
+      <div class="title-row">
+        <div class="icon-wrap">
+          <svg lucideClock class="header-icon"></svg>
+        </div>
+        <div>
+          <h1 class="page-title">Watch History</h1>
+          <p class="page-subtitle">
+            {{ userDataService.historyCount() }} title(s) watched
+            @if (!authService.isAuthenticated()) {
+              <span class="guest-pill">Guest Mode (Local)</span>
+            }
+          </p>
+        </div>
+      </div>
+
+      @if (userDataService.history().length > 0) {
+        <button type="button" class="clear-all-btn" (click)="clearAll()">
+          <svg lucideTrash2 class="btn-icon"></svg>
+          <span>Clear History</span>
+        </button>
+      }
+    </div>
+  </header>
+
+  <!-- Guest Sync Reminder -->
+  @if (!authService.isAuthenticated() && userDataService.historyCount() > 0) {
+    <div class="sync-banner">
+      <svg lucideSparkles class="sync-icon"></svg>
+      <span>Sign in to retain your progress across devices and pick up right where you left off anywhere.</span>
+      <button type="button" class="sign-in-link" (click)="authService.openAuthModal('login')">Sign In</button>
+    </div>
+  }
+
+  <!-- History Items List -->
+  @if (userDataService.isLoading()) {
+    <div class="history-skeleton">
+      @for (n of [1, 2, 3, 4]; track n) {
+        <div class="item-skel skeleton"></div>
+      }
+    </div>
+  } @else if (userDataService.history().length > 0) {
+    <div class="history-list">
+      @for (item of userDataService.history(); track item.id) {
+        <div class="history-card" [class.completed]="item.isCompleted">
+          <div class="thumb-wrap">
+            @if (getThumbnailUrl(item)) {
+              <img [src]="getThumbnailUrl(item)" [alt]="item.title" loading="lazy" />
+            } @else {
+              <div class="thumb-placeholder">
+                <svg lucideFilm class="ph-icon"></svg>
+              </div>
+            }
+
+            <!-- Progress Bar Track -->
+            <div class="progress-track">
+              <div class="progress-fill" [style.width.%]="item.progressPercent"></div>
+            </div>
+
+            <a [routerLink]="getWatchLink(item)" class="play-overlay" aria-label="Resume playing">
+              <svg lucidePlay class="play-icon"></svg>
+            </a>
+          </div>
+
+          <div class="item-content">
+            <div class="item-header">
+              <div class="badge-row">
+                <span class="type-badge" [class.series]="item.type === 'series'">
+                  {{ item.type === 'series' ? 'SERIES' : 'MOVIE' }}
+                </span>
+                @if (item.type === 'series' && item.seasonNumber) {
+                  <span class="ep-badge">Season {{ item.seasonNumber }}, Ep {{ item.episodeNumber }}</span>
+                }
+                @if (item.isCompleted) {
+                  <span class="completed-badge">
+                    <svg lucideCheck class="icon"></svg>
+                    <span>Finished</span>
+                  </span>
+                }
+              </div>
+
+              <button 
+                type="button" 
+                class="remove-action-btn" 
+                (click)="removeItem($event, item)" 
+                title="Remove from history"
+                aria-label="Remove item"
+              >
+                <svg lucideTrash2 class="trash-icon"></svg>
+              </button>
+            </div>
+
+            <a [routerLink]="getWatchLink(item)" class="title-link">
+              <h2 class="item-title">{{ item.title }}</h2>
+            </a>
+
+            @if (item.episodeName) {
+              <div class="episode-name">{{ item.episodeName }}</div>
+            }
+
+            <div class="progress-stats">
+              <span class="progress-label">
+                @if (item.isCompleted) {
+                  Watched completely
+                } @else {
+                  Progress: {{ item.progressPercent }}% ({{ formatTime(item.progressSeconds) }} / {{ formatTime(item.durationSeconds || 0) }})
+                }
+              </span>
+              <span class="watched-date">{{ item.watchedAt | date:'mediumDate' }}</span>
+            </div>
+
+            <div class="item-actions">
+              <a [routerLink]="getWatchLink(item)" class="resume-btn">
+                <svg lucidePlay class="btn-icon"></svg>
+                <span>{{ item.isCompleted ? 'Watch Again' : 'Resume Playing' }}</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <app-empty-state 
+      title="No watch history yet"
+      message="As you watch movies and episodes, your playback progress will be saved here automatically."
+      [showReset]="true"
+      (reset)="goToCatalog()"
+    />
+  }
+</div>

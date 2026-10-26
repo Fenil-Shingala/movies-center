@@ -21,6 +21,7 @@ import {
   LucideX 
 } from '@lucide/angular';
 import { CatalogService } from '../../core/services/catalog.service';
+import { UserDataService } from '../../core/services/user-data.service';
 import { 
   TitleDetail, 
   SeasonItem, 
@@ -62,12 +63,16 @@ export class TitleDetailComponent implements OnInit {
   private readonly catalogService = inject(CatalogService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly titleService = inject(Title);
+  readonly userDataService = inject(UserDataService);
 
   readonly title = signal<TitleDetail | null>(null);
   readonly isLoading = signal<boolean>(true);
   readonly selectedSeasonNumber = signal<number>(1);
   readonly activeTrailer = signal<VideoItem | null>(null);
-  readonly isInWatchlist = signal<boolean>(false);
+  readonly isInWatchlist = computed(() => {
+    const t = this.title();
+    return t ? this.userDataService.isInWatchlist(t.id) : false;
+  });
 
   readonly backdropUrl = computed(() => {
     const item = this.title();
@@ -240,7 +245,18 @@ export class TitleDetailComponent implements OnInit {
   }
 
   toggleWatchlist(): void {
-    this.isInWatchlist.update(v => !v);
+    const t = this.title();
+    if (t) {
+      this.userDataService.toggleWatchlist(t.id, {
+        title: t.title,
+        posterPath: t.posterPath,
+        backdropPath: t.backdropPath,
+        type: t.type,
+        releaseDate: t.releaseDate,
+        year: t.year,
+        rating: t.rating
+      }).subscribe();
+    }
   }
 
   goBack(): void {

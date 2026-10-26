@@ -172,3 +172,34 @@ export interface SourceReportResponse {
   success: boolean;
   message: string;
 }
+
+export interface WatchlistItem {
+  id: number;
+  titleId: number;
+  title: string;
+  posterPath: string | null;
+  backdropPath: string | null;
+  type: 'movie' | 'series';
+  releaseDate: string | null;
+  year: string;
+  rating: number;
+  addedAt: string;
+}
+
+export interface WatchHistoryItem {
+  id: number;
+  titleId: number;
+  title: string;
+  posterPath: string | null;
+  backdropPath: string | null;
+  type: 'movie' | 'series';
+  episodeId?: number | null;
+  seasonNumber?: number | null;
+  episodeNumber?: number | null;
+  episodeName?: string | null;
+  progressSeconds: number;
+  durationSeconds?: number | null;
+  progressPercent: number;
+  isCompleted: boolean;
+  watchedAt: string;
+}

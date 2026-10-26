@@ -42,6 +42,16 @@ export const routes: Routes = [
         path: 'watch/:type/:id',
         loadComponent: () => import('./features/player/player.component').then(m => m.PlayerComponent),
         title: 'Watch - Movies Center'
+      },
+      {
+        path: 'watchlist',
+        loadComponent: () => import('./features/watchlist/watchlist.component').then(m => m.WatchlistComponent),
+        title: 'My Watchlist - Movies Center'
+      },
+      {
+        path: 'history',
+        loadComponent: () => import('./features/history/history.component').then(m => m.HistoryComponent),
+        title: 'Watch History - Movies Center'
       }
     ]
   },

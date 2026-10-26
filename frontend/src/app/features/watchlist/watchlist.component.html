@@ -1,0 +1,135 @@
+<div class="watchlist-view container">
+  <!-- Page Header -->
+  <header class="page-header">
+    <div class="header-content">
+      <div class="title-row">
+        <div class="icon-wrap">
+          <svg lucideBookmark class="header-icon"></svg>
+        </div>
+        <div>
+          <h1 class="page-title">My Watchlist</h1>
+          <p class="page-subtitle">
+            {{ userDataService.watchlistCount() }} title(s) saved for later
+            @if (!authService.isAuthenticated()) {
+              <span class="guest-pill">Guest Mode (Local)</span>
+            }
+          </p>
+        </div>
+      </div>
+
+      <!-- Filter Controls -->
+      <div class="filter-tabs" role="tablist">
+        <button 
+          type="button" 
+          class="filter-tab" 
+          [class.active]="selectedFilter() === 'all'"
+          (click)="setFilter('all')"
+          role="tab"
+        >
+          All ({{ userDataService.watchlist().length }})
+        </button>
+        <button 
+          type="button" 
+          class="filter-tab" 
+          [class.active]="selectedFilter() === 'movie'"
+          (click)="setFilter('movie')"
+          role="tab"
+        >
+          Movies
+        </button>
+        <button 
+          type="button" 
+          class="filter-tab" 
+          [class.active]="selectedFilter() === 'series'"
+          (click)="setFilter('series')"
+          role="tab"
+        >
+          Series
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Guest Sync Reminder -->
+  @if (!authService.isAuthenticated() && userDataService.watchlistCount() > 0) {
+    <div class="sync-banner">
+      <svg lucideSparkles class="sync-icon"></svg>
+      <span>Sign in to sync your saved watchlist across all devices and prevent losing them when clearing cookies.</span>
+      <button type="button" class="sign-in-link" (click)="authService.openAuthModal('login')">Sign In</button>
+    </div>
+  }
+
+  <!-- Watchlist Content Grid -->
+  @if (userDataService.isLoading()) {
+    <div class="grid-skeleton">
+      @for (n of [1, 2, 3, 4, 5, 6, 7, 8]; track n) {
+        <div class="card-skel skeleton"></div>
+      }
+    </div>
+  } @else if (filteredItems().length > 0) {
+    <div class="watchlist-grid">
+      @for (item of filteredItems(); track item.titleId) {
+        <div class="watchlist-card">
+          <a [routerLink]="getDetailLink(item)" class="poster-link">
+            <div class="poster-wrap">
+              @if (item.posterPath) {
+                <img [src]="getPosterUrl(item.posterPath)" [alt]="item.title" loading="lazy" />
+              } @else {
+                <div class="poster-placeholder">
+                  <svg lucideFilm class="ph-icon"></svg>
+                </div>
+              }
+
+              <!-- Rating Badge -->
+              @if (item.rating > 0) {
+                <div class="rating-badge">
+                  <svg lucideStar class="star-icon"></svg>
+                  <span>{{ item.rating.toFixed(1) }}</span>
+                </div>
+              }
+
+              <!-- Type Badge -->
+              <div class="type-badge" [class.series]="item.type === 'series'">
+                {{ item.type === 'series' ? 'SERIES' : 'MOVIE' }}
+              </div>
+
+              <!-- Card Hover Actions -->
+              <div class="card-overlay">
+                <a [routerLink]="getWatchLink(item)" class="play-action-btn" aria-label="Play title">
+                  <svg lucidePlay class="icon"></svg>
+                </a>
+              </div>
+            </div>
+          </a>
+
+          <!-- Info Row -->
+          <div class="card-info">
+            <a [routerLink]="getDetailLink(item)" class="card-title-link">
+              <h2 class="card-title">{{ item.title }}</h2>
+            </a>
+            <div class="card-meta">
+              <span class="card-year">{{ item.year }}</span>
+              <button 
+                type="button" 
+                class="remove-btn" 
+                (click)="removeItem($event, item)" 
+                title="Remove from Watchlist"
+                aria-label="Remove title"
+              >
+                <svg lucideTrash2 class="trash-icon"></svg>
+                <span>Remove</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <app-empty-state 
+      title="Your Watchlist is empty"
+      message="Explore thousands of movies and TV series and bookmark your favorites to watch anytime."
+      [showReset]="true"
+      (reset)="goToCatalog()"
+    />
+  }
+</div>
