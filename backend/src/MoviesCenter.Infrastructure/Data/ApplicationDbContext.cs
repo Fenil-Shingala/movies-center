@@ -27,6 +27,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<Provider> Providers => Set<Provider>();
     public DbSet<TitleProvider> TitleProviders => Set<TitleProvider>();
     public DbSet<TmdbSyncLog> TmdbSyncLogs => Set<TmdbSyncLog>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<WatchlistItem> WatchlistItems => Set<WatchlistItem>();
+    public DbSet<WatchHistoryItem> WatchHistoryItems => Set<WatchHistoryItem>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -214,6 +217,50 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
                   .HasForeignKey(ts => ts.SourceProviderId)
                   .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(ts => new { ts.TitleId, ts.SourceProviderId, ts.SeasonNumber, ts.EpisodeNumber });
+        });
+
+        builder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(rt => rt.Id);
+            entity.HasIndex(rt => rt.Token);
+            entity.HasIndex(rt => rt.UserId);
+            entity.Property(rt => rt.Token).IsRequired().HasMaxLength(500);
+            entity.HasOne(rt => rt.User)
+                  .WithMany(u => u.RefreshTokens)
+                  .HasForeignKey(rt => rt.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<WatchlistItem>(entity =>
+        {
+            entity.HasKey(w => w.Id);
+            entity.HasIndex(w => new { w.UserId, w.TitleId }).IsUnique();
+            entity.HasOne(w => w.User)
+                  .WithMany(u => u.WatchlistItems)
+                  .HasForeignKey(w => w.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(w => w.Title)
+                  .WithMany()
+                  .HasForeignKey(w => w.TitleId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<WatchHistoryItem>(entity =>
+        {
+            entity.HasKey(h => h.Id);
+            entity.HasIndex(h => new { h.UserId, h.TitleId, h.EpisodeId });
+            entity.HasOne(h => h.User)
+                  .WithMany(u => u.WatchHistory)
+                  .HasForeignKey(h => h.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(h => h.Title)
+                  .WithMany()
+                  .HasForeignKey(h => h.TitleId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(h => h.Episode)
+                  .WithMany()
+                  .HasForeignKey(h => h.EpisodeId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Convert table names and column names to snake_case

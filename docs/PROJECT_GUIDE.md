@@ -708,8 +708,8 @@ POST   /analytics/events                      → Batch of anonymous events (onl
 | 6 | Search with instant results | ✅ Complete |
 | 7 | Title detail page | ✅ Complete |
 | 8 | Video player page with dual-source model | ✅ Complete |
-| 9 | Login and register + guest-to-account merge | ⬜ Next (Awaiting Approval) |
-| 10 | Watchlist and Continue Watching | ⬜ Not started |
+| 9 | Login and register + guest-to-account merge | ✅ Complete |
+| 10 | Watchlist and Continue Watching | ⬜ Next (Awaiting Approval) |
 | 11 | Ratings (1–5 stars) | ⬜ Not started |
 | 12 | Admin panel (TMDB import, sources, uploads, reports) | ⬜ Not started |
 | 13 | Notifications (in-app, email, settings) | ⬜ Not started |
@@ -1046,6 +1046,7 @@ Stored in `.env` (git-ignored). Template in `.env.example`.
 | 21 | 2026-10-25 | Title Detail View & Deep Metadata Surface | Implemented GET /api/v1/titles/{id}, /seasons, and /where-to-watch querying local SQL Server; created rich TitleDetailComponent with hero backdrop, metadata pills, season/episode selector, cast scroller, and YouTube trailer modal |
 | 22 | 2026-10-25 | Video Player with Multi-Source Switcher & Broken Source Reporting | Implemented GET /api/v1/titles/{id}/sources and POST /api/v1/sources/{id}/report; built PlayerComponent (/watch/:type/:id) with dual-source toggle (VidSrc + Mirror fallback), TV episode stepper/scroller, theater and lights-off cinema dimmer, and problem reporting modal with feedback dialog |
 | 23 | 2026-10-25 | Player Multi-Server Expansion, Ad-Shield Sandbox & Episode Navigation | Expanded streaming options to 5 high-speed providers (VidSrc Pro, SuperEmbed, VidSrc Mirror, AutoEmbed, 2Embed); introduced Ad-Shield sandbox restricting popups and top-navigation in Chrome/Edge; added reusable CustomSelectComponent; fixed route scroll-to-top restoration; enabled resilient episode fallback generation |
+| 24 | 2026-10-26 | JWT Auth, Rotating Refresh Cookies & Guest-to-Account Merge | Implemented ASP.NET Core Identity authentication endpoints (register, login, refresh, logout, me) with 60-min JWT and 7-day HTTP-only refresh tokens; added GuestStorageService managing local guest watchlist and progress; built AuthService with reactive signals, auto-refresh on 401 via HttpInterceptorFn, and seamless guest-to-account merge on authentication; created cinema-styled AuthModalComponent and Header avatar dropdown |
 
 ---
 

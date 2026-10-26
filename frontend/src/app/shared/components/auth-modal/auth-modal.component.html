@@ -1,0 +1,214 @@
+@if (authService.isAuthModalOpen()) {
+  <div class="modal-backdrop" (click)="onBackdropClick($event)" role="dialog" aria-modal="true">
+    <div class="modal-panel glass-panel">
+      <!-- Close Button -->
+      <button type="button" class="close-btn" (click)="close()" aria-label="Close dialog">
+        <svg lucideX class="icon"></svg>
+      </button>
+
+      <!-- Modal Header & Tabs -->
+      <div class="modal-header">
+        <div class="brand-pill">
+          <svg lucideSparkles class="sparkle-icon"></svg>
+          <span>Movies Center VIP</span>
+        </div>
+
+        <div class="auth-tabs" role="tablist">
+          <button 
+            type="button" 
+            class="tab-btn" 
+            [class.active]="authService.authModalMode() === 'login'"
+            (click)="setMode('login')"
+            role="tab"
+          >
+            Sign In
+          </button>
+          <button 
+            type="button" 
+            class="tab-btn" 
+            [class.active]="authService.authModalMode() === 'register'"
+            (click)="setMode('register')"
+            role="tab"
+          >
+            Create Account
+          </button>
+        </div>
+      </div>
+
+      <!-- Guest Merge Banner -->
+      @if (guestStorage.hasGuestData()) {
+        <div class="guest-banner">
+          <svg lucideBookmark class="banner-icon"></svg>
+          <div class="banner-text">
+            <strong>Seamless Sync</strong>
+            <span>Your {{ guestStorage.guestWatchlistCount() }} watchlist & {{ guestStorage.guestHistoryCount() }} history item(s) will be merged into your account.</span>
+          </div>
+        </div>
+      }
+
+      <!-- Error Message Banner -->
+      @if (errorMessage()) {
+        <div class="error-banner" role="alert">
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      <!-- Login Form -->
+      @if (authService.authModalMode() === 'login') {
+        <form [formGroup]="loginForm" (ngSubmit)="submitLogin()" class="auth-form" novalidate>
+          <div class="form-group">
+            <label for="login-email">Email Address</label>
+            <div class="input-wrapper" [class.error]="loginForm.get('email')?.touched && loginForm.get('email')?.invalid">
+              <svg lucideMail class="input-icon"></svg>
+              <input 
+                id="login-email" 
+                type="email" 
+                formControlName="email" 
+                placeholder="name@example.com"
+                autocomplete="email"
+              />
+            </div>
+            @if (loginForm.get('email')?.touched && loginForm.get('email')?.errors?.['required']) {
+              <span class="field-error">Email is required.</span>
+            } @else if (loginForm.get('email')?.touched && loginForm.get('email')?.errors?.['email']) {
+              <span class="field-error">Please enter a valid email address.</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <div class="label-row">
+              <label for="login-password">Password</label>
+            </div>
+            <div class="input-wrapper" [class.error]="loginForm.get('password')?.touched && loginForm.get('password')?.invalid">
+              <svg lucideLock class="input-icon"></svg>
+              <input 
+                id="login-password" 
+                [type]="showPassword() ? 'text' : 'password'" 
+                formControlName="password" 
+                placeholder="••••••••"
+                autocomplete="current-password"
+              />
+              <button type="button" class="eye-toggle" (click)="togglePasswordVisibility()" aria-label="Toggle password view">
+                @if (showPassword()) {
+                  <svg lucideEyeOff class="icon"></svg>
+                } @else {
+                  <svg lucideEye class="icon"></svg>
+                }
+              </button>
+            </div>
+            @if (loginForm.get('password')?.touched && loginForm.get('password')?.errors?.['required']) {
+              <span class="field-error">Password is required.</span>
+            }
+          </div>
+
+          <button type="submit" class="submit-btn" [disabled]="isSubmitting()">
+            @if (isSubmitting()) {
+              <svg lucideLoader2 class="spin-icon"></svg>
+              <span>Signing In...</span>
+            } @else {
+              <svg lucideLogIn class="btn-icon"></svg>
+              <span>Sign In</span>
+            }
+          </button>
+
+          <div class="switch-mode">
+            <span>Don't have an account?</span>
+            <button type="button" class="switch-link" (click)="setMode('register')">Create one now</button>
+          </div>
+        </form>
+      }
+
+      <!-- Register Form -->
+      @if (authService.authModalMode() === 'register') {
+        <form [formGroup]="registerForm" (ngSubmit)="submitRegister()" class="auth-form" novalidate>
+          <div class="form-group">
+            <label for="register-name">Display Name</label>
+            <div class="input-wrapper" [class.error]="registerForm.get('displayName')?.touched && registerForm.get('displayName')?.invalid">
+              <svg lucideUser class="input-icon"></svg>
+              <input 
+                id="register-name" 
+                type="text" 
+                formControlName="displayName" 
+                placeholder="e.g. CinemaMaster"
+                autocomplete="name"
+              />
+            </div>
+            @if (registerForm.get('displayName')?.touched && registerForm.get('displayName')?.invalid) {
+              <span class="field-error">Display name must be between 2 and 50 characters.</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="register-email">Email Address</label>
+            <div class="input-wrapper" [class.error]="registerForm.get('email')?.touched && registerForm.get('email')?.invalid">
+              <svg lucideMail class="input-icon"></svg>
+              <input 
+                id="register-email" 
+                type="email" 
+                formControlName="email" 
+                placeholder="name@example.com"
+                autocomplete="email"
+              />
+            </div>
+            @if (registerForm.get('email')?.touched && registerForm.get('email')?.invalid) {
+              <span class="field-error">A valid email address is required.</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="register-password">Password</label>
+            <div class="input-wrapper" [class.error]="registerForm.get('password')?.touched && registerForm.get('password')?.invalid">
+              <svg lucideLock class="input-icon"></svg>
+              <input 
+                id="register-password" 
+                [type]="showPassword() ? 'text' : 'password'" 
+                formControlName="password" 
+                placeholder="Minimum 8 characters"
+                autocomplete="new-password"
+              />
+              <button type="button" class="eye-toggle" (click)="togglePasswordVisibility()" aria-label="Toggle password view">
+                @if (showPassword()) {
+                  <svg lucideEyeOff class="icon"></svg>
+                } @else {
+                  <svg lucideEye class="icon"></svg>
+                }
+              </button>
+            </div>
+            @if (registerForm.get('password')?.touched && registerForm.get('password')?.invalid) {
+              <span class="field-error">Must contain at least 8 chars, 1 uppercase, 1 lowercase, 1 number, and 1 special symbol.</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="register-confirm">Confirm Password</label>
+            <div class="input-wrapper" [class.error]="registerForm.get('confirmPassword')?.touched && registerForm.get('confirmPassword')?.invalid">
+              <svg lucideLock class="input-icon"></svg>
+              <input 
+                id="register-confirm" 
+                [type]="showPassword() ? 'text' : 'password'" 
+                formControlName="confirmPassword" 
+                placeholder="Re-enter your password"
+                autocomplete="new-password"
+              />
+            </div>
+          </div>
+
+          <button type="submit" class="submit-btn" [disabled]="isSubmitting()">
+            @if (isSubmitting()) {
+              <svg lucideLoader2 class="spin-icon"></svg>
+              <span>Creating Account...</span>
+            } @else {
+              <svg lucideSparkles class="btn-icon"></svg>
+              <span>Create Account</span>
+            }
+          </button>
+
+          <div class="switch-mode">
+            <span>Already have an account?</span>
+            <button type="button" class="switch-link" (click)="setMode('login')">Sign in here</button>
+          </div>
+        </form>
+      }
+    </div>
+  </div>
+}

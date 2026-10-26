@@ -58,6 +58,8 @@ public static class DependencyInjection
 
         services.AddScoped<MoviesCenter.Application.Common.Interfaces.ITmdbSyncService, MoviesCenter.Infrastructure.Services.TmdbSyncService>();
         services.AddScoped<MoviesCenter.Application.Common.Interfaces.ICatalogQueryService, MoviesCenter.Infrastructure.Services.CatalogQueryService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.IJwtTokenService, MoviesCenter.Infrastructure.Services.JwtTokenService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.IAuthService, MoviesCenter.Infrastructure.Services.AuthService>();
 
         // Hangfire Background Processing
         services.AddHangfire(config => config

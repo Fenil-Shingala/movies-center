@@ -109,9 +109,67 @@
         }
       </button>
 
-      <a routerLink="/login" class="icon-button user-button" aria-label="User Account">
-        <svg lucideUser class="icon"></svg>
-      </a>
+      @if (!authService.isAuthenticated()) {
+        <button 
+          type="button" 
+          class="sign-in-btn" 
+          (click)="openSignIn()" 
+          aria-label="Sign in to your account"
+        >
+          <svg lucideLogIn class="icon"></svg>
+          <span class="btn-text">Sign In</span>
+        </button>
+      } @else {
+        <div class="user-menu-wrapper">
+          <button 
+            type="button" 
+            class="user-avatar-btn" 
+            (click)="toggleUserMenu()" 
+            [class.active]="isUserMenuOpen()"
+            aria-label="User profile menu"
+          >
+            @if (authService.currentUser()?.avatarUrl) {
+              <img [src]="authService.currentUser()?.avatarUrl" [alt]="authService.currentUser()?.displayName" class="avatar-img" />
+            } @else {
+              <span class="avatar-initials">{{ getUserInitials() }}</span>
+            }
+            <span class="user-name">{{ authService.currentUser()?.displayName }}</span>
+            <svg lucideChevronDown class="chevron-icon" [class.rotate]="isUserMenuOpen()"></svg>
+          </button>
+
+          @if (isUserMenuOpen()) {
+            <div class="user-dropdown-menu" role="menu">
+              <div class="user-dropdown-header">
+                <span class="dropdown-display-name">{{ authService.currentUser()?.displayName }}</span>
+                <span class="dropdown-email">{{ authService.currentUser()?.email }}</span>
+                @if (authService.isAdmin()) {
+                  <span class="admin-badge">ADMIN</span>
+                }
+              </div>
+              <div class="dropdown-divider"></div>
+              @if (authService.isAdmin()) {
+                <a routerLink="/admin" class="menu-item admin-link" (click)="closeUserMenu()" role="menuitem">
+                  <svg lucideShieldCheck class="item-icon"></svg>
+                  <span>Admin Panel</span>
+                </a>
+              }
+              <a routerLink="/watchlist" class="menu-item" (click)="closeUserMenu()" role="menuitem">
+                <svg lucideBookmark class="item-icon"></svg>
+                <span>Watchlist</span>
+              </a>
+              <a routerLink="/history" class="menu-item" (click)="closeUserMenu()" role="menuitem">
+                <svg lucideClock class="item-icon"></svg>
+                <span>Watch History</span>
+              </a>
+              <div class="dropdown-divider"></div>
+              <button type="button" class="menu-item logout-btn" (click)="signOut()" role="menuitem">
+                <svg lucideLogOut class="item-icon"></svg>
+                <span>Sign Out</span>
+              </button>
+            </div>
+          }
+        </div>
+      }
     </div>
   </div>
 

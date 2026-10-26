@@ -14,15 +14,21 @@ import { Subject, Subscription, of } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, tap, catchError } from 'rxjs/operators';
 import { 
   LucideSearch, 
-  LucideUser, 
   LucideFilm, 
   LucideX, 
   LucideStar, 
   LucideArrowRight, 
-  LucideLoader2 
+  LucideLoader2,
+  LucideLogIn,
+  LucideLogOut,
+  LucideChevronDown,
+  LucideShieldCheck,
+  LucideBookmark,
+  LucideClock
 } from '@lucide/angular';
 import { APP_NAME } from '../../core/constants/app.constants';
 import { CatalogService } from '../../core/services/catalog.service';
+import { AuthService } from '../../core/services/auth.service';
 import { SearchSuggestion } from '../../core/models/media.models';
 
 @Component({
@@ -33,12 +39,17 @@ import { SearchSuggestion } from '../../core/models/media.models';
     RouterLink, 
     RouterLinkActive, 
     LucideSearch, 
-    LucideUser, 
     LucideFilm, 
     LucideX, 
     LucideStar, 
     LucideArrowRight, 
-    LucideLoader2
+    LucideLoader2,
+    LucideLogIn,
+    LucideLogOut,
+    LucideChevronDown,
+    LucideShieldCheck,
+    LucideBookmark,
+    LucideClock
   ],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
@@ -48,6 +59,7 @@ export class HeaderComponent implements OnDestroy {
   private readonly platformId = inject(PLATFORM_ID);
   private readonly router = inject(Router);
   private readonly catalogService = inject(CatalogService);
+  readonly authService = inject(AuthService);
   private readonly elementRef = inject(ElementRef);
 
   readonly appName = APP_NAME;
@@ -57,6 +69,7 @@ export class HeaderComponent implements OnDestroy {
   readonly isSearching = signal<boolean>(false);
   readonly isDropdownOpen = signal<boolean>(false);
   readonly isMobileSearchActive = signal<boolean>(false);
+  readonly isUserMenuOpen = signal<boolean>(false);
 
   private readonly searchInput$ = new Subject<string>();
   private readonly sub = new Subscription();
@@ -110,6 +123,7 @@ export class HeaderComponent implements OnDestroy {
       const clickedInside = this.elementRef.nativeElement.contains(event.target);
       if (!clickedInside) {
         this.closeSearch();
+        this.closeUserMenu();
       }
     }
   }
@@ -117,6 +131,37 @@ export class HeaderComponent implements OnDestroy {
   @HostListener('document:keydown.escape')
   onEscapeKey(): void {
     this.closeSearch();
+    this.closeUserMenu();
+  }
+
+  getUserInitials(): string {
+    const user = this.authService.currentUser();
+    if (!user) return '?';
+    const name = user.displayName || user.email || '';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  }
+
+  openSignIn(): void {
+    this.closeSearch();
+    this.closeUserMenu();
+    this.authService.openAuthModal('login');
+  }
+
+  toggleUserMenu(): void {
+    this.isUserMenuOpen.update(v => !v);
+  }
+
+  closeUserMenu(): void {
+    this.isUserMenuOpen.set(false);
+  }
+
+  signOut(): void {
+    this.closeUserMenu();
+    this.authService.logout().subscribe();
   }
 
   onSearchInput(event: Event): void {
