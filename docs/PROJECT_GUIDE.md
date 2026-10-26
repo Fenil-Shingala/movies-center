@@ -710,8 +710,8 @@ POST   /analytics/events                      → Batch of anonymous events (onl
 | 8 | Video player page with dual-source model | ✅ Complete |
 | 9 | Login and register + guest-to-account merge | ✅ Complete |
 | 10 | Watchlist and Continue Watching | ✅ Complete |
-| 11 | Ratings (1–5 stars) | ⬜ Next (Awaiting Approval) |
-| 12 | Admin panel (TMDB import, sources, uploads, reports) | ⬜ Not started |
+| 11 | Ratings (1–5 stars) | ✅ Complete |
+| 12 | Admin panel (TMDB import, sources, uploads, reports) | ⬜ Next (Awaiting Approval) |
 | 13 | Notifications (in-app, email, settings) | ⬜ Not started |
 | 14 | PWA (installable, offline shell, update message, then web push) | ⬜ Not started |
 | 15 | Analytics (consent-based events, admin dashboard) | ⬜ Not started |
@@ -1048,6 +1048,7 @@ Stored in `.env` (git-ignored). Template in `.env.example`.
 | 23 | 2026-10-25 | Player Multi-Server Expansion, Ad-Shield Sandbox & Episode Navigation | Expanded streaming options to 5 high-speed providers (VidSrc Pro, SuperEmbed, VidSrc Mirror, AutoEmbed, 2Embed); introduced Ad-Shield sandbox restricting popups and top-navigation in Chrome/Edge; added reusable CustomSelectComponent; fixed route scroll-to-top restoration; enabled resilient episode fallback generation |
 | 24 | 2026-10-26 | JWT Auth, Rotating Refresh Cookies & Guest-to-Account Merge | Implemented ASP.NET Core Identity authentication endpoints (register, login, refresh, logout, me) with 60-min JWT and 7-day HTTP-only refresh tokens; added GuestStorageService managing local guest watchlist and progress; built AuthService with reactive signals, auto-refresh on 401 via HttpInterceptorFn, and seamless guest-to-account merge on authentication; created cinema-styled AuthModalComponent and Header avatar dropdown |
 | 25 | 2026-10-26 | Watchlist & Continue Watching State, Pages & Home Integration | Implemented /me/watchlist and /me/history CRUD endpoints querying local SQL Server; built unified UserDataService connecting backend API with guest localStorage fallback; wired active bookmark toggle in TitleDetailComponent and periodic watch progress tracking in PlayerComponent; integrated Continue Watching scroller on Home feed; created dedicated /watchlist and /history views |
+| 26 | 2026-10-26 | Community Ratings (1–5 Stars) & Distribution Breakdown | Implemented Rating entity and endpoints (GET/POST/DELETE /api/v1/titles/{id}/rating); created RatingService with score aggregation, distribution caching, and upsert handling; built interactive 5-star rating widget in TitleDetailComponent with instant feedback, guest login redirection, and visual distribution bar chart |
 
 ---
 

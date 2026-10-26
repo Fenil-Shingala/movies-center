@@ -12,7 +12,9 @@ import {
   WatchProvider,
   TitleSource,
   ReportSourceRequest,
-  SourceReportResponse
+  SourceReportResponse,
+  RatingDto,
+  SubmitRatingRequest
 } from '../models/media.models';
 import { environment } from '../../../environments/environment';
 
@@ -100,6 +102,18 @@ export class CatalogService {
 
   reportSource(sourceId: number, request: ReportSourceRequest): Observable<SourceReportResponse> {
     return this.http.post<SourceReportResponse>(`${this.apiUrl}/sources/${sourceId}/report`, request);
+  }
+
+  getTitleRating(titleId: number): Observable<RatingDto> {
+    return this.http.get<RatingDto>(`${this.apiUrl}/titles/${titleId}/rating`);
+  }
+
+  submitRating(titleId: number, score: number): Observable<RatingDto> {
+    return this.http.post<RatingDto>(`${this.apiUrl}/titles/${titleId}/rating`, { score });
+  }
+
+  removeRating(titleId: number): Observable<RatingDto> {
+    return this.http.delete<RatingDto>(`${this.apiUrl}/titles/${titleId}/rating`);
   }
 
   getGenres(): Observable<GenreItem[]> {

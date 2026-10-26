@@ -30,6 +30,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<WatchlistItem> WatchlistItems => Set<WatchlistItem>();
     public DbSet<WatchHistoryItem> WatchHistoryItems => Set<WatchHistoryItem>();
+    public DbSet<Rating> Ratings => Set<Rating>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -261,6 +262,21 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
                   .WithMany()
                   .HasForeignKey(h => h.EpisodeId)
                   .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<Rating>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.HasIndex(r => new { r.UserId, r.TitleId }).IsUnique();
+            entity.Property(r => r.Score).IsRequired();
+            entity.HasOne(r => r.User)
+                  .WithMany(u => u.Ratings)
+                  .HasForeignKey(r => r.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(r => r.Title)
+                  .WithMany(t => t.Ratings)
+                  .HasForeignKey(r => r.TitleId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Convert table names and column names to snake_case

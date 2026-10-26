@@ -108,6 +108,48 @@
               </button>
             </div>
 
+            <!-- Quick Rating Widget -->
+            <div class="quick-rate-box">
+              <div class="quick-rate-header">
+                <span class="rate-prompt-text">
+                  @if (userRating()) {
+                    Your Rating: <strong>{{ userRating() }}/5 stars</strong>
+                  } @else {
+                    Rate this title:
+                  }
+                </span>
+                @if (userRating()) {
+                  <button type="button" class="btn-remove-star" (click)="removeRating()" title="Remove your rating" aria-label="Remove rating">
+                    <svg lucideTrash2 class="trash-icon"></svg>
+                    <span>Remove</span>
+                  </button>
+                }
+              </div>
+
+              <div class="stars-interactive-row" (mouseleave)="onStarLeave()">
+                @for (star of [1, 2, 3, 4, 5]; track star) {
+                  <button 
+                    type="button" 
+                    class="star-btn" 
+                    [class.active]="(hoverRating() || userRating() || 0) >= star"
+                    [class.hovered]="hoverRating() >= star"
+                    (mouseenter)="onStarHover(star)" 
+                    (click)="rateTitle(star)"
+                    [title]="'Rate ' + star + ' star' + (star > 1 ? 's' : '')"
+                    [disabled]="isSubmittingRating()"
+                    [attr.aria-label]="'Rate ' + star + ' stars'">
+                    <svg lucideStar class="star-icon-interactive"></svg>
+                  </button>
+                }
+                @if (totalRatings() > 0) {
+                  <span class="community-avg-badge">
+                    <svg lucideStar class="star-mini"></svg>
+                    {{ averageRating().toFixed(1) }} ({{ totalRatings() | number }})
+                  </span>
+                }
+              </div>
+            </div>
+
             <!-- Where To Watch (Providers) -->
             @if (item.providers.length > 0) {
               <div class="detail-providers-section">
@@ -236,6 +278,121 @@
           </div>
         </section>
       }
+
+      <!-- Ratings & Community Reviews Section -->
+      <section class="ratings-section">
+        <div class="section-header-row">
+          <h2 class="section-title">
+            <svg lucideStar class="sec-icon"></svg>
+            <span>Community Ratings</span>
+          </h2>
+        </div>
+
+        <div class="ratings-card">
+          <!-- Left Column: Big Average Score -->
+          <div class="ratings-summary-col">
+            <div class="big-score">{{ averageRating() > 0 ? averageRating().toFixed(1) : '—' }}</div>
+            <div class="stars-display">
+              @for (star of [1, 2, 3, 4, 5]; track star) {
+                <svg 
+                  lucideStar 
+                  class="star-display-icon" 
+                  [class.filled]="averageRating() >= star"
+                  [class.half-filled]="averageRating() >= star - 0.5 && averageRating() < star"
+                ></svg>
+              }
+            </div>
+            <div class="total-ratings-count">
+              {{ totalRatings() > 0 ? (totalRatings() | number) + ' community ratings' : 'No ratings yet. Be the first to rate!' }}
+            </div>
+            @if (item.rating > 0) {
+              <div class="tmdb-reference-badge">
+                TMDB Score: {{ item.rating.toFixed(1) }} ({{ item.voteCount | number }} votes)
+              </div>
+            }
+          </div>
+
+          <!-- Middle Column: Distribution Bars -->
+          <div class="ratings-distribution-col">
+            @for (score of [5, 4, 3, 2, 1]; track score) {
+              <div class="distribution-row">
+                <div class="dist-label">
+                  <span>{{ score }}</span>
+                  <svg lucideStar class="mini-star"></svg>
+                </div>
+                <div class="dist-bar-track">
+                  <div class="dist-bar-fill" [style.width.%]="getDistributionPercent(score)"></div>
+                </div>
+                <div class="dist-stat">
+                  <span class="dist-percent">{{ getDistributionPercent(score) }}%</span>
+                  <span class="dist-count">({{ getDistributionCount(score) }})</span>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Right Column: User Rating Action & Status -->
+          <div class="ratings-user-action-col">
+            <div class="user-action-card">
+              <h3 class="user-action-title">Your Rating</h3>
+              @if (authService.isAuthenticated()) {
+                @if (userRating()) {
+                  <div class="user-rated-status">
+                    <div class="rated-badge">
+                      <svg lucideStar class="rated-star-icon"></svg>
+                      <span>You rated this <strong>{{ userRating() }} / 5 stars</strong></span>
+                    </div>
+                    <div class="interactive-stars-large" (mouseleave)="onStarLeave()">
+                      @for (star of [1, 2, 3, 4, 5]; track star) {
+                        <button 
+                          type="button" 
+                          class="star-btn-lg" 
+                          [class.active]="(hoverRating() || userRating() || 0) >= star"
+                          [class.hovered]="hoverRating() >= star"
+                          (mouseenter)="onStarHover(star)" 
+                          (click)="rateTitle(star)"
+                          [title]="'Change rating to ' + star + ' stars'"
+                          [disabled]="isSubmittingRating()"
+                          [attr.aria-label]="'Rate ' + star + ' stars'">
+                          <svg lucideStar class="star-icon-lg"></svg>
+                        </button>
+                      }
+                    </div>
+                    <button type="button" class="btn btn-outline btn-sm remove-rate-btn" (click)="removeRating()">
+                      <svg lucideTrash2 class="btn-icon-sm"></svg>
+                      <span>Remove Rating</span>
+                    </button>
+                  </div>
+                } @else {
+                  <p class="rate-prompt-text">Tap a star to submit your rating:</p>
+                  <div class="interactive-stars-large" (mouseleave)="onStarLeave()">
+                    @for (star of [1, 2, 3, 4, 5]; track star) {
+                      <button 
+                        type="button" 
+                        class="star-btn-lg" 
+                        [class.active]="hoverRating() >= star"
+                        [class.hovered]="hoverRating() >= star"
+                        (mouseenter)="onStarHover(star)" 
+                        (click)="rateTitle(star)"
+                        [title]="'Rate ' + star + ' stars'"
+                        [disabled]="isSubmittingRating()"
+                        [attr.aria-label]="'Rate ' + star + ' stars'">
+                        <svg lucideStar class="star-icon-lg"></svg>
+                      </button>
+                    }
+                  </div>
+                }
+              } @else {
+                <p class="rate-prompt-text">Sign in to rate this title and keep track of your favorites.</p>
+                <button type="button" class="btn btn-primary btn-sm sign-in-rate-btn" (click)="authService.openAuthModal('login')">
+                  <svg lucideStar class="btn-icon-sm"></svg>
+                  <span>Sign In to Rate</span>
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
 
     <!-- Video Modal / Trailer Overlay -->

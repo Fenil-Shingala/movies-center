@@ -15,4 +15,5 @@ public class ApplicationUser : IdentityUser<Guid>
     public ICollection<RefreshToken> RefreshTokens { get; set; } = [];
     public ICollection<WatchlistItem> WatchlistItems { get; set; } = [];
     public ICollection<WatchHistoryItem> WatchHistory { get; set; } = [];
+    public ICollection<Rating> Ratings { get; set; } = [];
 }

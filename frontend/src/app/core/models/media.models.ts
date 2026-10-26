@@ -203,3 +203,15 @@ export interface WatchHistoryItem {
   isCompleted: boolean;
   watchedAt: string;
 }
+
+export interface RatingDto {
+  averageRating: number;
+  totalRatings: number;
+  userRating: number | null;
+  distribution: { [key: number]: number };
+}
+
+export interface SubmitRatingRequest {
+  score: number;
+}
+

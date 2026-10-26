@@ -249,4 +249,60 @@ describe('CatalogService', () => {
     expect(req.request.body).toEqual({ titleId: 50, reason: 'buffering', details: 'Laggy' });
     req.flush(mockResponse);
   });
+
+  it('should get title rating', () => {
+    const mockRating = {
+      averageRating: 4.5,
+      totalRatings: 10,
+      userRating: 5,
+      distribution: { 1: 0, 2: 1, 3: 1, 4: 3, 5: 5 }
+    };
+
+    service.getTitleRating(50).subscribe(rating => {
+      expect(rating.averageRating).toBe(4.5);
+      expect(rating.totalRatings).toBe(10);
+      expect(rating.userRating).toBe(5);
+    });
+
+    const req = httpMock.expectOne(request => request.url.endsWith('/api/v1/titles/50/rating'));
+    expect(req.request.method).toBe('GET');
+    req.flush(mockRating);
+  });
+
+  it('should submit rating for title', () => {
+    const mockRating = {
+      averageRating: 4.0,
+      totalRatings: 1,
+      userRating: 4,
+      distribution: { 1: 0, 2: 0, 3: 0, 4: 1, 5: 0 }
+    };
+
+    service.submitRating(50, 4).subscribe(rating => {
+      expect(rating.userRating).toBe(4);
+      expect(rating.totalRatings).toBe(1);
+    });
+
+    const req = httpMock.expectOne(request => request.url.endsWith('/api/v1/titles/50/rating'));
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ score: 4 });
+    req.flush(mockRating);
+  });
+
+  it('should remove rating for title', () => {
+    const mockRating = {
+      averageRating: 0.0,
+      totalRatings: 0,
+      userRating: null,
+      distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    };
+
+    service.removeRating(50).subscribe(rating => {
+      expect(rating.userRating).toBeNull();
+      expect(rating.totalRatings).toBe(0);
+    });
+
+    const req = httpMock.expectOne(request => request.url.endsWith('/api/v1/titles/50/rating'));
+    expect(req.request.method).toBe('DELETE');
+    req.flush(mockRating);
+  });
 });

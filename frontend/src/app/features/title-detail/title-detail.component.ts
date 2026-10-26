@@ -5,7 +5,8 @@ import {
   signal, 
   computed, 
   HostListener, 
-  ChangeDetectionStrategy 
+  ChangeDetectionStrategy,
+  effect 
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -18,15 +19,18 @@ import {
   LucideTv, 
   LucideBookmark, 
   LucideUsers, 
-  LucideX 
+  LucideX,
+  LucideTrash2
 } from '@lucide/angular';
 import { CatalogService } from '../../core/services/catalog.service';
 import { UserDataService } from '../../core/services/user-data.service';
+import { AuthService } from '../../core/services/auth.service';
 import { 
   TitleDetail, 
   SeasonItem, 
   VideoItem,
-  EpisodeItem 
+  EpisodeItem,
+  RatingDto 
 } from '../../core/models/media.models';
 import { 
   TMDB_IMAGE_BASE_URL, 
@@ -51,6 +55,7 @@ import { CustomSelectComponent, SelectOption } from '../../shared/components/cus
     LucideBookmark, 
     LucideUsers, 
     LucideX, 
+    LucideTrash2,
     EmptyStateComponent
   ],
   templateUrl: './title-detail.component.html',
@@ -64,11 +69,32 @@ export class TitleDetailComponent implements OnInit {
   private readonly sanitizer = inject(DomSanitizer);
   private readonly titleService = inject(Title);
   readonly userDataService = inject(UserDataService);
+  readonly authService = inject(AuthService);
 
   readonly title = signal<TitleDetail | null>(null);
   readonly isLoading = signal<boolean>(true);
   readonly selectedSeasonNumber = signal<number>(1);
   readonly activeTrailer = signal<VideoItem | null>(null);
+
+  // Ratings State
+  readonly ratingData = signal<RatingDto | null>(null);
+  readonly hoverRating = signal<number>(0);
+  readonly isSubmittingRating = signal<boolean>(false);
+
+  readonly userRating = computed(() => this.ratingData()?.userRating ?? null);
+  readonly averageRating = computed(() => this.ratingData()?.averageRating ?? 0);
+  readonly totalRatings = computed(() => this.ratingData()?.totalRatings ?? 0);
+
+  constructor() {
+    effect(() => {
+      // Re-fetch ratings whenever the logged-in user changes
+      const user = this.authService.currentUser();
+      const t = this.title();
+      if (t) {
+        this.loadRating(t.id);
+      }
+    });
+  }
   readonly isInWatchlist = computed(() => {
     const t = this.title();
     return t ? this.userDataService.isInWatchlist(t.id) : false;
@@ -197,11 +223,79 @@ export class TitleDetailComponent implements OnInit {
           const firstSeason = detail.seasons.find(s => s.seasonNumber > 0) ?? detail.seasons[0];
           this.selectedSeasonNumber.set(firstSeason.seasonNumber);
         }
+
+        // Load community ratings
+        this.loadRating(detail.id);
       },
       error: () => {
         this.title.set(null);
         this.isLoading.set(false);
       }
+    });
+  }
+
+  getDistributionPercent(score: number): number {
+    const data = this.ratingData();
+    if (!data || data.totalRatings === 0) return 0;
+    const count = data.distribution[score] ?? 0;
+    return Math.round((count / data.totalRatings) * 100);
+  }
+
+  getDistributionCount(score: number): number {
+    return this.ratingData()?.distribution[score] ?? 0;
+  }
+
+  onStarHover(star: number): void {
+    this.hoverRating.set(star);
+  }
+
+  onStarLeave(): void {
+    this.hoverRating.set(0);
+  }
+
+  rateTitle(score: number): void {
+    if (!this.authService.isAuthenticated()) {
+      this.authService.openAuthModal('login');
+      return;
+    }
+
+    const t = this.title();
+    if (!t) return;
+
+    this.isSubmittingRating.set(true);
+    this.catalogService.submitRating(t.id, score).subscribe({
+      next: (rating) => {
+        this.ratingData.set(rating);
+        this.isSubmittingRating.set(false);
+      },
+      error: () => {
+        this.isSubmittingRating.set(false);
+      }
+    });
+  }
+
+  removeRating(): void {
+    if (!this.authService.isAuthenticated()) return;
+
+    const t = this.title();
+    if (!t) return;
+
+    this.isSubmittingRating.set(true);
+    this.catalogService.removeRating(t.id).subscribe({
+      next: (rating) => {
+        this.ratingData.set(rating);
+        this.isSubmittingRating.set(false);
+      },
+      error: () => {
+        this.isSubmittingRating.set(false);
+      }
+    });
+  }
+
+  loadRating(titleId: number): void {
+    this.catalogService.getTitleRating(titleId).subscribe({
+      next: (rating) => this.ratingData.set(rating),
+      error: () => {}
     });
   }
 

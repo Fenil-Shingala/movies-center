@@ -1,9 +1,14 @@
+using System.Security.Claims;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoviesCenter.Application.Common.Models;
 using MoviesCenter.Application.Features.Catalog.Dtos;
 using MoviesCenter.Application.Features.Catalog.Queries;
 using MoviesCenter.Application.Features.Home.Dtos;
+using MoviesCenter.Application.Features.Ratings.Commands;
+using MoviesCenter.Application.Features.Ratings.Dtos;
+using MoviesCenter.Application.Features.Ratings.Queries;
 
 namespace MoviesCenter.Api.Controllers;
 
@@ -110,5 +115,78 @@ public class TitlesController : ControllerBase
         var query = new MoviesCenter.Application.Features.Player.Queries.GetTitleSourcesQuery(id, season, episode);
         var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Get rating summary and distribution for a title, including the authenticated user's rating if logged in.
+    /// </summary>
+    [HttpGet("{id:int}/rating")]
+    [ProducesResponseType(typeof(RatingDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<RatingDto>> GetTitleRating(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        Guid? userId = TryGetUserId(out var uid) ? uid : null;
+        var query = new GetTitleRatingQuery(id, userId);
+        var result = await _mediator.Send(query, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Submit or update 1-5 star rating for a title.
+    /// </summary>
+    [HttpPost("{id:int}/rating")]
+    [Authorize]
+    [ProducesResponseType(typeof(RatingDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<RatingDto>> SubmitRating(
+        int id,
+        [FromBody] SubmitRatingRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+
+        if (request.Score < 1 || request.Score > 5)
+        {
+            return BadRequest(new { message = "Rating score must be between 1 and 5." });
+        }
+
+        try
+        {
+            var command = new SubmitRatingCommand(id, userId, request.Score);
+            var result = await _mediator.Send(command, cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Remove the authenticated user's rating for a title.
+    /// </summary>
+    [HttpDelete("{id:int}/rating")]
+    [Authorize]
+    [ProducesResponseType(typeof(RatingDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<RatingDto>> RemoveRating(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+
+        var command = new RemoveRatingCommand(id, userId);
+        var result = await _mediator.Send(command, cancellationToken);
+        return Ok(result);
+    }
+
+    private bool TryGetUserId(out Guid userId)
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) 
+            ?? User.FindFirstValue("sub");
+
+        return Guid.TryParse(userIdStr, out userId);
     }
 }
