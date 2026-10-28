@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bgGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1e2235" />
+      <stop offset="100%" stop-color="#0a0b10" />
+    </radialGradient>
+    <linearGradient id="primaryRed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff2a3b" />
+      <stop offset="100%" stop-color="#b20710" />
+    </linearGradient>
+    <linearGradient id="goldAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000" flood-opacity="0.6"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="24" flood-color="#e50914" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGlow)"/>
+  <rect width="508" height="508" x="2" y="2" rx="110" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+
+  <!-- Cinema Reel / Play Badge -->
+  <g filter="url(#shadow)">
+    <!-- Outer Octagon / Rounded Hex -->
+    <circle cx="256" cy="256" r="160" fill="url(#primaryRed)"/>
+    <circle cx="256" cy="256" r="150" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="3" stroke-dasharray="14 10"/>
+
+    <!-- Inner Dark Circle -->
+    <circle cx="256" cy="256" r="105" fill="#0d0f17"/>
+    <circle cx="256" cy="256" r="105" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
+
+    <!-- Dynamic Play Triangle -->
+    <path d="M228 196 L320 256 L228 316 Z" fill="#ffffff" stroke="url(#goldAccent)" stroke-width="4" stroke-linejoin="round"/>
+
+    <!-- 4 Cinema Film Sprockets -->
+    <circle cx="256" cy="120" r="14" fill="#ffffff" opacity="0.9"/>
+    <circle cx="256" cy="392" r="14" fill="#ffffff" opacity="0.9"/>
+    <circle cx="120" cy="256" r="14" fill="#ffffff" opacity="0.9"/>
+    <circle cx="392" cy="256" r="14" fill="#ffffff" opacity="0.9"/>
+  </g>
+</svg>

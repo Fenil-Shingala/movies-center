@@ -1,0 +1,63 @@
+<!-- 1. Offline Mode Indicator -->
+@if (pwaService.isOffline()) {
+  <aside class="pwa-offline-bar" role="status" aria-live="polite">
+    <div class="bar-content">
+      <svg lucideWifiOff class="bar-icon"></svg>
+      <span class="bar-text">You are currently offline. Showing cached shell & catalog.</span>
+    </div>
+  </aside>
+}
+
+<!-- 2. App Update Available Banner -->
+@if (pwaService.hasUpdate()) {
+  <aside class="pwa-update-toast" role="alert" aria-live="assertive">
+    <div class="toast-left">
+      <div class="icon-wrap pulse">
+        <svg lucideRefreshCw class="toast-icon spin-slow"></svg>
+      </div>
+      <div>
+        <span class="toast-title">New Version Available!</span>
+        <span class="toast-sub">An updated version of Movies Center is ready.</span>
+      </div>
+    </div>
+    <div class="toast-actions">
+      <button type="button" class="update-btn" (click)="updateApp()">
+        <svg lucideRefreshCw class="btn-icon"></svg>
+        <span>Update Now</span>
+      </button>
+      <button type="button" class="dismiss-btn" (click)="dismissUpdate()" aria-label="Dismiss update alert">
+        <svg lucideX class="btn-icon"></svg>
+      </button>
+    </div>
+  </aside>
+}
+
+<!-- 3. Install App Prompt Banner (Dismissible) -->
+@if (pwaService.canInstall() && !isInstallBannerDismissed()) {
+  <aside class="pwa-install-banner" role="banner">
+    <div class="banner-container">
+      <div class="banner-left">
+        <div class="app-icon-wrap">
+          <svg lucideFilm class="app-icon"></svg>
+        </div>
+        <div class="banner-info">
+          <span class="banner-title">
+            Install Movies Center App
+            <span class="pill-badge">PWA</span>
+          </span>
+          <span class="banner-sub">Install for fast launching, fullscreen cinema mode, and offline shell access</span>
+        </div>
+      </div>
+
+      <div class="banner-actions">
+        <button type="button" class="install-btn" (click)="installApp()">
+          <svg lucideDownload class="btn-icon"></svg>
+          <span>Install App</span>
+        </button>
+        <button type="button" class="close-banner-btn" (click)="dismissInstallBanner()" aria-label="Dismiss installation prompt">
+          <svg lucideX class="close-icon"></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+}

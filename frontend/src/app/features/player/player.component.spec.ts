@@ -1,14 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { TestBed } from '@angular/core/testing';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { PlayerComponent } from './player.component';
 import { CatalogService } from '../../core/services/catalog.service';
+import { UserDataService } from '../../core/services/user-data.service';
 import { TitleDetail, TitleSource } from '../../core/models/media.models';
 
 describe('PlayerComponent', () => {
   let component: PlayerComponent;
+  let fixture: ComponentFixture<PlayerComponent>;
   let catalogServiceMock: any;
+  let userDataServiceMock: any;
   let routerMock: any;
   let activatedRouteMock: any;
 
@@ -98,6 +101,10 @@ describe('PlayerComponent', () => {
       reportSource: vi.fn().mockReturnValue(of({ success: true, message: 'Report received' }))
     };
 
+    userDataServiceMock = {
+      updateProgress: vi.fn().mockReturnValue(of({ success: true }))
+    };
+
     routerMock = {
       navigate: vi.fn()
     };
@@ -111,14 +118,21 @@ describe('PlayerComponent', () => {
       imports: [PlayerComponent],
       providers: [
         { provide: CatalogService, useValue: catalogServiceMock },
+        { provide: UserDataService, useValue: userDataServiceMock },
         { provide: Router, useValue: routerMock },
         { provide: ActivatedRoute, useValue: activatedRouteMock }
       ]
     }).compileComponents();
 
-    const fixture = TestBed.createComponent(PlayerComponent);
+    fixture = TestBed.createComponent(PlayerComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    fixture?.destroy();
+    TestBed.resetTestingModule();
+    vi.clearAllMocks();
   });
 
   it('should create and load title with sources', () => {

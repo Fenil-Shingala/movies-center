@@ -16,4 +16,7 @@ public class ApplicationUser : IdentityUser<Guid>
     public ICollection<WatchlistItem> WatchlistItems { get; set; } = [];
     public ICollection<WatchHistoryItem> WatchHistory { get; set; } = [];
     public ICollection<Rating> Ratings { get; set; } = [];
+    public ICollection<Notification> Notifications { get; set; } = [];
+    public NotificationSettings? NotificationSettings { get; set; }
+    public ICollection<PushSubscription> PushSubscriptions { get; set; } = [];
 }

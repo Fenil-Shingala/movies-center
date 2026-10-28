@@ -5,11 +5,20 @@ import { FooterComponent } from '../footer/footer.component';
 import { MobileTabBarComponent } from '../mobile-tab-bar/mobile-tab-bar.component';
 import { CookieNoticeComponent } from '../cookie-notice/cookie-notice.component';
 import { AuthModalComponent } from '../../shared/components/auth-modal/auth-modal.component';
+import { PwaPromptComponent } from '../../shared/components/pwa-prompt/pwa-prompt.component';
 
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, HeaderComponent, FooterComponent, MobileTabBarComponent, CookieNoticeComponent, AuthModalComponent],
+  imports: [
+    RouterOutlet, 
+    HeaderComponent, 
+    FooterComponent, 
+    MobileTabBarComponent, 
+    CookieNoticeComponent, 
+    AuthModalComponent,
+    PwaPromptComponent
+  ],
   templateUrl: './shell.component.html',
   styleUrl: './shell.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

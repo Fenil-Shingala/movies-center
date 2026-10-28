@@ -1,0 +1,147 @@
+<div class="modal-backdrop" (click)="close()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="modal-header">
+      <div class="header-title-box">
+        <div class="icon-bubble">
+          <svg lucideBell class="bell-icon"></svg>
+        </div>
+        <div>
+          <h2 class="modal-title">Notification Preferences</h2>
+          <p class="modal-subtitle">Control how and when you receive movie & episode updates</p>
+        </div>
+      </div>
+      <button type="button" class="close-btn" (click)="close()" aria-label="Close modal">
+        <svg lucideX class="close-icon"></svg>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="modal-body">
+      <!-- Section 1: New Episodes & Releases -->
+      <div class="settings-section">
+        <div class="section-header">
+          <div class="section-icon-wrap series">
+            <svg lucideFilm class="section-icon"></svg>
+          </div>
+          <div>
+            <h3 class="section-title">New Episodes & Releases</h3>
+            <p class="section-desc">Get notified when new episodes air or watchlisted titles release</p>
+          </div>
+        </div>
+
+        <div class="channel-toggles">
+          <div class="toggle-row" (click)="toggle('newEpisodeInApp')">
+            <div class="toggle-info">
+              <svg lucideBell class="channel-icon"></svg>
+              <div>
+                <span class="toggle-label">In-App Notifications</span>
+                <span class="toggle-sub">Show alerts in header bell & notification center</span>
+              </div>
+            </div>
+            <button type="button" class="switch-btn" [class.active]="settingsModel().newEpisodeInApp" aria-label="Toggle In-App Episodes">
+              <span class="switch-handle"></span>
+            </button>
+          </div>
+
+          <div class="toggle-row" (click)="toggle('newEpisodeEmail')">
+            <div class="toggle-info">
+              <svg lucideMail class="channel-icon"></svg>
+              <div>
+                <span class="toggle-label">Email Notifications</span>
+                <span class="toggle-sub">Receive direct email delivery to your registered account</span>
+              </div>
+            </div>
+            <button type="button" class="switch-btn" [class.active]="settingsModel().newEpisodeEmail" aria-label="Toggle Email Episodes">
+              <span class="switch-handle"></span>
+            </button>
+          </div>
+
+          <div class="toggle-row" (click)="toggle('newEpisodePush')">
+            <div class="toggle-info">
+              <svg lucideSmartphone class="channel-icon"></svg>
+              <div>
+                <span class="toggle-label">Web Push Alerts</span>
+                <span class="toggle-sub">Browser desktop & mobile push notifications (PWA)</span>
+              </div>
+            </div>
+            <button type="button" class="switch-btn" [class.active]="settingsModel().newEpisodePush" aria-label="Toggle Push Episodes">
+              <span class="switch-handle"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Continue Watching Reminders -->
+      <div class="settings-section">
+        <div class="section-header">
+          <div class="section-icon-wrap reminder">
+            <svg lucideClock class="section-icon"></svg>
+          </div>
+          <div>
+            <h3 class="section-title">Continue Watching Reminders</h3>
+            <p class="section-desc">Helpful nudges to resume titles you paused or left in progress</p>
+          </div>
+        </div>
+
+        <div class="channel-toggles">
+          <div class="toggle-row" (click)="toggle('continueWatchingInApp')">
+            <div class="toggle-info">
+              <svg lucideBell class="channel-icon"></svg>
+              <div>
+                <span class="toggle-label">In-App Reminders</span>
+                <span class="toggle-sub">Remind in notification bell after 2+ days of inactivity</span>
+              </div>
+            </div>
+            <button type="button" class="switch-btn" [class.active]="settingsModel().continueWatchingInApp" aria-label="Toggle In-App Continue Watching">
+              <span class="switch-handle"></span>
+            </button>
+          </div>
+
+          <div class="toggle-row" (click)="toggle('continueWatchingEmail')">
+            <div class="toggle-info">
+              <svg lucideMail class="channel-icon"></svg>
+              <div>
+                <span class="toggle-label">Email Digest</span>
+                <span class="toggle-sub">Weekly weekend catch-up summary</span>
+              </div>
+            </div>
+            <button type="button" class="switch-btn" [class.active]="settingsModel().continueWatchingEmail" aria-label="Toggle Email Continue Watching">
+              <span class="switch-handle"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="modal-footer">
+      <div class="status-msg">
+        @if (savedSuccess()) {
+          <span class="success-badge">
+            <svg lucideCheck class="badge-icon"></svg>
+            Preferences updated successfully!
+          </span>
+        }
+      </div>
+
+      <div class="footer-actions">
+        <button type="button" class="cancel-btn" (click)="close()">Cancel</button>
+        <button 
+          type="button" 
+          class="save-btn" 
+          [disabled]="notificationService.isSavingSettings()" 
+          (click)="save()"
+        >
+          @if (notificationService.isSavingSettings()) {
+            <svg lucideLoader2 class="btn-icon spin"></svg>
+            <span>Saving...</span>
+          } @else {
+            <svg lucideCheck class="btn-icon"></svg>
+            <span>Save Preferences</span>
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

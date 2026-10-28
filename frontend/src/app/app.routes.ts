@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { ShellComponent } from './layout/shell/shell.component';
+import { adminGuard } from './core/guards/admin.guard';
 
 export const routes: Routes = [
   {
@@ -52,6 +53,12 @@ export const routes: Routes = [
         path: 'history',
         loadComponent: () => import('./features/history/history.component').then(m => m.HistoryComponent),
         title: 'Watch History - Movies Center'
+      },
+      {
+        path: 'admin',
+        loadComponent: () => import('./features/admin/admin.component').then(m => m.AdminComponent),
+        canActivate: [adminGuard],
+        title: 'Platform Operations Center - Movies Center'
       }
     ]
   },

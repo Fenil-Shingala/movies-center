@@ -711,10 +711,10 @@ POST   /analytics/events                      → Batch of anonymous events (onl
 | 9 | Login and register + guest-to-account merge | ✅ Complete |
 | 10 | Watchlist and Continue Watching | ✅ Complete |
 | 11 | Ratings (1–5 stars) | ✅ Complete |
-| 12 | Admin panel (TMDB import, sources, uploads, reports) | ⬜ Next (Awaiting Approval) |
-| 13 | Notifications (in-app, email, settings) | ⬜ Not started |
-| 14 | PWA (installable, offline shell, update message, then web push) | ⬜ Not started |
-| 15 | Analytics (consent-based events, admin dashboard) | ⬜ Not started |
+| 12 | Admin panel (TMDB import, sources, uploads, reports) | ✅ Complete |
+| 13 | Notifications (in-app, email, settings) | ✅ Complete |
+| 14 | PWA (installable, offline shell, update message, then web push) | ✅ Complete |
+| 15 | Analytics (consent-based events, admin dashboard) | ⬜ Next (Awaiting Approval) |
 
 ### NOT NOW (ask before adding)
 - Recommendations engine
@@ -1049,6 +1049,9 @@ Stored in `.env` (git-ignored). Template in `.env.example`.
 | 24 | 2026-10-26 | JWT Auth, Rotating Refresh Cookies & Guest-to-Account Merge | Implemented ASP.NET Core Identity authentication endpoints (register, login, refresh, logout, me) with 60-min JWT and 7-day HTTP-only refresh tokens; added GuestStorageService managing local guest watchlist and progress; built AuthService with reactive signals, auto-refresh on 401 via HttpInterceptorFn, and seamless guest-to-account merge on authentication; created cinema-styled AuthModalComponent and Header avatar dropdown |
 | 25 | 2026-10-26 | Watchlist & Continue Watching State, Pages & Home Integration | Implemented /me/watchlist and /me/history CRUD endpoints querying local SQL Server; built unified UserDataService connecting backend API with guest localStorage fallback; wired active bookmark toggle in TitleDetailComponent and periodic watch progress tracking in PlayerComponent; integrated Continue Watching scroller on Home feed; created dedicated /watchlist and /history views |
 | 26 | 2026-10-26 | Community Ratings (1–5 Stars) & Distribution Breakdown | Implemented Rating entity and endpoints (GET/POST/DELETE /api/v1/titles/{id}/rating); created RatingService with score aggregation, distribution caching, and upsert handling; built interactive 5-star rating widget in TitleDetailComponent with instant feedback, guest login redirection, and visual distribution bar chart |
+| 27 | 2026-10-26 | Admin Operations Center & Source Management | Implemented SourceReport persistence, IAdminService and admin controllers under /api/v1/admin/* protected by [Authorize(Roles = "Admin")]; built AdminComponent with 6 management tabs (Overview KPIs, TMDB Discovery & Import, Catalog Titles, Streaming Sources, Broken Reports Queue, Direct Video Uploads), protected by adminGuard |
+| 28 | 2026-10-28 | In-App Notification Center, Email Dispatch & Preferences | Implemented Notification & NotificationSettings entities, INotificationService, IEmailService, and /api/v1/me/notifications and /api/v1/me/notification-settings endpoints; built reactive NotificationService with unread counts, header notification bell, interactive drop-down popover with time-ago formatting, click-to-navigate action, and cinema-styled NotificationSettingsModalComponent |
+| 29 | 2026-10-28 | PWA (Installable, Offline Shell, SW Update Toast & VAPID Web Push) | Built installable PWA with W3C web app manifest (dark theme, standalone display, quick shortcuts), responsive multi-resolution icons (SVG, 192x192, 512x512, maskable 512x512), and Angular Service Worker (ngsw-config.json) caching app shell & public catalog with user/video endpoints excluded; created PwaService and PwaPromptComponent with offline status bar, version update toast (SwUpdate.versionUpdates), and dismissible install promotion banner; built backend PushSubscription domain entity, endpoints (GET vapid-public-key, POST/DELETE push-subscriptions), and push toggle integration in notification settings modal |
 
 ---
 

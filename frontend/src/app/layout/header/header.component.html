@@ -120,6 +120,112 @@
           <span class="btn-text">Sign In</span>
         </button>
       } @else {
+        <!-- Notifications Bell -->
+        <div class="notifications-wrapper">
+          <button 
+            type="button" 
+            class="notifications-bell-btn" 
+            (click)="toggleNotifications()"
+            [class.active]="notificationService.isOpen()"
+            [class.has-unread]="notificationService.hasUnread()"
+            aria-label="View notifications"
+          >
+            <svg lucideBell class="bell-icon"></svg>
+            @if (notificationService.hasUnread()) {
+              <span class="notification-badge">
+                {{ notificationService.unreadCount() > 9 ? '9+' : notificationService.unreadCount() }}
+              </span>
+            }
+          </button>
+
+          <!-- Notifications Dropdown Popover -->
+          @if (notificationService.isOpen()) {
+            <div class="notifications-dropdown" role="region" aria-label="Notifications list">
+              <div class="notifications-header">
+                <div class="header-left">
+                  <span class="title">Notifications</span>
+                  @if (notificationService.hasUnread()) {
+                    <span class="unread-pill">{{ notificationService.unreadCount() }} new</span>
+                  }
+                </div>
+                @if (notificationService.hasUnread()) {
+                  <button type="button" class="mark-all-read-btn" (click)="notificationService.markAllAsRead()">
+                    <svg lucideCheck class="icon"></svg>
+                    <span>Mark all read</span>
+                  </button>
+                }
+              </div>
+
+              <div class="notifications-list">
+                @if (notificationService.isLoading() && notificationService.notifications().length === 0) {
+                  <div class="notif-state loading">
+                    <svg lucideLoader2 class="spin-icon spin"></svg>
+                    <span>Loading alerts...</span>
+                  </div>
+                } @else if (notificationService.notifications().length === 0) {
+                  <div class="notif-state empty">
+                    <div class="empty-icon-wrap">
+                      <svg lucideBell class="empty-icon"></svg>
+                    </div>
+                    <span class="empty-title">All caught up!</span>
+                    <span class="empty-sub">No new notifications right now.</span>
+                  </div>
+                } @else {
+                  @for (notif of notificationService.notifications(); track notif.id) {
+                    <div 
+                      class="notification-item" 
+                      [class.unread]="!notif.isRead"
+                      (click)="notificationService.handleNotificationClick(notif)"
+                    >
+                      <div class="notif-icon-wrap" [class.series]="notif.type === 'NewEpisode'" [class.reminder]="notif.type === 'ContinueWatchingReminder'">
+                        @if (notif.type === 'NewEpisode') {
+                          <svg lucideFilm class="item-icon"></svg>
+                        } @else if (notif.type === 'ContinueWatchingReminder') {
+                          <svg lucideClock class="item-icon"></svg>
+                        } @else {
+                          <svg lucideBell class="item-icon"></svg>
+                        }
+                      </div>
+
+                      <div class="notif-content">
+                        <div class="notif-headline">
+                          <span class="notif-title">{{ notif.title }}</span>
+                          @if (!notif.isRead) {
+                            <span class="unread-dot" title="Unread notification"></span>
+                          }
+                        </div>
+                        <p class="notif-body">{{ notif.body }}</p>
+                        <span class="notif-time">{{ notificationService.formatTimeAgo(notif.createdAt) }}</span>
+                      </div>
+
+                      <button 
+                        type="button" 
+                        class="delete-notif-btn" 
+                        (click)="$event.stopPropagation(); notificationService.deleteNotification(notif.id)"
+                        title="Dismiss notification"
+                        aria-label="Dismiss notification"
+                      >
+                        <svg lucideTrash2 class="trash-icon"></svg>
+                      </button>
+                    </div>
+                  }
+                }
+              </div>
+
+              <div class="notifications-footer">
+                <button type="button" class="settings-link-btn" (click)="openNotificationSettings()">
+                  <svg lucideSettings class="btn-icon"></svg>
+                  <span>Notification Preferences</span>
+                </button>
+                <button type="button" class="test-alert-btn" (click)="notificationService.sendTestNotification('NewEpisode')" title="Trigger sample test notification">
+                  <svg lucideSparkles class="btn-icon"></svg>
+                  <span>Test Alert</span>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+
         <div class="user-menu-wrapper">
           <button 
             type="button" 
@@ -161,6 +267,10 @@
                 <svg lucideClock class="item-icon"></svg>
                 <span>Watch History</span>
               </a>
+              <button type="button" class="menu-item" (click)="openNotificationSettings()" role="menuitem">
+                <svg lucideSettings class="item-icon"></svg>
+                <span>Notification Preferences</span>
+              </button>
               <div class="dropdown-divider"></div>
               <button type="button" class="menu-item logout-btn" (click)="signOut()" role="menuitem">
                 <svg lucideLogOut class="item-icon"></svg>
@@ -239,5 +349,9 @@
         </div>
       }
     </div>
+  }
+
+  @if (notificationService.isSettingsModalOpen()) {
+    <app-notification-settings-modal></app-notification-settings-modal>
   }
 </header>

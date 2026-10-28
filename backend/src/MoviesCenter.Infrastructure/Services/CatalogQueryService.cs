@@ -623,9 +623,24 @@ public class CatalogQueryService : ICatalogQueryService
             if (source != null)
             {
                 source.LastVerifiedAt = DateTime.UtcNow;
-                await _db.SaveChangesAsync(cancellationToken);
             }
         }
+
+        var report = new SourceReport
+        {
+            SourceId = sourceId,
+            TitleId = titleId,
+            Reason = reason,
+            Details = details,
+            Season = season,
+            Episode = episode,
+            Status = "Pending",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _db.SourceReports.Add(report);
+        await _db.SaveChangesAsync(cancellationToken);
 
         return new SourceReportResponseDto(true, "Thank you! Your report has been submitted to our streaming team.");
     }

@@ -62,6 +62,10 @@ public static class DependencyInjection
         services.AddScoped<MoviesCenter.Application.Common.Interfaces.IAuthService, MoviesCenter.Infrastructure.Services.AuthService>();
         services.AddScoped<MoviesCenter.Application.Common.Interfaces.IUserDataService, MoviesCenter.Infrastructure.Services.UserDataService>();
         services.AddScoped<MoviesCenter.Application.Common.Interfaces.IRatingService, MoviesCenter.Infrastructure.Services.RatingService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.IAdminService, MoviesCenter.Infrastructure.Services.AdminService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.IEmailService, MoviesCenter.Infrastructure.Services.EmailService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.INotificationService, MoviesCenter.Infrastructure.Services.NotificationService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.IPushNotificationService, MoviesCenter.Infrastructure.Services.PushNotificationService>();
 
         // Hangfire Background Processing
         services.AddHangfire(config => config

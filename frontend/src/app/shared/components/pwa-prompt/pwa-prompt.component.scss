@@ -1,0 +1,308 @@
+/* 1. Offline Bar */
+.pwa-offline-bar {
+  position: sticky;
+  top: 0;
+  z-index: 9999;
+  background: linear-gradient(90deg, #b45309 0%, #d97706 100%);
+  color: #fff;
+  padding: 0.4rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  animation: slideDown 0.25s ease-out;
+
+  .bar-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+
+    .bar-icon {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0;
+    }
+  }
+}
+
+/* 2. Update Available Toast (Floating bottom right) */
+.pwa-update-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  max-width: 440px;
+  background: linear-gradient(145deg, rgba(24, 28, 44, 0.98), rgba(14, 16, 26, 0.98));
+  border: 1px solid rgba(229, 9, 20, 0.4);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(229, 9, 20, 0.2);
+  backdrop-filter: blur(12px);
+  padding: 0.875rem 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+  @media (max-width: 480px) {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+  }
+
+  .toast-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    .icon-wrap {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(229, 9, 20, 0.15);
+      border: 1px solid rgba(229, 9, 20, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #e50914;
+      flex-shrink: 0;
+
+      .toast-icon {
+        width: 18px;
+        height: 18px;
+      }
+
+      .spin-slow {
+        animation: spin 3s linear infinite;
+      }
+    }
+
+    .toast-title {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .toast-sub {
+      display: block;
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+  }
+
+  .toast-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+
+    .update-btn {
+      background: linear-gradient(135deg, #e50914, #b20710);
+      border: none;
+      color: #fff;
+      font-size: 0.775rem;
+      font-weight: 600;
+      padding: 0.4rem 0.85rem;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      box-shadow: 0 2px 8px rgba(229, 9, 20, 0.4);
+      transition: all 0.2s ease;
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(229, 9, 20, 0.55);
+      }
+
+      .btn-icon {
+        width: 14px;
+        height: 14px;
+      }
+    }
+
+    .dismiss-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+      }
+
+      .btn-icon {
+        width: 15px;
+        height: 15px;
+      }
+    }
+  }
+}
+
+/* 3. Install App Banner (Subtle cinema strip) */
+.pwa-install-banner {
+  background: linear-gradient(90deg, #111422 0%, #1a162b 50%, #111422 100%);
+  border-bottom: 1px solid rgba(229, 9, 20, 0.25);
+  padding: 0.6rem 1.25rem;
+  animation: slideDown 0.25s ease-out;
+
+  .banner-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .banner-left {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+
+    .app-icon-wrap {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #e50914, #ff4d58);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(229, 9, 20, 0.4);
+
+      .app-icon {
+        width: 18px;
+        height: 18px;
+      }
+    }
+
+    .banner-info {
+      display: flex;
+      flex-direction: column;
+
+      .banner-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+
+        .pill-badge {
+          font-size: 0.65rem;
+          font-weight: 700;
+          padding: 0.1rem 0.4rem;
+          background: rgba(229, 9, 20, 0.2);
+          border: 1px solid rgba(229, 9, 20, 0.35);
+          color: #ff6b6b;
+          border-radius: 9999px;
+        }
+      }
+
+      .banner-sub {
+        font-size: 0.75rem;
+        color: #94a3b8;
+
+        @media (max-width: 640px) {
+          display: none;
+        }
+      }
+    }
+  }
+
+  .banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex-shrink: 0;
+
+    .install-btn {
+      background: linear-gradient(135deg, #e50914, #b20710);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-size: 0.775rem;
+      font-weight: 600;
+      padding: 0.4rem 0.95rem;
+      border-radius: 9999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      box-shadow: 0 2px 10px rgba(229, 9, 20, 0.35);
+      transition: all 0.2s ease;
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(229, 9, 20, 0.5);
+      }
+
+      .btn-icon {
+        width: 14px;
+        height: 14px;
+      }
+    }
+
+    .close-banner-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+      }
+
+      .close-icon {
+        width: 16px;
+        height: 16px;
+      }
+    }
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

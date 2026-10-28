@@ -357,6 +357,70 @@ public class TmdbService : ITmdbService
         }
     }
 
+    public async Task<List<MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto>> SearchTmdbAsync(string query, string? type = null, CancellationToken cancellationToken = default)
+    {
+        var results = new List<MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto>();
+        if (string.IsNullOrWhiteSpace(query)) return results;
+
+        var encodedQuery = Uri.EscapeDataString(query.Trim());
+
+        if (string.IsNullOrEmpty(type) || type.Equals("movie", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var movieUrl = $"search/movie?api_key={_apiKey}&query={encodedQuery}&page=1";
+                var movieResp = await _httpClient.GetFromJsonAsync<TmdbPagedResponse<TmdbMovieResult>>(movieUrl, JsonOptions, cancellationToken);
+                if (movieResp?.Results != null)
+                {
+                    results.AddRange(movieResp.Results.Take(12).Select(m => new MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto(
+                        TmdbId: m.Id,
+                        Title: m.Title ?? "Untitled Movie",
+                        Type: "movie",
+                        PosterPath: m.PosterPath,
+                        BackdropPath: m.BackdropPath,
+                        ReleaseDate: m.ReleaseDate,
+                        Year: ExtractYear(m.ReleaseDate),
+                        Rating: Math.Round(m.VoteAverage, 1),
+                        Overview: m.Overview
+                    )));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to search TMDB movies for query {Query}", query);
+            }
+        }
+
+        if (string.IsNullOrEmpty(type) || type.Equals("series", StringComparison.OrdinalIgnoreCase) || type.Equals("tv", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var tvUrl = $"search/tv?api_key={_apiKey}&query={encodedQuery}&page=1";
+                var tvResp = await _httpClient.GetFromJsonAsync<TmdbPagedResponse<TmdbTvResult>>(tvUrl, JsonOptions, cancellationToken);
+                if (tvResp?.Results != null)
+                {
+                    results.AddRange(tvResp.Results.Take(12).Select(t => new MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto(
+                        TmdbId: t.Id,
+                        Title: t.Name ?? "Untitled Series",
+                        Type: "series",
+                        PosterPath: t.PosterPath,
+                        BackdropPath: t.BackdropPath,
+                        ReleaseDate: t.FirstAirDate,
+                        Year: ExtractYear(t.FirstAirDate),
+                        Rating: Math.Round(t.VoteAverage, 1),
+                        Overview: t.Overview
+                    )));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to search TMDB series for query {Query}", query);
+            }
+        }
+
+        return results.OrderByDescending(r => r.Rating).ToList();
+    }
+
     private static List<TmdbProviderItem> ExtractProviders(TmdbWatchProvidersResponse? wp)
     {
         if (wp?.Results == null || !wp.Results.TryGetValue("US", out var usProviders))

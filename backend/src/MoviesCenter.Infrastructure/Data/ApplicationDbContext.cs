@@ -31,6 +31,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<WatchlistItem> WatchlistItems => Set<WatchlistItem>();
     public DbSet<WatchHistoryItem> WatchHistoryItems => Set<WatchHistoryItem>();
     public DbSet<Rating> Ratings => Set<Rating>();
+    public DbSet<SourceReport> SourceReports => Set<SourceReport>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<NotificationSettings> NotificationSettings => Set<NotificationSettings>();
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -276,6 +280,61 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
             entity.HasOne(r => r.Title)
                   .WithMany(t => t.Ratings)
                   .HasForeignKey(r => r.TitleId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<SourceReport>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.HasIndex(r => r.Status);
+            entity.HasIndex(r => r.CreatedAt);
+            entity.Property(r => r.Reason).IsRequired().HasMaxLength(100);
+            entity.Property(r => r.Status).IsRequired().HasMaxLength(50);
+            entity.Property(r => r.Details).HasMaxLength(1000);
+            entity.HasOne(r => r.Title)
+                  .WithMany()
+                  .HasForeignKey(r => r.TitleId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(r => r.Source)
+                  .WithMany()
+                  .HasForeignKey(r => r.SourceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(n => n.Id);
+            entity.HasIndex(n => new { n.UserId, n.IsRead, n.CreatedAt });
+            entity.Property(n => n.Type).IsRequired().HasMaxLength(100);
+            entity.Property(n => n.Title).IsRequired().HasMaxLength(200);
+            entity.Property(n => n.Body).IsRequired().HasMaxLength(1000);
+            entity.HasOne(n => n.User)
+                  .WithMany(u => u.Notifications)
+                  .HasForeignKey(n => n.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<NotificationSettings>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.HasIndex(s => s.UserId).IsUnique();
+            entity.HasOne(s => s.User)
+                  .WithOne(u => u.NotificationSettings)
+                  .HasForeignKey<NotificationSettings>(s => s.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PushSubscription>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.HasIndex(p => p.UserId);
+            entity.Property(p => p.Endpoint).IsRequired().HasMaxLength(1000);
+            entity.Property(p => p.P256dh).IsRequired().HasMaxLength(500);
+            entity.Property(p => p.Auth).IsRequired().HasMaxLength(200);
+            entity.Property(p => p.UserAgent).HasMaxLength(500);
+            entity.HasOne(p => p.User)
+                  .WithMany(u => u.PushSubscriptions)
+                  .HasForeignKey(p => p.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 

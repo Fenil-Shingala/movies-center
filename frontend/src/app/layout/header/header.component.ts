@@ -24,12 +24,19 @@ import {
   LucideChevronDown,
   LucideShieldCheck,
   LucideBookmark,
-  LucideClock
+  LucideClock,
+  LucideBell,
+  LucideCheck,
+  LucideTrash2,
+  LucideSettings,
+  LucideSparkles
 } from '@lucide/angular';
 import { APP_NAME } from '../../core/constants/app.constants';
 import { CatalogService } from '../../core/services/catalog.service';
 import { AuthService } from '../../core/services/auth.service';
+import { NotificationService } from '../../core/services/notification.service';
 import { SearchSuggestion } from '../../core/models/media.models';
+import { NotificationSettingsModalComponent } from '../../shared/components/notification-settings-modal/notification-settings-modal.component';
 
 @Component({
   selector: 'app-header',
@@ -49,7 +56,13 @@ import { SearchSuggestion } from '../../core/models/media.models';
     LucideChevronDown,
     LucideShieldCheck,
     LucideBookmark,
-    LucideClock
+    LucideClock,
+    LucideBell,
+    LucideCheck,
+    LucideTrash2,
+    LucideSettings,
+    LucideSparkles,
+    NotificationSettingsModalComponent
   ],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
@@ -60,6 +73,7 @@ export class HeaderComponent implements OnDestroy {
   private readonly router = inject(Router);
   private readonly catalogService = inject(CatalogService);
   readonly authService = inject(AuthService);
+  readonly notificationService = inject(NotificationService);
   private readonly elementRef = inject(ElementRef);
 
   readonly appName = APP_NAME;
@@ -124,6 +138,7 @@ export class HeaderComponent implements OnDestroy {
       if (!clickedInside) {
         this.closeSearch();
         this.closeUserMenu();
+        this.notificationService.closeDropdown();
       }
     }
   }
@@ -132,6 +147,7 @@ export class HeaderComponent implements OnDestroy {
   onEscapeKey(): void {
     this.closeSearch();
     this.closeUserMenu();
+    this.notificationService.closeDropdown();
   }
 
   getUserInitials(): string {
@@ -148,15 +164,28 @@ export class HeaderComponent implements OnDestroy {
   openSignIn(): void {
     this.closeSearch();
     this.closeUserMenu();
+    this.notificationService.closeDropdown();
     this.authService.openAuthModal('login');
   }
 
   toggleUserMenu(): void {
+    this.notificationService.closeDropdown();
     this.isUserMenuOpen.update(v => !v);
   }
 
   closeUserMenu(): void {
     this.isUserMenuOpen.set(false);
+  }
+
+  toggleNotifications(): void {
+    this.closeUserMenu();
+    this.closeSearch();
+    this.notificationService.toggleDropdown();
+  }
+
+  openNotificationSettings(): void {
+    this.closeUserMenu();
+    this.notificationService.openSettingsModal();
   }
 
   signOut(): void {

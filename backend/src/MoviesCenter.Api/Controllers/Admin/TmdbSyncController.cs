@@ -7,13 +7,35 @@ namespace MoviesCenter.Api.Controllers.Admin;
 
 [ApiController]
 [Route("api/v1/admin/tmdb")]
+[Authorize(Roles = "Admin")]
 public class TmdbSyncController : ControllerBase
 {
     private readonly ITmdbSyncService _syncService;
+    private readonly ITmdbService _tmdbService;
 
-    public TmdbSyncController(ITmdbSyncService syncService)
+    public TmdbSyncController(ITmdbSyncService syncService, ITmdbService tmdbService)
     {
         _syncService = syncService;
+        _tmdbService = tmdbService;
+    }
+
+    /// <summary>
+    /// Search TMDB directly to find movies or series to import.
+    /// </summary>
+    [HttpGet("search")]
+    [ProducesResponseType(typeof(List<TmdbSearchResultItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<TmdbSearchResultItemDto>>> SearchTmdb(
+        [FromQuery] string q,
+        [FromQuery] string? type = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+        {
+            return Ok(new List<TmdbSearchResultItemDto>());
+        }
+
+        var results = await _tmdbService.SearchTmdbAsync(q, type, cancellationToken);
+        return Ok(results);
     }
 
     /// <summary>
@@ -44,13 +66,20 @@ public class TmdbSyncController : ControllerBase
     [HttpPost("import")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> ImportSingle([FromQuery] int tmdbId, [FromQuery] string type = "movie", CancellationToken cancellationToken = default)
+    public async Task<IActionResult> ImportSingle(
+        [FromBody] ImportTmdbTitleRequest? body = null,
+        [FromQuery] int tmdbId = 0,
+        [FromQuery] string type = "movie",
+        CancellationToken cancellationToken = default)
     {
-        if (tmdbId <= 0) return BadRequest(new { message = "Invalid TMDB ID" });
+        var targetId = body?.TmdbId > 0 ? body.TmdbId : tmdbId;
+        var targetType = !string.IsNullOrEmpty(body?.Type) ? body.Type : type;
 
-        var success = await _syncService.SyncSingleTitleAsync(tmdbId, type, cancellationToken);
-        if (!success) return BadRequest(new { message = $"Could not import TMDB {type} with ID {tmdbId}" });
+        if (targetId <= 0) return BadRequest(new { message = "Invalid TMDB ID" });
 
-        return Ok(new { message = $"Successfully imported {type} {tmdbId} into catalog." });
+        var success = await _syncService.SyncSingleTitleAsync(targetId, targetType, cancellationToken);
+        if (!success) return BadRequest(new { message = $"Could not import TMDB {targetType} with ID {targetId}" });
+
+        return Ok(new { message = $"Successfully imported {targetType} {targetId} into catalog." });
     }
 }

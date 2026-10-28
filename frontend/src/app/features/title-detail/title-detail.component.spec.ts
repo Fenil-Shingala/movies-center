@@ -1,15 +1,19 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, ActivatedRoute } from '@angular/router';
+import { signal } from '@angular/core';
 import { of } from 'rxjs';
 import { TitleDetailComponent } from './title-detail.component';
 import { CatalogService } from '../../core/services/catalog.service';
+import { UserDataService } from '../../core/services/user-data.service';
+import { AuthService } from '../../core/services/auth.service';
 import { TitleDetail } from '../../core/models/media.models';
 
 describe('TitleDetailComponent', () => {
   let component: TitleDetailComponent;
   let fixture: ComponentFixture<TitleDetailComponent>;
-  let mockCatalogService: Partial<CatalogService>;
+  let mockCatalogService: any;
+  let isWatchlist = false;
 
   const mockTitleDetail: TitleDetail = {
     id: 1,
@@ -65,8 +69,24 @@ describe('TitleDetailComponent', () => {
   };
 
   beforeEach(async () => {
+    const isWatchlistSignal = signal(false);
     mockCatalogService = {
-      getTitleDetail: () => of(mockTitleDetail)
+      getTitleDetail: vi.fn().mockReturnValue(of(mockTitleDetail)),
+      getTitleRating: vi.fn().mockReturnValue(of({ averageRating: 4.5, totalRatings: 10, userRating: null, distribution: {} }))
+    };
+
+    const mockUserDataService = {
+      isInWatchlist: vi.fn().mockImplementation(() => isWatchlistSignal()),
+      toggleWatchlist: vi.fn().mockImplementation(() => {
+        isWatchlistSignal.update(v => !v);
+        return of({ inWatchlist: isWatchlistSignal() });
+      })
+    };
+
+    const mockAuthService = {
+      currentUser: signal(null),
+      isAuthenticated: signal(false),
+      openAuthModal: vi.fn()
     };
 
     await TestBed.configureTestingModule({
@@ -74,6 +94,8 @@ describe('TitleDetailComponent', () => {
       providers: [
         provideRouter([]),
         { provide: CatalogService, useValue: mockCatalogService },
+        { provide: UserDataService, useValue: mockUserDataService },
+        { provide: AuthService, useValue: mockAuthService },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -86,6 +108,12 @@ describe('TitleDetailComponent', () => {
     fixture = TestBed.createComponent(TitleDetailComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    fixture?.destroy();
+    TestBed.resetTestingModule();
+    vi.clearAllMocks();
   });
 
   it('should create', () => {
