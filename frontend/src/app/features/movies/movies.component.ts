@@ -60,9 +60,7 @@ export class MoviesComponent implements OnInit {
       this.selectedSort.set(sortParam || 'popularity.desc');
       this.page.set(pageParam ? parseInt(pageParam, 10) : 1);
 
-      if (isPlatformBrowser(this.platformId)) {
-        this.loadTitles();
-      }
+      this.loadTitles();
     });
   }
 

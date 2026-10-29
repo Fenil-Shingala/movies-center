@@ -8,7 +8,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "generate-api": "ng-openapi-gen --input http://localhost:5000/openapi/v1.json --output src/app/core/api",
+    "generate-api": "ng-openapi-gen --input http://localhost:5142/openapi/v1.json --output src/app/core/api",
     "serve:ssr:frontend": "node dist/frontend/server/server.mjs"
   },
   "private": true,

@@ -5,6 +5,7 @@ import { routes } from './app.routes';
 import { provideClientHydration } from '@angular/platform-browser';
 import { provideServiceWorker } from '@angular/service-worker';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
+import { apiBaseUrlInterceptor } from './core/interceptors/api-base-url.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -16,7 +17,7 @@ export const appConfig: ApplicationConfig = {
         anchorScrolling: 'enabled'
       })
     ),
-    provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
+    provideHttpClient(withFetch(), withInterceptors([apiBaseUrlInterceptor, authInterceptor])),
     provideClientHydration(),
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),

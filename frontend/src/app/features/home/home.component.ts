@@ -26,9 +26,7 @@ export class HomeComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
 
   ngOnInit(): void {
-    if (isPlatformBrowser(this.platformId)) {
-      this.loadHomeFeed();
-    }
+    this.loadHomeFeed();
   }
 
   loadHomeFeed(): void {

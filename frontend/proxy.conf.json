@@ -1,17 +1,17 @@
 {
   "/api": {
-    "target": "http://localhost:5000",
+    "target": "http://127.0.0.1:5142",
     "secure": false,
     "changeOrigin": true,
     "logLevel": "debug"
   },
   "/health": {
-    "target": "http://localhost:5000",
+    "target": "http://127.0.0.1:5142",
     "secure": false,
     "changeOrigin": true
   },
   "/openapi": {
-    "target": "http://localhost:5000",
+    "target": "http://127.0.0.1:5142",
     "secure": false,
     "changeOrigin": true
   }
