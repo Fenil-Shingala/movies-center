@@ -7,11 +7,12 @@ import { UserDataService } from '../../core/services/user-data.service';
 import { HomeFeed, WatchHistoryItem } from '../../core/models/media.models';
 import { HeroBannerComponent } from './components/hero-banner/hero-banner.component';
 import { ContentRowComponent } from './components/content-row/content-row.component';
+import { TopTenRowComponent } from './components/top-ten-row/top-ten-row.component';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterLink, LucideClock, LucidePlay, LucideFilm, HeroBannerComponent, ContentRowComponent],
+  imports: [CommonModule, RouterLink, LucideClock, LucidePlay, LucideFilm, HeroBannerComponent, ContentRowComponent, TopTenRowComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

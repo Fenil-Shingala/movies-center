@@ -1,0 +1,148 @@
+# ==============================================================================
+# Movies Center - Production Multi-Container Staging & Deployment Compose
+# Orchestrates SQL Server 2022, Redis 7, ASP.NET Core 10 Web API, 
+# Angular 22 SSR (Node.js) and Nginx Reverse Proxy
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. SQL Server Database
+  # ----------------------------------------------------------------------------
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: movies-center-sqlserver
+    restart: unless-stopped
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD:-Your_Strong_Password_123!}
+      - MSSQL_PID=${MSSQL_PID:-Developer}
+    volumes:
+      - sqlserver-prod-data:/var/opt/mssql
+    networks:
+      - movies-center-net
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '${MSSQL_SA_PASSWORD:-Your_Strong_Password_123!}' -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  # ----------------------------------------------------------------------------
+  # 2. Redis Distributed Cache & Rate Limiting
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: movies-center-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-prod-data:/data
+    networks:
+      - movies-center-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # 3. ASP.NET Core 10 Web API Backend
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: movies-center-backend
+    restart: unless-stopped
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - DATABASE_CONNECTION_STRING=Server=sqlserver,1433;Database=MoviesCenterDb;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Your_Strong_Password_123!};TrustServerCertificate=True
+      - REDIS_CONNECTION_STRING=redis:6379
+      - JWT_SECRET=${JWT_SECRET:-super_secure_movies_center_jwt_secret_key_production_must_be_at_least_64_characters_long_12345}
+      - JWT_ISSUER=${JWT_ISSUER:-https://moviescenter.com}
+      - JWT_AUDIENCE=${JWT_AUDIENCE:-https://moviescenter.com}
+      - TMDB_API_KEY=${TMDB_API_KEY:-4afe98c4e5ae2c05958c237fb4dca934}
+      - TMDB_ACCESS_TOKEN=${TMDB_ACCESS_TOKEN:-}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin.movies@gmail.com}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-Admin#movies@123}
+      - POSTMARK_API_KEY=${POSTMARK_API_KEY:-}
+      - POSTMARK_FROM_EMAIL=${POSTMARK_FROM_EMAIL:-noreply@moviescenter.com}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin.movies@gmail.com}
+      - BUNNY_API_KEY=${BUNNY_API_KEY:-}
+      - BUNNY_LIBRARY_ID=${BUNNY_LIBRARY_ID:-}
+      - BUNNY_WEBHOOK_SECRET=${BUNNY_WEBHOOK_SECRET:-}
+      - HCAPTCHA_SECRET_KEY=${HCAPTCHA_SECRET_KEY:-}
+      - HCAPTCHA_SITE_KEY=${HCAPTCHA_SITE_KEY:-}
+      - POSTHOG_API_KEY=${POSTHOG_API_KEY:-}
+      - POSTHOG_HOST=${POSTHOG_HOST:-https://app.posthog.com}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost,https://localhost,https://moviescenter.com}
+      - ALLOWED_FRAME_SOURCES=vidsrc.to,vidsrc.me,superembed.stream,autoembed.to,2embed.cc
+    expose:
+      - "8080"
+    networks:
+      - movies-center-net
+
+  # ----------------------------------------------------------------------------
+  # 4. Angular 22 SSR Frontend (Node.js Engine)
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: movies-center-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+    expose:
+      - "4000"
+    networks:
+      - movies-center-net
+
+  # ----------------------------------------------------------------------------
+  # 5. Nginx Production Reverse Proxy (Edge Gateway)
+  # ----------------------------------------------------------------------------
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: movies-center-nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - movies-center-net
+
+# ------------------------------------------------------------------------------
+# Persistent Storage Volumes
+# ------------------------------------------------------------------------------
+volumes:
+  sqlserver-prod-data:
+    driver: local
+  redis-prod-data:
+    driver: local
+
+# ------------------------------------------------------------------------------
+# Isolated Internal Network
+# ------------------------------------------------------------------------------
+networks:
+  movies-center-net:
+    driver: bridge

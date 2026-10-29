@@ -14,6 +14,7 @@ import { FormsModule } from '@angular/forms';
 import { Subscription, catchError, of } from 'rxjs';
 import { CatalogService } from '../../core/services/catalog.service';
 import { UserDataService } from '../../core/services/user-data.service';
+import { AnalyticsService } from '../../core/services/analytics.service';
 import { TitleDetail, TitleSource, SeasonItem, EpisodeItem } from '../../core/models/media.models';
 import { CustomSelectComponent, SelectOption } from '../../shared/components/custom-select/custom-select.component';
 import { 
@@ -73,6 +74,7 @@ export class PlayerComponent implements OnInit, OnDestroy {
   private readonly catalogService = inject(CatalogService);
   private readonly sanitizer = inject(DomSanitizer);
   readonly userDataService = inject(UserDataService);
+  private readonly analyticsService = inject(AnalyticsService);
 
   private sub?: Subscription;
   private progressTimer?: ReturnType<typeof setInterval>;
@@ -320,6 +322,7 @@ export class PlayerComponent implements OnInit, OnDestroy {
         // Default to highest priority source
         this.selectedSource.set(sources[0]);
         this.startProgressTracking();
+        this.analyticsService.trackPlay(id, this.title()?.title ?? '', this.mediaType());
       } else {
         this.selectedSource.set(null);
         this.errorMessage.set('No video sources are currently available for this title. Please check back later.');
@@ -442,6 +445,7 @@ export class PlayerComponent implements OnInit, OnDestroy {
     }).subscribe({
       next: (res) => {
         this.isReporting.set(false);
+        this.analyticsService.trackSourceFail(src.providerName || 'Unknown', this.reportReason());
         this.reportSuccessMessage.set(res.message || 'Report submitted successfully. Thank you for helping us improve!');
         setTimeout(() => {
           this.closeReportModal();

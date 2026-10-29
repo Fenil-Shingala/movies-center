@@ -36,6 +36,7 @@ export interface ContentRow {
 export interface HomeFeed {
   hero: HeroItem;
   rows: ContentRow[];
+  top10?: MediaCard[];
 }
 
 export interface PagedResult<T> {
@@ -213,5 +214,40 @@ export interface RatingDto {
 
 export interface SubmitRatingRequest {
   score: number;
+}
+
+export interface ReviewItem {
+  id: number;
+  titleId: number;
+  userId: string;
+  userName: string;
+  userAvatar: string | null;
+  content: string;
+  ratingScore: number | null;
+  containsSpoilers: boolean;
+  likesCount: number;
+  isLikedByMe: boolean;
+  isMyReview: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface ReviewsResponse {
+  items: ReviewItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface CreateReviewRequest {
+  content: string;
+  ratingScore?: number | null;
+  containsSpoilers?: boolean;
+}
+
+export interface ToggleLikeResponse {
+  isLiked: boolean;
+  likesCount: number;
 }
 

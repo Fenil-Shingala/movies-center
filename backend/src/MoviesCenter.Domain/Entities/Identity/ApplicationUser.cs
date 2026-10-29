@@ -19,4 +19,6 @@ public class ApplicationUser : IdentityUser<Guid>
     public ICollection<Notification> Notifications { get; set; } = [];
     public NotificationSettings? NotificationSettings { get; set; }
     public ICollection<PushSubscription> PushSubscriptions { get; set; } = [];
+    public ICollection<Review> Reviews { get; set; } = [];
+    public ICollection<ReviewLike> ReviewLikes { get; set; } = [];
 }

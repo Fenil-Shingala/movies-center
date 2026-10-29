@@ -59,4 +59,28 @@ describe('HomeService', () => {
     expect(req.request.method).toBe('GET');
     req.flush(mockFeed);
   });
+
+  it('should get top10 ranked titles from /api/v1/home/top10', () => {
+    const mockTop10 = [
+      {
+        tmdbId: 101,
+        type: 'movie' as const,
+        title: 'Top Movie',
+        posterPath: '/p.jpg',
+        backdropPath: '/b.jpg',
+        rating: 9.1,
+        year: '2026',
+        genres: ['Action']
+      }
+    ];
+
+    service.getTop10('movie').subscribe(data => {
+      expect(data).toHaveLength(1);
+      expect(data[0].title).toBe('Top Movie');
+    });
+
+    const req = httpMock.expectOne(r => r.url === '/api/v1/home/top10' && r.params.get('type') === 'movie');
+    expect(req.request.method).toBe('GET');
+    req.flush(mockTop10);
+  });
 });

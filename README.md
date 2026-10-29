@@ -79,6 +79,33 @@ movies-center/
 
 ---
 
+## 🐳 Production Staging & Docker Deployment
+
+To spin up the complete production-grade, containerized stack (SQL Server 2022, Redis 7, ASP.NET Core 10 API, Angular 22 SSR, and Nginx edge gateway):
+
+1. **Configure Production Environment:**
+   ```bash
+   cp .env.production.example .env.production
+   # Update MSSQL_SA_PASSWORD and JWT_SECRET in .env.production
+   ```
+
+2. **Build & Launch All Containers:**
+   ```bash
+   docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+   ```
+
+3. **Verify Health:**
+   ```bash
+   # Check container status
+   docker compose -f docker-compose.prod.yml ps
+
+   # Check health endpoint through Nginx reverse proxy
+   curl http://localhost/health
+   ```
+   Open `http://localhost` (or your domain) to access the complete application.
+
+---
+
 ## 📜 Documentation
 
 - [Project Guide & Architecture](docs/PROJECT_GUIDE.md)

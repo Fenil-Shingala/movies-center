@@ -27,4 +27,15 @@ public class HomeController : ControllerBase
         var result = await _mediator.Send(new GetHomeFeedQuery(), cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Retrieves top 10 trending ranked titles for home page showcase.
+    /// </summary>
+    [HttpGet("top10")]
+    [ProducesResponseType(typeof(List<MediaCardDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<MediaCardDto>>> GetTop10([FromQuery] string type = "all", CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new GetTop10Query(type), cancellationToken);
+        return Ok(result);
+    }
 }

@@ -19,8 +19,9 @@ import {
   LucideTv, 
   LucideBookmark, 
   LucideUsers, 
-  LucideX,
-  LucideTrash2
+  LucideX, 
+  LucideTrash2,
+  LucideSparkles
 } from '@lucide/angular';
 import { CatalogService } from '../../core/services/catalog.service';
 import { UserDataService } from '../../core/services/user-data.service';
@@ -28,10 +29,12 @@ import { AuthService } from '../../core/services/auth.service';
 import { 
   TitleDetail, 
   SeasonItem, 
-  VideoItem,
-  EpisodeItem,
-  RatingDto 
+  VideoItem, 
+  EpisodeItem, 
+  RatingDto, 
+  MediaCard 
 } from '../../core/models/media.models';
+import { MediaCardComponent } from '../../shared/components/media-card';
 import { 
   TMDB_IMAGE_BASE_URL, 
   TMDB_POSTER_SIZE, 
@@ -39,6 +42,7 @@ import {
 } from '../../core/constants/app.constants';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { CustomSelectComponent, SelectOption } from '../../shared/components/custom-select/custom-select.component';
+import { CommunityReviewsComponent } from './components/community-reviews/community-reviews.component';
 
 @Component({
   selector: 'app-title-detail',
@@ -56,7 +60,10 @@ import { CustomSelectComponent, SelectOption } from '../../shared/components/cus
     LucideUsers, 
     LucideX, 
     LucideTrash2,
-    EmptyStateComponent
+    LucideSparkles,
+    EmptyStateComponent,
+    MediaCardComponent,
+    CommunityReviewsComponent
   ],
   templateUrl: './title-detail.component.html',
   styleUrl: './title-detail.component.scss',
@@ -75,6 +82,10 @@ export class TitleDetailComponent implements OnInit {
   readonly isLoading = signal<boolean>(true);
   readonly selectedSeasonNumber = signal<number>(1);
   readonly activeTrailer = signal<VideoItem | null>(null);
+
+  // Recommendations State
+  readonly recommendations = signal<MediaCard[]>([]);
+  readonly isLoadingRecommendations = signal<boolean>(false);
 
   // Ratings State
   readonly ratingData = signal<RatingDto | null>(null);
@@ -95,6 +106,7 @@ export class TitleDetailComponent implements OnInit {
       }
     });
   }
+
   readonly isInWatchlist = computed(() => {
     const t = this.title();
     return t ? this.userDataService.isInWatchlist(t.id) : false;
@@ -110,75 +122,52 @@ export class TitleDetailComponent implements OnInit {
     return item?.posterPath ? `${TMDB_IMAGE_BASE_URL}${TMDB_POSTER_SIZE}${item.posterPath}` : null;
   });
 
-  readonly formattedRuntime = computed(() => {
+  readonly activeSeason = computed(() => {
     const item = this.title();
-    if (!item) return null;
-
-    if (item.type === 'series') {
-      const s = item.totalSeasons ?? item.seasons.length;
-      return s === 1 ? '1 Season' : `${s} Seasons`;
-    }
-
-    if (item.runtimeMinutes) {
-      const h = Math.floor(item.runtimeMinutes / 60);
-      const m = item.runtimeMinutes % 60;
-      return h > 0 ? `${h}h ${m}m` : `${m}m`;
-    }
-
-    return null;
+    if (!item || item.type !== 'series' || !item.seasons) return null;
+    return item.seasons.find(s => s.seasonNumber === this.selectedSeasonNumber()) ?? item.seasons[0] ?? null;
   });
 
-  readonly mainTrailer = computed(() => {
+  readonly trailerVideos = computed(() => {
     const item = this.title();
-    if (!item || item.videos.length === 0) return null;
-    return item.videos.find(v => v.type === 'Trailer' && v.site === 'YouTube') 
-      ?? item.videos.find(v => v.site === 'YouTube') 
-      ?? item.videos[0];
+    if (!item?.videos) return [];
+    return item.videos.filter(v => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'));
+  });
+
+  readonly formattedRuntime = computed(() => {
+    const mins = this.title()?.runtimeMinutes;
+    if (!mins) return null;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
   });
 
   readonly watchLink = computed(() => {
     const item = this.title();
-    if (!item) return '/';
-    return `/watch/${item.type}/${item.tmdbId}`;
+    if (!item) return ['/watch'];
+    return ['/watch', item.type, item.tmdbId];
   });
 
-  readonly seasonOptions = computed<SelectOption<number>[]>(() => {
-    const item = this.title();
-    if (!item || item.type !== 'series') return [];
-    return item.seasons.map(s => ({
-      value: s.seasonNumber,
-      label: s.name || `Season ${s.seasonNumber}`,
-      badge: `${s.episodeCount || s.episodes.length} Ep`,
-      subtext: s.airDate ? `Premiered ${s.airDate}` : undefined
-    }));
+  readonly primaryTrailer = computed(() => {
+    const trailers = this.trailerVideos();
+    return trailers.find(t => t.type === 'Trailer') ?? trailers[0] ?? null;
   });
 
-  readonly activeSeason = computed(() => {
-    const item = this.title();
-    if (!item || item.seasons.length === 0) return null;
-    const num = this.selectedSeasonNumber();
-    const season = item.seasons.find(s => s.seasonNumber === num) ?? item.seasons[0];
+  readonly mainTrailer = this.primaryTrailer;
 
-    // Ensure episodes array is never empty if episodeCount is known
-    if (season.episodes.length === 0 && (season.episodeCount > 0 || season.seasonNumber > 0)) {
-      const count = season.episodeCount > 0 ? season.episodeCount : 10;
-      const fallbackEpisodes: EpisodeItem[] = Array.from({ length: count }, (_, i) => ({
-        id: i + 1,
-        tmdbId: season.tmdbId * 100 + (i + 1),
-        episodeNumber: i + 1,
-        name: `Episode ${i + 1}`,
-        overview: null,
-        stillPath: season.posterPath,
-        airDate: season.airDate,
-        runtimeMinutes: null
+  readonly seasonOptions = computed<SelectOption[]>(() => {
+    const item = this.title();
+    if (!item?.seasons) return [];
+    return item.seasons
+      .filter(s => s.seasonNumber > 0)
+      .map(s => ({
+        value: s.seasonNumber,
+        label: s.name || `Season ${s.seasonNumber}`
       }));
-      return { ...season, episodes: fallbackEpisodes };
-    }
-
-    return season;
   });
 
-  onSeasonSelect(seasonNumber: number): void {
+  onSeasonSelect(val: string | number): void {
+    const seasonNumber = typeof val === 'number' ? val : parseInt(val, 10);
     this.selectedSeasonNumber.set(seasonNumber);
   }
 
@@ -188,6 +177,9 @@ export class TitleDetailComponent implements OnInit {
       if (idParam) {
         const id = parseInt(idParam, 10);
         if (!isNaN(id) && id > 0) {
+          if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
           this.loadTitle(id);
         } else {
           this.isLoading.set(false);
@@ -224,13 +216,37 @@ export class TitleDetailComponent implements OnInit {
           this.selectedSeasonNumber.set(firstSeason.seasonNumber);
         }
 
-        // Load community ratings
+        // Load community ratings & recommendations
         this.loadRating(detail.id);
+        this.loadRecommendations(detail.id);
       },
       error: () => {
         this.title.set(null);
+        this.recommendations.set([]);
         this.isLoading.set(false);
       }
+    });
+  }
+
+  loadRecommendations(id: number): void {
+    this.isLoadingRecommendations.set(true);
+    this.catalogService.getTitleRecommendations(id, 12).subscribe({
+      next: (recs) => {
+        this.recommendations.set(recs);
+        this.isLoadingRecommendations.set(false);
+      },
+      error: () => {
+        this.recommendations.set([]);
+        this.isLoadingRecommendations.set(false);
+      }
+    });
+  }
+
+  // Ratings Methods
+  loadRating(id: number): void {
+    this.catalogService.getTitleRating(id).subscribe({
+      next: (data) => this.ratingData.set(data),
+      error: () => this.ratingData.set(null)
     });
   }
 
@@ -245,8 +261,12 @@ export class TitleDetailComponent implements OnInit {
     return this.ratingData()?.distribution[score] ?? 0;
   }
 
-  onStarHover(star: number): void {
-    this.hoverRating.set(star);
+  getProviderLogoUrl(path: string): string {
+    return `https://image.tmdb.org/t/p/w92${path}`;
+  }
+
+  onStarHover(score: number): void {
+    this.hoverRating.set(score);
   }
 
   onStarLeave(): void {
@@ -264,8 +284,8 @@ export class TitleDetailComponent implements OnInit {
 
     this.isSubmittingRating.set(true);
     this.catalogService.submitRating(t.id, score).subscribe({
-      next: (rating) => {
-        this.ratingData.set(rating);
+      next: (updatedRating: RatingDto) => {
+        this.ratingData.set(updatedRating);
         this.isSubmittingRating.set(false);
       },
       error: () => {
@@ -275,34 +295,24 @@ export class TitleDetailComponent implements OnInit {
   }
 
   removeRating(): void {
-    if (!this.authService.isAuthenticated()) return;
+    if (!this.authService.isAuthenticated()) {
+      this.authService.openAuthModal('login');
+      return;
+    }
 
     const t = this.title();
     if (!t) return;
 
     this.isSubmittingRating.set(true);
     this.catalogService.removeRating(t.id).subscribe({
-      next: (rating) => {
-        this.ratingData.set(rating);
+      next: (updatedRating: RatingDto) => {
+        this.ratingData.set(updatedRating);
         this.isSubmittingRating.set(false);
       },
       error: () => {
         this.isSubmittingRating.set(false);
       }
     });
-  }
-
-  loadRating(titleId: number): void {
-    this.catalogService.getTitleRating(titleId).subscribe({
-      next: (rating) => this.ratingData.set(rating),
-      error: () => {}
-    });
-  }
-
-  onSeasonChange(event: Event): void {
-    const select = event.target as HTMLSelectElement;
-    const num = parseInt(select.value, 10);
-    this.selectedSeasonNumber.set(num);
   }
 
   openTrailer(video: VideoItem): void {
@@ -318,39 +328,41 @@ export class TitleDetailComponent implements OnInit {
     return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   }
 
-  getProviderLogoUrl(path: string): string {
-    return `https://image.tmdb.org/t/p/w92${path}`;
-  }
-
   getProfileUrl(path: string): string {
-    return `https://image.tmdb.org/t/p/w185${path}`;
+    return `${TMDB_IMAGE_BASE_URL}w185${path}`;
   }
 
   getStillUrl(path: string): string {
-    return `https://image.tmdb.org/t/p/w300${path}`;
+    return `${TMDB_IMAGE_BASE_URL}w300${path}`;
   }
 
   getInitials(name: string): string {
+    if (!name) return '?';
     return name
       .split(' ')
+      .map(part => part.charAt(0))
       .slice(0, 2)
-      .map(part => part.charAt(0).toUpperCase())
-      .join('');
+      .join('')
+      .toUpperCase();
   }
 
   toggleWatchlist(): void {
     const t = this.title();
-    if (t) {
-      this.userDataService.toggleWatchlist(t.id, {
-        title: t.title,
-        posterPath: t.posterPath,
-        backdropPath: t.backdropPath,
-        type: t.type,
-        releaseDate: t.releaseDate,
-        year: t.year,
-        rating: t.rating
-      }).subscribe();
+    if (!t) return;
+
+    if (!this.authService.isAuthenticated()) {
+      this.authService.openAuthModal('login');
+      return;
     }
+
+    this.userDataService.toggleWatchlist(t.id, {
+      titleId: t.id,
+      title: t.title,
+      posterPath: t.posterPath,
+      backdropPath: t.backdropPath,
+      type: t.type,
+      rating: t.rating
+    }).subscribe();
   }
 
   goBack(): void {

@@ -102,6 +102,21 @@ public class TitlesController : ControllerBase
     }
 
     /// <summary>
+    /// Get personalized recommendations / similar titles for a given movie or series.
+    /// </summary>
+    [HttpGet("{id:int}/recommendations")]
+    [ProducesResponseType(typeof(List<MediaCardDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<MediaCardDto>>> GetRecommendations(
+        int id,
+        [FromQuery] int limit = 12,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetTitleRecommendationsQuery(id, limit);
+        var result = await _mediator.Send(query, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Get playback streaming and embed sources for a title or TV episode.
     /// </summary>
     [HttpGet("{id:int}/sources")]

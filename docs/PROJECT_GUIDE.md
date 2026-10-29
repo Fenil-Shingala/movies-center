@@ -529,7 +529,8 @@ Base path: `/api/v1`
 ### Public Endpoints (guest or authenticated)
 
 ```
-GET    /home                                  → Hero + content rows
+GET    /home                                  → Hero + content rows + top 10
+GET    /home/top10?type={all|movie|series}    → Top 10 ranked trending titles
 GET    /titles?type&genre&year&language&sort&page&pageSize  → Paginated browse
 GET    /titles/{id}                           → Full title details
 GET    /titles/{id}/seasons                   → Seasons + episodes for a series
@@ -714,17 +715,19 @@ POST   /analytics/events                      → Batch of anonymous events (onl
 | 12 | Admin panel (TMDB import, sources, uploads, reports) | ✅ Complete |
 | 13 | Notifications (in-app, email, settings) | ✅ Complete |
 | 14 | PWA (installable, offline shell, update message, then web push) | ✅ Complete |
-| 15 | Analytics (consent-based events, admin dashboard) | ⬜ Next (Awaiting Approval) |
+| 15 | Analytics (consent-based events, admin dashboard) | ✅ Complete |
+| 16 | Recommendations engine & "More Like This" surface | ✅ Complete |
+| 17 | Top 10 Trending Row with Numbered Ranking Badges | ✅ Complete |
+| 18 | User Reviews, Spoiler Shielding & Community Discussions | ✅ Complete |
+| 19 | Social Login (Google & GitHub OAuth 2.0 / OIDC) | ⏭️ Skipped / Deferred |
+| 20 | Parental Controls, Kids Profiles & Content Age-Rating Filtering | ⏭️ Skipped / Deferred |
+| 21 | Advanced Video Player Enhancements (Subtitles, Custom Speed, Auto-Skip) | ⏭️ Skipped / Deferred |
+| 22 | Legal, DMCA & Static Compliance Pages | ⏭️ Skipped / Deferred |
+| 23 | Production Docker Staging & Deployment Config (Multi-stage builds, Nginx, Compose) | ✅ Complete |
 
 ### NOT NOW (ask before adding)
-- Recommendations engine
-- User reviews / comments
-- Social login (Google, GitHub, etc.)
-- Parental controls
 - Billing and payments
-- Top 10 row
-- Full DevOps (Kubernetes, Terraform, etc.)
-- Legal and compliance work
+- Full Kubernetes / Terraform cloud orchestration
 
 ---
 
@@ -1052,6 +1055,12 @@ Stored in `.env` (git-ignored). Template in `.env.example`.
 | 27 | 2026-10-26 | Admin Operations Center & Source Management | Implemented SourceReport persistence, IAdminService and admin controllers under /api/v1/admin/* protected by [Authorize(Roles = "Admin")]; built AdminComponent with 6 management tabs (Overview KPIs, TMDB Discovery & Import, Catalog Titles, Streaming Sources, Broken Reports Queue, Direct Video Uploads), protected by adminGuard |
 | 28 | 2026-10-28 | In-App Notification Center, Email Dispatch & Preferences | Implemented Notification & NotificationSettings entities, INotificationService, IEmailService, and /api/v1/me/notifications and /api/v1/me/notification-settings endpoints; built reactive NotificationService with unread counts, header notification bell, interactive drop-down popover with time-ago formatting, click-to-navigate action, and cinema-styled NotificationSettingsModalComponent |
 | 29 | 2026-10-28 | PWA (Installable, Offline Shell, SW Update Toast & VAPID Web Push) | Built installable PWA with W3C web app manifest (dark theme, standalone display, quick shortcuts), responsive multi-resolution icons (SVG, 192x192, 512x512, maskable 512x512), and Angular Service Worker (ngsw-config.json) caching app shell & public catalog with user/video endpoints excluded; created PwaService and PwaPromptComponent with offline status bar, version update toast (SwUpdate.versionUpdates), and dismissible install promotion banner; built backend PushSubscription domain entity, endpoints (GET vapid-public-key, POST/DELETE push-subscriptions), and push toggle integration in notification settings modal |
+| 30 | 2026-10-29 | Analytics & Cookie Consent Gating | Implemented AnalyticsDailyStats SQL entity, migration, and IAnalyticsService; public batched rate-limited ingestion endpoint (/api/v1/analytics/events); Admin overview endpoint (/api/v1/admin/analytics/overview) aggregating KPIs, 14-day trends, top played titles, and search analytics; built frontend AnalyticsService with strict zero-tracking before cookie consent, 15-second batch timer, and beacon flushes on visibility change; integrated tracking in player and search; added Analytics & Performance tab in Admin dashboard |
+| 31 | 2026-10-29 | Recommendations Engine & "More Like This" Surface | Implemented GetTitleRecommendationsQuery and GET /api/v1/titles/{id}/recommendations; content-based similarity engine matching genre overlap, title type, popularity, and TMDB ratings with 6-hour caching; built frontend TitleDetailComponent "More Like This" responsive cinema grid with MediaCardComponent integration, shimmer skeleton loaders, and smooth scroll restoration |
+| 32 | 2026-10-29 | Top 10 Trending Row with Numbered Badges & Live Ranking Tabs | Implemented GetTop10Query and dedicated GET /api/v1/home/top10?type=all|movie|series with 1-hour caching; embedded Top10 in HomeFeedDto for zero-flicker SSR initial rendering; created standalone TopTenRowComponent featuring Netflix-style giant typography rank numbers (1 to 10) with metallic/gold glow, interactive category pills (All, Movies, TV Shows), card hover zoom, quick play actions, and watchlist toggle |
+| 33 | 2026-10-29 | Community Reviews, Spoiler Shielding & Subcomponent Budget Isolation | Implemented Review and ReviewLike SQL entities with EF migration; GET/POST/DELETE reviews endpoints and like toggle in ReviewsController; standalone CommunityReviewsComponent extracted to avoid exceeding Angular 30kB component CSS budget; spoiler alert click-to-reveal overlay, optional rating score attachment, upvotes, and multi-mode sorting (Most Helpful / Newest) |
+| 34 | 2026-10-29 | Production Docker Staging, Multi-Stage Builds & Nginx Reverse Proxy | Built multi-stage Dockerfiles for backend (ASP.NET Core 10) and frontend (Angular 22 SSR); configured Nginx edge gateway with rate limiting (60r/m API, 10r/m auth), gzip compression, security headers (CSP frame allowlist for VidSrc/embeds, HSTS), static asset caching (30d), and health checks; orchestrated full stack in docker-compose.prod.yml with SQL Server 2022, Redis 7, backend, frontend, and nginx; provided .env.production.example template |
+
 
 ---
 

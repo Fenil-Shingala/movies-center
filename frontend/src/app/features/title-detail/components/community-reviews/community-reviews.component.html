@@ -1,0 +1,244 @@
+<section class="reviews-section" aria-label="Community Reviews">
+  <div class="reviews-header-row">
+    <div class="header-left">
+      <h2 class="section-title">
+        <svg lucideMessageSquare class="sec-icon highlight-msg"></svg>
+        <span>Community Reviews</span>
+      </h2>
+      <span class="reviews-count-badge">{{ totalReviews() }} {{ totalReviews() === 1 ? 'Review' : 'Reviews' }}</span>
+    </div>
+
+    <div class="header-actions">
+      <!-- Sort Tabs -->
+      <div class="sort-tabs-pill">
+        <button 
+          type="button" 
+          class="sort-tab-btn" 
+          [class.active]="reviewsSort() === 'popular'"
+          (click)="setReviewsSort('popular')">
+          Most Helpful
+        </button>
+        <button 
+          type="button" 
+          class="sort-tab-btn" 
+          [class.active]="reviewsSort() === 'newest'"
+          (click)="setReviewsSort('newest')">
+          Newest
+        </button>
+      </div>
+
+      <!-- Write Review Button -->
+      <button 
+        type="button" 
+        class="btn btn-primary write-review-toggle-btn" 
+        (click)="toggleWriteReview()">
+        <svg lucideSend class="btn-icon"></svg>
+        <span>{{ isWritingReview() ? 'Cancel' : 'Write a Review' }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Write Review Composer Card -->
+  @if (isWritingReview()) {
+    <div class="review-composer-card">
+      <h3 class="composer-title">Share your thoughts on {{ titleName() }}</h3>
+
+      <div class="composer-rating-row">
+        <span class="composer-label">Your Rating:</span>
+        <div class="stars-picker">
+          @for (star of [1, 2, 3, 4, 5]; track star) {
+            <button 
+              type="button" 
+              class="picker-star-btn" 
+              [class.filled]="newReviewRating() !== null && star <= newReviewRating()!" 
+              (click)="selectReviewRating(star)"
+              [attr.aria-label]="'Rate ' + star + ' stars'">
+              <svg lucideStar class="star-icon"></svg>
+            </button>
+          }
+          @if (newReviewRating()) {
+            <span class="selected-score">{{ newReviewRating() }}/5</span>
+          }
+        </div>
+
+        <!-- Spoiler toggle -->
+        <label class="spoiler-toggle-label">
+          <input 
+            type="checkbox" 
+            [checked]="newReviewSpoilers()" 
+            (change)="newReviewSpoilers.set($any($event.target).checked)" 
+          />
+          <span class="spoiler-text">⚠️ Contains Spoilers</span>
+        </label>
+      </div>
+
+      <div class="composer-textarea-wrap">
+        <textarea 
+          class="composer-textarea" 
+          placeholder="What did you like or dislike? How was the acting, plot, or direction? (No unflagged spoilers!)"
+          rows="4"
+          maxlength="2000"
+          [value]="newReviewContent()"
+          (input)="newReviewContent.set($any($event.target).value)"
+        ></textarea>
+        <div class="textarea-footer">
+          <span class="char-count">{{ newReviewContent().length }}/2000</span>
+        </div>
+      </div>
+
+      @if (reviewFormError()) {
+        <div class="review-form-error">{{ reviewFormError() }}</div>
+      }
+
+      <div class="composer-actions">
+        <button 
+          type="button" 
+          class="btn btn-secondary btn-sm" 
+          (click)="toggleWriteReview()">
+          Cancel
+        </button>
+        <button 
+          type="button" 
+          class="btn btn-primary btn-sm" 
+          [disabled]="isSubmittingReview() || newReviewContent().trim().length < 3"
+          (click)="submitReview()">
+          <svg lucideSend class="btn-icon"></svg>
+          <span>{{ isSubmittingReview() ? 'Submitting...' : 'Post Review' }}</span>
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Reviews List -->
+  @if (isLoadingReviews() && reviews().length === 0) {
+    <!-- Skeleton Cards -->
+    <div class="reviews-loading-grid">
+      @for (num of [1, 2, 3]; track num) {
+        <div class="review-skeleton-card skeleton">
+          <div class="skel-header">
+            <div class="skel-avatar skeleton"></div>
+            <div class="skel-user-lines">
+              <div class="skel-line skeleton short"></div>
+              <div class="skel-line skeleton tiny"></div>
+            </div>
+          </div>
+          <div class="skel-body skeleton"></div>
+        </div>
+      }
+    </div>
+  } @else if (reviews().length === 0) {
+    <!-- Empty State -->
+    <div class="reviews-empty-state">
+      <div class="empty-icon-bubble">
+        <svg lucideMessageSquare class="empty-icon"></svg>
+      </div>
+      <h3 class="empty-title">No Reviews Yet</h3>
+      <p class="empty-subtext">Be the first to share your thoughts and help other viewers decide!</p>
+      <button 
+        type="button" 
+        class="btn btn-primary btn-sm" 
+        (click)="toggleWriteReview()">
+        Write the First Review
+      </button>
+    </div>
+  } @else {
+    <!-- Reviews List Grid -->
+    <div class="reviews-list">
+      @for (rev of reviews(); track rev.id) {
+        <div class="review-card">
+          <div class="review-card-header">
+            <div class="reviewer-info">
+              <div class="reviewer-avatar">
+                @if (rev.userAvatar) {
+                  <img [src]="rev.userAvatar" [alt]="rev.userName" class="avatar-img" />
+                } @else {
+                  <div class="avatar-initial">{{ getInitials(rev.userName) }}</div>
+                }
+              </div>
+              <div class="reviewer-meta">
+                <div class="reviewer-name-row">
+                  <span class="reviewer-name">{{ rev.userName }}</span>
+                  @if (rev.isMyReview) {
+                    <span class="you-badge">You</span>
+                  }
+                </div>
+                <span class="review-time">{{ formatTimeAgo(rev.createdAt) }}</span>
+              </div>
+            </div>
+
+            <div class="review-card-top-actions">
+              @if (rev.ratingScore) {
+                <div class="review-rating-pill">
+                  <span class="star">★</span>
+                  <span class="score">{{ rev.ratingScore }}/5</span>
+                </div>
+              }
+
+              @if (rev.isMyReview || authService.isAdmin()) {
+                <button 
+                  type="button" 
+                  class="delete-review-btn" 
+                  title="Delete Review"
+                  (click)="deleteReview(rev.id)"
+                  aria-label="Delete Review">
+                  <svg lucideTrash2 class="trash-icon"></svg>
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Spoiler Protected Content or Regular Content -->
+          <div class="review-content-wrap">
+            @if (rev.containsSpoilers && !revealedSpoilers().has(rev.id)) {
+              <div class="spoiler-shield-box" (click)="toggleSpoiler(rev.id)">
+                <div class="shield-icon-circle">
+                  <svg lucideEye class="shield-icon"></svg>
+                </div>
+                <div class="shield-text-col">
+                  <span class="shield-heading">⚠️ Spoiler Alert</span>
+                  <span class="shield-sub">This review contains plot spoilers. Click to reveal.</span>
+                </div>
+                <button type="button" class="reveal-btn">Reveal</button>
+              </div>
+            } @else {
+              @if (rev.containsSpoilers) {
+                <div class="spoiler-revealed-tag" (click)="toggleSpoiler(rev.id)">
+                  <svg lucideEyeOff class="tag-icon"></svg>
+                  <span>Spoilers revealed (Click to hide)</span>
+                </div>
+              }
+              <p class="review-text">{{ rev.content }}</p>
+            }
+          </div>
+
+          <!-- Review Actions Bar (Helpful Like) -->
+          <div class="review-card-footer">
+            <button 
+              type="button" 
+              class="like-btn" 
+              [class.liked]="rev.isLikedByMe"
+              (click)="toggleLikeReview(rev)"
+              [title]="rev.isLikedByMe ? 'Remove helpful upvote' : 'Mark as helpful'">
+              <svg lucideThumbsUp class="like-icon"></svg>
+              <span class="like-label">Helpful</span>
+              <span class="like-count">({{ rev.likesCount }})</span>
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Load More Button -->
+    @if (reviewsPage() < reviewsTotalPages()) {
+      <div class="reviews-pagination-row">
+        <button 
+          type="button" 
+          class="btn btn-secondary load-more-btn" 
+          [disabled]="isLoadingReviews()"
+          (click)="loadMoreReviews()">
+          <span>{{ isLoadingReviews() ? 'Loading...' : 'Load More Reviews' }}</span>
+        </button>
+      </div>
+    }
+  }
+</section>

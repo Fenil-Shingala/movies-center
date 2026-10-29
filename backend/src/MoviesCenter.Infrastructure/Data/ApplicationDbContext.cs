@@ -35,6 +35,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationSettings> NotificationSettings => Set<NotificationSettings>();
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
+    public DbSet<AnalyticsDailyStats> AnalyticsDailyStats => Set<AnalyticsDailyStats>();
+    public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<ReviewLike> ReviewLikes => Set<ReviewLike>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -261,7 +264,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
             entity.HasOne(h => h.Title)
                   .WithMany()
                   .HasForeignKey(h => h.TitleId)
-                  .OnDelete(DeleteBehavior.Cascade);
+                  .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(h => h.Episode)
                   .WithMany()
                   .HasForeignKey(h => h.EpisodeId)
@@ -294,7 +297,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
             entity.HasOne(r => r.Title)
                   .WithMany()
                   .HasForeignKey(r => r.TitleId)
-                  .OnDelete(DeleteBehavior.Cascade);
+                  .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(r => r.Source)
                   .WithMany()
                   .HasForeignKey(r => r.SourceId)
@@ -336,6 +339,37 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
                   .WithMany(u => u.PushSubscriptions)
                   .HasForeignKey(p => p.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Review>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.HasIndex(r => r.TitleId);
+            entity.HasIndex(r => r.UserId);
+            entity.HasIndex(r => new { r.TitleId, r.CreatedAt });
+            entity.Property(r => r.Content).IsRequired().HasMaxLength(2000);
+            entity.HasOne(r => r.User)
+                  .WithMany(u => u.Reviews)
+                  .HasForeignKey(r => r.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(r => r.Title)
+                  .WithMany(t => t.Reviews)
+                  .HasForeignKey(r => r.TitleId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ReviewLike>(entity =>
+        {
+            entity.HasKey(rl => rl.Id);
+            entity.HasIndex(rl => new { rl.ReviewId, rl.UserId }).IsUnique();
+            entity.HasOne(rl => rl.Review)
+                  .WithMany(r => r.ReviewLikes)
+                  .HasForeignKey(rl => rl.ReviewId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(rl => rl.User)
+                  .WithMany(u => u.ReviewLikes)
+                  .HasForeignKey(rl => rl.UserId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // Convert table names and column names to snake_case
@@ -474,5 +508,15 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
             new Genre { Id = 10767, Name = "Talk", Slug = "talk", CreatedAt = seedDate },
             new Genre { Id = 10768, Name = "War & Politics", Slug = "war-politics", CreatedAt = seedDate }
         );
+
+        // Configure AnalyticsDailyStats
+        builder.Entity<AnalyticsDailyStats>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.HasIndex(a => a.Date);
+            entity.HasIndex(a => new { a.Date, a.MetricName });
+            entity.Property(a => a.MetricName).IsRequired().HasMaxLength(100);
+            entity.Property(a => a.Dimension).HasMaxLength(500);
+        });
     }
 }

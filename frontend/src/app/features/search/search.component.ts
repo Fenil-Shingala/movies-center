@@ -15,6 +15,7 @@ import {
   LucideX 
 } from '@lucide/angular';
 import { CatalogService } from '../../core/services/catalog.service';
+import { AnalyticsService } from '../../core/services/analytics.service';
 import { MediaCard, PagedResult } from '../../core/models/media.models';
 import { MediaCardComponent } from '../home/components/media-card/media-card.component';
 import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
@@ -39,6 +40,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state/empty-s
 })
 export class SearchComponent implements OnInit {
   private readonly catalogService = inject(CatalogService);
+  private readonly analyticsService = inject(AnalyticsService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly platformId = inject(PLATFORM_ID);
@@ -125,6 +127,7 @@ export class SearchComponent implements OnInit {
         this.totalCount.set(res.totalCount);
         this.totalPages.set(res.totalPages > 0 ? res.totalPages : 1);
         this.isLoading.set(false);
+        this.analyticsService.trackSearch(query, res.totalCount);
       },
       error: () => {
         this.titles.set([]);

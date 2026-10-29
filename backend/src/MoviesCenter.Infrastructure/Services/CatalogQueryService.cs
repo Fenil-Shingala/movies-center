@@ -97,7 +97,8 @@ public class CatalogQueryService : ICatalogQueryService
             new("upcoming-movies", "Upcoming Movies", "movie", "/movies?sort=upcoming", upcomingMovies)
         };
 
-        var feed = new HomeFeedDto(hero, rows);
+        var top10 = await GetTop10Async("all", cancellationToken);
+        var feed = new HomeFeedDto(hero, rows, top10);
 
         // Cache in Redis
         await _cacheService.SetAsync(HomeFeedCacheKey, feed, HomeFeedCacheDuration, cancellationToken);
@@ -122,16 +123,14 @@ public class CatalogQueryService : ICatalogQueryService
         var pageSize = query.PageSize < 1 ? 20 : (query.PageSize > 100 ? 100 : query.PageSize);
         var type = string.Equals(query.Type, "series", StringComparison.OrdinalIgnoreCase) ? "series" : "movie";
 
-        var queryable = _db.Titles
+        var baseQuery = _db.Titles
             .AsNoTracking()
-            .Include(t => t.TitleGenres)
-                .ThenInclude(tg => tg.Genre)
             .Where(t => t.IsActive && t.Type == type);
 
         // Filter by Genre
         if (query.GenreId.HasValue && query.GenreId.Value > 0)
         {
-            queryable = queryable.Where(t => t.TitleGenres.Any(tg => tg.GenreId == query.GenreId.Value));
+            baseQuery = baseQuery.Where(t => t.TitleGenres.Any(tg => tg.GenreId == query.GenreId.Value));
         }
 
         // Filter by Year
@@ -139,19 +138,26 @@ public class CatalogQueryService : ICatalogQueryService
         {
             if (type == "movie")
             {
-                queryable = queryable.Where(t => t.ReleaseDate != null && t.ReleaseDate.Value.Year == query.Year.Value);
+                baseQuery = baseQuery.Where(t => t.ReleaseDate != null && t.ReleaseDate.Value.Year == query.Year.Value);
             }
             else
             {
-                queryable = queryable.Where(t => t.FirstAirDate != null && t.FirstAirDate.Value.Year == query.Year.Value);
+                baseQuery = baseQuery.Where(t => t.FirstAirDate != null && t.FirstAirDate.Value.Year == query.Year.Value);
             }
         }
 
         // Filter by Language
         if (!string.IsNullOrWhiteSpace(query.Language))
         {
-            queryable = queryable.Where(t => t.OriginalLanguage == query.Language.Trim().ToLowerInvariant());
+            baseQuery = baseQuery.Where(t => t.OriginalLanguage == query.Language.Trim().ToLowerInvariant());
         }
+
+        var totalCount = await baseQuery.CountAsync(cancellationToken);
+        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+        IQueryable<Title> queryable = baseQuery
+            .Include(t => t.TitleGenres)
+                .ThenInclude(tg => tg.Genre);
 
         // Sorting
         queryable = (query.Sort?.ToLowerInvariant()) switch
@@ -163,9 +169,6 @@ public class CatalogQueryService : ICatalogQueryService
             "title.asc" or "az" => queryable.OrderBy(t => t.TitleText),
             _ => queryable.OrderByDescending(t => t.Popularity) // default popularity.desc
         };
-
-        var totalCount = await queryable.CountAsync(cancellationToken);
-        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
         var titles = await queryable
             .Skip((page - 1) * pageSize)
@@ -213,30 +216,32 @@ public class CatalogQueryService : ICatalogQueryService
         var page = query.Page < 1 ? 1 : query.Page;
         var pageSize = query.PageSize is < 1 or > 100 ? 24 : query.PageSize;
 
-        var queryable = _db.Titles
+        var baseQuery = _db.Titles
             .AsNoTracking()
-            .Include(t => t.TitleGenres)
-                .ThenInclude(tg => tg.Genre)
             .Where(t => t.IsActive);
 
         if (!string.IsNullOrWhiteSpace(query.Type) && !string.Equals(query.Type, "all", StringComparison.OrdinalIgnoreCase))
         {
             var normalizedType = string.Equals(query.Type, "series", StringComparison.OrdinalIgnoreCase) ? "series" : "movie";
-            queryable = queryable.Where(t => t.Type == normalizedType);
+            baseQuery = baseQuery.Where(t => t.Type == normalizedType);
         }
 
         if (!string.IsNullOrWhiteSpace(query.Query))
         {
             var searchTerm = query.Query.Trim();
-            queryable = queryable.Where(t => 
+            baseQuery = baseQuery.Where(t => 
                 EF.Functions.Like(t.TitleText, $"%{searchTerm}%") ||
                 (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, $"%{searchTerm}%")));
         }
 
-        queryable = queryable.OrderByDescending(t => t.Popularity).ThenByDescending(t => t.TmdbRating);
-
-        var totalCount = await queryable.CountAsync(cancellationToken);
+        var totalCount = await baseQuery.CountAsync(cancellationToken);
         var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+        var queryable = baseQuery
+            .Include(t => t.TitleGenres)
+                .ThenInclude(tg => tg.Genre)
+            .OrderByDescending(t => t.Popularity)
+            .ThenByDescending(t => t.TmdbRating);
 
         var titles = await queryable
             .Skip((page - 1) * pageSize)
@@ -617,19 +622,48 @@ public class CatalogQueryService : ICatalogQueryService
 
     public async Task<SourceReportResponseDto> ReportSourceAsync(int sourceId, int titleId, string reason, string? details = null, int? season = null, int? episode = null, CancellationToken cancellationToken = default)
     {
-        if (sourceId > 0)
+        var title = await _db.Titles.FirstOrDefaultAsync(t => t.Id == titleId || t.TmdbId == titleId, cancellationToken);
+        var resolvedTitleId = title?.Id ?? titleId;
+
+        var source = await _db.TitleSources.FirstOrDefaultAsync(ts => ts.Id == sourceId, cancellationToken);
+        int resolvedSourceId = sourceId;
+
+        if (source != null)
         {
-            var source = await _db.TitleSources.FirstOrDefaultAsync(ts => ts.Id == sourceId, cancellationToken);
-            if (source != null)
+            source.LastVerifiedAt = DateTime.UtcNow;
+            resolvedSourceId = source.Id;
+        }
+        else if (title != null)
+        {
+            var fallbackSource = await _db.TitleSources.FirstOrDefaultAsync(ts => ts.TitleId == title.Id, cancellationToken);
+            if (fallbackSource != null)
             {
-                source.LastVerifiedAt = DateTime.UtcNow;
+                resolvedSourceId = fallbackSource.Id;
+            }
+            else
+            {
+                var defaultProvider = await _db.SourceProviders.FirstOrDefaultAsync(cancellationToken);
+                var newSource = new TitleSource
+                {
+                    TitleId = title.Id,
+                    SourceProviderId = defaultProvider?.Id ?? 1,
+                    Quality = "1080p",
+                    Priority = 1,
+                    EmbedUrl = $"https://vidsrc.to/embed/movie/{title.TmdbId}",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _db.TitleSources.Add(newSource);
+                await _db.SaveChangesAsync(cancellationToken);
+                resolvedSourceId = newSource.Id;
             }
         }
 
         var report = new SourceReport
         {
-            SourceId = sourceId,
-            TitleId = titleId,
+            SourceId = resolvedSourceId,
+            TitleId = resolvedTitleId,
             Reason = reason,
             Details = details,
             Season = season,
@@ -643,5 +677,132 @@ public class CatalogQueryService : ICatalogQueryService
         await _db.SaveChangesAsync(cancellationToken);
 
         return new SourceReportResponseDto(true, "Thank you! Your report has been submitted to our streaming team.");
+    }
+
+    public async Task<List<MediaCardDto>> GetTitleRecommendationsAsync(int id, int limit = 12, CancellationToken cancellationToken = default)
+    {
+        var safeLimit = limit is < 1 or > 30 ? 12 : limit;
+        var cacheKey = $"title_recs_{id}_{safeLimit}";
+        var cached = await _cacheService.GetAsync<List<MediaCardDto>>(cacheKey, cancellationToken);
+        if (cached != null)
+        {
+            return cached;
+        }
+
+        // 1. Resolve target title
+        var title = await _db.Titles
+            .AsNoTracking()
+            .Include(t => t.TitleGenres)
+            .FirstOrDefaultAsync(t => (t.Id == id || t.TmdbId == id) && t.IsActive, cancellationToken);
+
+        if (title == null)
+        {
+            return [];
+        }
+
+        var targetGenreIds = title.TitleGenres.Select(tg => tg.GenreId).ToList();
+        var recommendedTitles = new List<Title>();
+
+        // 2. Query titles sharing genres of same type (movie vs series)
+        if (targetGenreIds.Count > 0)
+        {
+            recommendedTitles = await _db.Titles
+                .AsNoTracking()
+                .Include(t => t.TitleGenres)
+                    .ThenInclude(tg => tg.Genre)
+                .Where(t => t.IsActive && t.Type == title.Type && t.Id != title.Id)
+                .Where(t => t.TitleGenres.Any(tg => targetGenreIds.Contains(tg.GenreId)))
+                .OrderByDescending(t => t.TitleGenres.Count(tg => targetGenreIds.Contains(tg.GenreId)))
+                .ThenByDescending(t => t.Popularity)
+                .ThenByDescending(t => t.TmdbRating)
+                .Take(safeLimit)
+                .ToListAsync(cancellationToken);
+        }
+
+        // 3. Backfill with popular titles of same type if recommendations are fewer than limit
+        if (recommendedTitles.Count < safeLimit)
+        {
+            var existingIds = recommendedTitles.Select(t => t.Id).Append(title.Id).ToList();
+            var remaining = safeLimit - recommendedTitles.Count;
+
+            var backfill = await _db.Titles
+                .AsNoTracking()
+                .Include(t => t.TitleGenres)
+                    .ThenInclude(tg => tg.Genre)
+                .Where(t => t.IsActive && t.Type == title.Type && !existingIds.Contains(t.Id))
+                .OrderByDescending(t => t.Popularity)
+                .ThenByDescending(t => t.TmdbRating)
+                .Take(remaining)
+                .ToListAsync(cancellationToken);
+
+            recommendedTitles.AddRange(backfill);
+        }
+
+        var result = recommendedTitles.Select(t => new MediaCardDto(
+            TmdbId: t.TmdbId,
+            Type: t.Type,
+            Title: t.TitleText,
+            PosterPath: t.PosterPath,
+            BackdropPath: t.BackdropPath,
+            Rating: (double)(t.TmdbRating ?? 0m),
+            Year: t.ReleaseDate?.Year.ToString() ?? t.FirstAirDate?.Year.ToString() ?? string.Empty,
+            Genres: t.TitleGenres.Select(tg => tg.Genre.Name).Take(3).ToList()
+        )).ToList();
+
+        // Cache for 6 hours
+        await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromHours(6), cancellationToken);
+
+        return result;
+    }
+
+    public async Task<List<MediaCardDto>> GetTop10Async(string type = "all", CancellationToken cancellationToken = default)
+    {
+        var normalizedType = (type?.Trim().ToLowerInvariant()) switch
+        {
+            "movie" or "movies" => "movie",
+            "series" or "tv" => "series",
+            _ => "all"
+        };
+
+        var cacheKey = $"top10_{normalizedType}";
+        var cached = await _cacheService.GetAsync<List<MediaCardDto>>(cacheKey, cancellationToken);
+        if (cached != null)
+        {
+            return cached;
+        }
+
+        var query = _db.Titles
+            .AsNoTracking()
+            .Include(t => t.TitleGenres)
+                .ThenInclude(tg => tg.Genre)
+            .Where(t => t.IsActive);
+
+        if (normalizedType == "movie" || normalizedType == "series")
+        {
+            query = query.Where(t => t.Type == normalizedType);
+        }
+
+        var titles = await query
+            .OrderByDescending(t => t.Popularity)
+            .ThenByDescending(t => t.ViewCount)
+            .ThenByDescending(t => t.TmdbRating)
+            .Take(10)
+            .ToListAsync(cancellationToken);
+
+        var result = titles.Select(t => new MediaCardDto(
+            TmdbId: t.TmdbId,
+            Type: t.Type,
+            Title: t.TitleText,
+            PosterPath: t.PosterPath,
+            BackdropPath: t.BackdropPath,
+            Rating: (double)(t.TmdbRating ?? 0m),
+            Year: t.ReleaseDate?.Year.ToString() ?? t.FirstAirDate?.Year.ToString() ?? string.Empty,
+            Genres: t.TitleGenres.Select(tg => tg.Genre.Name).Take(3).ToList()
+        )).ToList();
+
+        // 1-hour cache
+        await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromHours(1), cancellationToken);
+
+        return result;
     }
 }

@@ -1,0 +1,17 @@
+{
+  "name": "movies-center-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Movies Center Monorepo root scripts",
+  "scripts": {
+    "start": "npm --prefix frontend run start",
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "test": "npm --prefix frontend run test",
+    "backend": "dotnet run --project backend/src/MoviesCenter.Api",
+    "docker:prod:build": "docker compose -f docker-compose.prod.yml build",
+    "docker:prod:up": "docker compose -f docker-compose.prod.yml up -d",
+    "docker:prod:down": "docker compose -f docker-compose.prod.yml down",
+    "docker:prod:logs": "docker compose -f docker-compose.prod.yml logs -f"
+  }
+}

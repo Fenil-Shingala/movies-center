@@ -71,6 +71,14 @@
       <svg lucideUpload class="tab-icon"></svg>
       <span>Direct Uploads</span>
     </button>
+    <button 
+      type="button" 
+      class="tab-btn" 
+      [class.active]="currentTab() === 'analytics'" 
+      (click)="setTab('analytics')">
+      <svg lucideBarChart3 class="tab-icon"></svg>
+      <span>Analytics & Performance</span>
+    </button>
   </nav>
 
   <!-- TAB CONTENT -->
@@ -523,6 +531,159 @@
           </div>
         }
       </div>
+    </div>
+  }
+
+  <!-- 7. ANALYTICS & PERFORMANCE TAB -->
+  @if (currentTab() === 'analytics') {
+    <div class="tab-pane analytics-pane">
+      @if (isLoadingAnalytics()) {
+        <div class="admin-loading-state">
+          <div class="spinner"></div>
+          <span>Aggregating analytics data...</span>
+        </div>
+      } @else if (analytics(); as a) {
+        <!-- KPI Row -->
+        <div class="kpi-grid">
+          <div class="kpi-card highlight-card">
+            <div class="kpi-icon-box play-box"><svg lucidePlay class="kpi-icon"></svg></div>
+            <div class="kpi-info">
+              <span class="kpi-label">Total Content Plays</span>
+              <span class="kpi-val">{{ a.totalPlays | number }}</span>
+              <span class="kpi-sub">Consent-gated streaming events</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon-box search-box"><svg lucideSearch class="kpi-icon"></svg></div>
+            <div class="kpi-info">
+              <span class="kpi-label">Catalog Searches</span>
+              <span class="kpi-val">{{ a.totalSearches | number }}</span>
+              <span class="kpi-sub">Total user queries executed</span>
+            </div>
+          </div>
+          <div class="kpi-card" [class.warning]="a.totalEmptySearches > 0">
+            <div class="kpi-icon-box alert-box"><svg lucideAlertTriangle class="kpi-icon"></svg></div>
+            <div class="kpi-info">
+              <span class="kpi-label">Zero-Result Searches</span>
+              <span class="kpi-val">{{ a.totalEmptySearches | number }}</span>
+              <span class="kpi-sub">Unmatched catalog requests</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon-box user-box"><svg lucideUsers class="kpi-icon"></svg></div>
+            <div class="kpi-info">
+              <span class="kpi-label">New Registrations</span>
+              <span class="kpi-val">{{ a.totalSignups | number }}</span>
+              <span class="kpi-sub">User accounts created</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Daily Activity Chart -->
+        <div class="analytics-card chart-card">
+          <div class="card-header-flex">
+            <div>
+              <h3 class="card-title">Daily Activity Trends (Past 14 Days)</h3>
+              <p class="card-subtitle">Comparison of media playback streams and search volume</p>
+            </div>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="dot plays-dot"></span> Plays</span>
+              <span class="legend-item"><span class="dot searches-dot"></span> Searches</span>
+            </div>
+          </div>
+
+          <div class="trend-bars-container">
+            @for (day of a.dailyTrends; track day.date) {
+              <div class="bar-col" [title]="day.date + ': ' + day.plays + ' plays, ' + day.searches + ' searches'">
+                <div class="bars-pair">
+                  <div class="bar plays-bar" [style.height.%]="getBarHeightPercent(day.plays, getMaxPlays(a))"></div>
+                  <div class="bar searches-bar" [style.height.%]="getBarHeightPercent(day.searches, getMaxPlays(a))"></div>
+                </div>
+                <span class="bar-date-label">{{ day.date | slice:5 }}</span>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Top Insights Grid -->
+        <div class="analytics-two-col">
+          <!-- Top Streamed Titles -->
+          <div class="analytics-card">
+            <div class="card-header-flex">
+              <h3 class="card-title">Top 10 Streamed Titles</h3>
+              <span class="badge-pill">Live Plays</span>
+            </div>
+            @if (a.topPlayedTitles.length === 0) {
+              <div class="empty-analytics-msg">No streaming events recorded in this window yet.</div>
+            } @else {
+              <div class="ranking-list">
+                @for (item of a.topPlayedTitles; track $index) {
+                  <div class="rank-item">
+                    <span class="rank-badge" [class.gold]="$index === 0" [class.silver]="$index === 1" [class.bronze]="$index === 2">
+                      #{{ $index + 1 }}
+                    </span>
+                    <span class="rank-name">{{ item.name }}</span>
+                    <span class="rank-val">{{ item.value | number }} plays</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Top Searches & Zero Results -->
+          <div class="analytics-card">
+            <div class="card-header-flex">
+              <h3 class="card-title">Search Keyword Insights</h3>
+              <span class="badge-pill">Demand</span>
+            </div>
+
+            <div class="search-insights-block">
+              <h4 class="sub-heading">Most Searched Terms</h4>
+              @if (a.topSearchQueries.length === 0) {
+                <div class="empty-analytics-msg">No search queries recorded yet.</div>
+              } @else {
+                <div class="tags-cloud">
+                  @for (q of a.topSearchQueries; track q.name) {
+                    <span class="query-chip">
+                      <span class="query-text">{{ q.name }}</span>
+                      <span class="query-count">{{ q.value }}</span>
+                    </span>
+                  }
+                </div>
+              }
+
+              <h4 class="sub-heading mt-4">Unmatched / Missing Titles (Zero Results)</h4>
+              @if (a.topEmptySearches.length === 0) {
+                <div class="empty-analytics-msg success">All catalog searches returned results!</div>
+              } @else {
+                <div class="tags-cloud">
+                  @for (q of a.topEmptySearches; track q.name) {
+                    <span class="query-chip empty-chip">
+                      <span class="query-text">{{ q.name }}</span>
+                      <span class="query-count warning">{{ q.value }}</span>
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Problematic Sources Breakdown -->
+        @if (a.failingSources.length > 0) {
+          <div class="analytics-card mt-4">
+            <h3 class="card-title">Playback Failures & Broken Source Reports</h3>
+            <div class="failing-sources-grid">
+              @for (src of a.failingSources; track src.name) {
+                <div class="failure-stat-item">
+                  <span class="failure-name">{{ src.name }}</span>
+                  <span class="failure-count">{{ src.value }} reports</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      }
     </div>
   }
 </div>

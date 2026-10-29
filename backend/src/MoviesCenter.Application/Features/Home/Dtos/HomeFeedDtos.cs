@@ -2,7 +2,8 @@ namespace MoviesCenter.Application.Features.Home.Dtos;
 
 public record HomeFeedDto(
     HeroItemDto Hero,
-    List<ContentRowDto> Rows
+    List<ContentRowDto> Rows,
+    List<MediaCardDto>? Top10 = null
 );
 
 public record HeroItemDto(

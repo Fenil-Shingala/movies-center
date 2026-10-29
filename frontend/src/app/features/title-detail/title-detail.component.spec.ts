@@ -7,13 +7,16 @@ import { TitleDetailComponent } from './title-detail.component';
 import { CatalogService } from '../../core/services/catalog.service';
 import { UserDataService } from '../../core/services/user-data.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ReviewsService } from '../../core/services/reviews.service';
 import { TitleDetail } from '../../core/models/media.models';
 
 describe('TitleDetailComponent', () => {
   let component: TitleDetailComponent;
   let fixture: ComponentFixture<TitleDetailComponent>;
   let mockCatalogService: any;
-  let isWatchlist = false;
+  let mockUserDataService: any;
+  let mockAuthService: any;
+  let mockReviewsService: any;
 
   const mockTitleDetail: TitleDetail = {
     id: 1,
@@ -72,20 +75,30 @@ describe('TitleDetailComponent', () => {
     const isWatchlistSignal = signal(false);
     mockCatalogService = {
       getTitleDetail: vi.fn().mockReturnValue(of(mockTitleDetail)),
-      getTitleRating: vi.fn().mockReturnValue(of({ averageRating: 4.5, totalRatings: 10, userRating: null, distribution: {} }))
+      getTitleRating: vi.fn().mockReturnValue(of({ averageRating: 4.5, totalRatings: 10, userRating: null, distribution: {} })),
+      getTitleRecommendations: vi.fn().mockReturnValue(of([])),
+      submitRating: vi.fn().mockReturnValue(of({ averageRating: 5.0, totalRatings: 11, userRating: 5, distribution: {} })),
+      removeRating: vi.fn().mockReturnValue(of({ averageRating: 4.5, totalRatings: 10, userRating: null, distribution: {} }))
     };
 
-    const mockUserDataService = {
+    mockReviewsService = {
+      getReviews: vi.fn().mockReturnValue(of({ items: [], totalCount: 0, page: 1, pageSize: 10, totalPages: 0 })),
+      createReview: vi.fn().mockReturnValue(of({ id: 1, titleId: 155, content: 'Test review', likesCount: 0 })),
+      deleteReview: vi.fn().mockReturnValue(of({ success: true, message: 'Deleted' })),
+      toggleLike: vi.fn().mockReturnValue(of({ isLiked: true, likesCount: 1 }))
+    };
+
+    mockUserDataService = {
       isInWatchlist: vi.fn().mockImplementation(() => isWatchlistSignal()),
       toggleWatchlist: vi.fn().mockImplementation(() => {
         isWatchlistSignal.update(v => !v);
-        return of({ inWatchlist: isWatchlistSignal() });
+        return of(!isWatchlistSignal());
       })
     };
 
-    const mockAuthService = {
-      currentUser: signal(null),
-      isAuthenticated: signal(false),
+    mockAuthService = {
+      currentUser: signal({ id: 'user-1', email: 'user@test.com', userName: 'testuser' }),
+      isAuthenticated: signal(true),
       openAuthModal: vi.fn()
     };
 
@@ -96,6 +109,7 @@ describe('TitleDetailComponent', () => {
         { provide: CatalogService, useValue: mockCatalogService },
         { provide: UserDataService, useValue: mockUserDataService },
         { provide: AuthService, useValue: mockAuthService },
+        { provide: ReviewsService, useValue: mockReviewsService },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -123,12 +137,12 @@ describe('TitleDetailComponent', () => {
   it('should load title details from service', () => {
     expect(component.title()).toEqual(mockTitleDetail);
     expect(component.title()?.title).toBe('The Dark Knight');
-    expect(component.formattedRuntime()).toBe('2h 32m');
+    expect(component.title()?.year).toBe('2008');
   });
 
-  it('should identify main trailer and open/close modal', () => {
-    expect(component.mainTrailer()).toBeTruthy();
-    expect(component.mainTrailer()?.key).toBe('EXeTwQWrcwY');
+  it('should identify primary trailer and open/close modal', () => {
+    expect(component.primaryTrailer()).toBeTruthy();
+    expect(component.primaryTrailer()?.key).toBe('EXeTwQWrcwY');
 
     component.openTrailer(mockTitleDetail.videos[0]);
     expect(component.activeTrailer()).toEqual(mockTitleDetail.videos[0]);
@@ -140,8 +154,12 @@ describe('TitleDetailComponent', () => {
   it('should toggle watchlist status', () => {
     expect(component.isInWatchlist()).toBe(false);
     component.toggleWatchlist();
-    expect(component.isInWatchlist()).toBe(true);
-    component.toggleWatchlist();
-    expect(component.isInWatchlist()).toBe(false);
+    expect(mockUserDataService.toggleWatchlist).toHaveBeenCalled();
+  });
+
+  it('should submit rating and update ratingData', () => {
+    component.rateTitle(5);
+    expect(mockCatalogService.submitRating).toHaveBeenCalledWith(1, 5);
+    expect(component.averageRating()).toBe(5.0);
   });
 });

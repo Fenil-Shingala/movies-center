@@ -94,6 +94,9 @@
         </section>
       }
 
+      <!-- Top 10 Trending Row with Numbered Ranking Badges -->
+      <app-top-ten-row [initialItems]="currentFeed.top10" />
+
       @for (row of currentFeed.rows; track row.id) {
         <app-content-row [row]="row" />
       }

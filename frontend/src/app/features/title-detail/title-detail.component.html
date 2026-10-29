@@ -108,48 +108,6 @@
               </button>
             </div>
 
-            <!-- Quick Rating Widget -->
-            <div class="quick-rate-box">
-              <div class="quick-rate-header">
-                <span class="rate-prompt-text">
-                  @if (userRating()) {
-                    Your Rating: <strong>{{ userRating() }}/5 stars</strong>
-                  } @else {
-                    Rate this title:
-                  }
-                </span>
-                @if (userRating()) {
-                  <button type="button" class="btn-remove-star" (click)="removeRating()" title="Remove your rating" aria-label="Remove rating">
-                    <svg lucideTrash2 class="trash-icon"></svg>
-                    <span>Remove</span>
-                  </button>
-                }
-              </div>
-
-              <div class="stars-interactive-row" (mouseleave)="onStarLeave()">
-                @for (star of [1, 2, 3, 4, 5]; track star) {
-                  <button 
-                    type="button" 
-                    class="star-btn" 
-                    [class.active]="(hoverRating() || userRating() || 0) >= star"
-                    [class.hovered]="hoverRating() >= star"
-                    (mouseenter)="onStarHover(star)" 
-                    (click)="rateTitle(star)"
-                    [title]="'Rate ' + star + ' star' + (star > 1 ? 's' : '')"
-                    [disabled]="isSubmittingRating()"
-                    [attr.aria-label]="'Rate ' + star + ' stars'">
-                    <svg lucideStar class="star-icon-interactive"></svg>
-                  </button>
-                }
-                @if (totalRatings() > 0) {
-                  <span class="community-avg-badge">
-                    <svg lucideStar class="star-mini"></svg>
-                    {{ averageRating().toFixed(1) }} ({{ totalRatings() | number }})
-                  </span>
-                }
-              </div>
-            </div>
-
             <!-- Where To Watch (Providers) -->
             @if (item.providers.length > 0) {
               <div class="detail-providers-section">
@@ -393,6 +351,47 @@
           </div>
         </div>
       </section>
+
+      <!-- Community Reviews & Discussions -->
+      <app-community-reviews
+        [titleId]="item.id"
+        [titleName]="item.title"
+        (reviewSubmitted)="loadRating(item.id)">
+      </app-community-reviews>
+
+
+      <!-- More Like This / Recommendations -->
+      @if (isLoadingRecommendations() || recommendations().length > 0) {
+        <section class="recommendations-section">
+          <div class="section-header-row">
+            <h2 class="section-title">
+              <svg lucideSparkles class="sec-icon highlight-sparkle"></svg>
+              <span>More Like This</span>
+            </h2>
+            @if (recommendations().length > 0) {
+              <span class="recs-badge">{{ recommendations().length }} titles</span>
+            }
+          </div>
+
+          @if (isLoadingRecommendations()) {
+            <div class="recommendations-grid skeleton-grid">
+              @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+                <div class="skeleton-card">
+                  <div class="skeleton-poster"></div>
+                  <div class="skeleton-line title-line"></div>
+                  <div class="skeleton-line sub-line"></div>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="recommendations-grid">
+              @for (rec of recommendations(); track rec.tmdbId) {
+                <app-media-card [item]="rec"></app-media-card>
+              }
+            </div>
+          }
+        </section>
+      }
     </div>
 
     <!-- Video Modal / Trailer Overlay -->
@@ -429,3 +428,4 @@
     ></app-empty-state>
   </div>
 }
+

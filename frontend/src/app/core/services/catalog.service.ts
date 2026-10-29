@@ -89,6 +89,11 @@ export class CatalogService {
     return this.http.get<WatchProvider[]>(`${this.apiUrl}/titles/${id}/where-to-watch`);
   }
 
+  getTitleRecommendations(id: number, limit: number = 12): Observable<MediaCard[]> {
+    const params = new HttpParams().set('limit', limit.toString());
+    return this.http.get<MediaCard[]>(`${this.apiUrl}/titles/${id}/recommendations`, { params });
+  }
+
   getTitleSources(titleId: number, season?: number | null, episode?: number | null): Observable<TitleSource[]> {
     let params = new HttpParams();
     if (season !== undefined && season !== null) {

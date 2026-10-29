@@ -1258,3 +1258,105 @@
     }
   }
 }
+
+/* ==========================================================================
+   More Like This / Recommendations Section
+   ========================================================================== */
+.recommendations-section {
+  margin-top: 3.5rem;
+  margin-bottom: 4rem;
+
+  .section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+
+  .highlight-sparkle {
+    color: #e50914;
+    filter: drop-shadow(0 0 8px rgba(229, 9, 20, 0.5));
+  }
+
+  .recs-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.25rem 0.65rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+}
+
+.recommendations-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+  }
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  @media (min-width: 1280px) {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+/* Skeleton Loading Cards */
+.skeleton-grid {
+  .skeleton-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    .skeleton-poster {
+      width: 100%;
+      aspect-ratio: 2 / 3;
+      border-radius: 0.5rem;
+      background: linear-gradient(90deg, #1f2937 25%, #374151 50%, #1f2937 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    .skeleton-line {
+      height: 0.75rem;
+      border-radius: 0.25rem;
+      background: linear-gradient(90deg, #1f2937 25%, #374151 50%, #1f2937 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+
+      &.title-line {
+        width: 80%;
+      }
+
+      &.sub-line {
+        width: 50%;
+      }
+    }
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+

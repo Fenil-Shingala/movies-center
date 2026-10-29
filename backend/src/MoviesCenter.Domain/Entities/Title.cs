@@ -37,4 +37,5 @@ public class Title : BaseEntity
     public ICollection<Video> Videos { get; set; } = new List<Video>();
     public ICollection<TitleProvider> TitleProviders { get; set; } = new List<TitleProvider>();
     public ICollection<Rating> Ratings { get; set; } = new List<Rating>();
+    public ICollection<Review> Reviews { get; set; } = new List<Review>();
 }

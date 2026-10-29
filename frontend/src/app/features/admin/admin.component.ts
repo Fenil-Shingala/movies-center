@@ -25,9 +25,14 @@ import {
   LucideExternalLink, 
   LucideStar, 
   LucideEye, 
-  LucideEyeOff 
+  LucideEyeOff,
+  LucideBarChart3,
+  LucidePlay,
+  LucideUsers
 } from '@lucide/angular';
 import { AdminService } from '../../core/services/admin.service';
+import { AnalyticsService } from '../../core/services/analytics.service';
+import { AnalyticsOverview } from '../../core/models/analytics.models';
 import { 
   AdminStatsOverview, 
   AdminTitleListItem, 
@@ -43,7 +48,7 @@ import { PagedResult } from '../../core/models/media.models';
 import { TMDB_IMAGE_BASE_URL, TMDB_POSTER_SIZE } from '../../core/constants/app.constants';
 import { CustomSelectComponent, SelectOption } from '../../shared/components/custom-select/custom-select.component';
 
-export type AdminTab = 'overview' | 'tmdb' | 'titles' | 'sources' | 'reports' | 'uploads';
+export type AdminTab = 'overview' | 'tmdb' | 'titles' | 'sources' | 'reports' | 'uploads' | 'analytics';
 
 @Component({
   selector: 'app-admin',
@@ -68,7 +73,10 @@ export type AdminTab = 'overview' | 'tmdb' | 'titles' | 'sources' | 'reports' | 
     LucideExternalLink, 
     LucideStar, 
     LucideEye, 
-    LucideEyeOff
+    LucideEyeOff,
+    LucideBarChart3,
+    LucidePlay,
+    LucideUsers
   ],
   templateUrl: './admin.component.html',
   styleUrl: './admin.component.scss',
@@ -76,10 +84,13 @@ export type AdminTab = 'overview' | 'tmdb' | 'titles' | 'sources' | 'reports' | 
 })
 export class AdminComponent implements OnInit {
   private readonly adminService = inject(AdminService);
+  private readonly analyticsService = inject(AnalyticsService);
 
   readonly currentTab = signal<AdminTab>('overview');
   readonly stats = signal<AdminStatsOverview | null>(null);
+  readonly analytics = signal<AnalyticsOverview | null>(null);
   readonly isLoading = signal<boolean>(false);
+  readonly isLoadingAnalytics = signal<boolean>(false);
   readonly actionMessage = signal<string | null>(null);
 
   // TMDB Sync & Discovery
@@ -173,7 +184,35 @@ export class AdminComponent implements OnInit {
         break;
       case 'uploads':
         break;
+      case 'analytics':
+        this.loadAnalytics();
+        break;
     }
+  }
+
+  loadAnalytics(): void {
+    this.isLoadingAnalytics.set(true);
+    this.analyticsService.getAnalyticsOverview().subscribe({
+      next: (data) => {
+        this.analytics.set(data);
+        this.isLoadingAnalytics.set(false);
+      },
+      error: (err) => {
+        console.error('Failed to load analytics overview', err);
+        this.isLoadingAnalytics.set(false);
+      }
+    });
+  }
+
+  getMaxPlays(overview: AnalyticsOverview | null): number {
+    if (!overview || !overview.dailyTrends.length) return 10;
+    const max = Math.max(...overview.dailyTrends.map(t => Math.max(t.plays, t.searches)));
+    return max > 0 ? max : 10;
+  }
+
+  getBarHeightPercent(val: number, max: number): number {
+    if (!max || max === 0) return 4;
+    return Math.max(Math.round((val / max) * 100), 4);
   }
 
   showToast(msg: string): void {

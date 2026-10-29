@@ -1,6 +1,7 @@
 import { Component, OnInit, signal, inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { COOKIE_CONSENT_KEY } from '../../core/constants/app.constants';
+import { AnalyticsService } from '../../core/services/analytics.service';
 
 @Component({
   selector: 'app-cookie-notice',
@@ -12,6 +13,7 @@ import { COOKIE_CONSENT_KEY } from '../../core/constants/app.constants';
 })
 export class CookieNoticeComponent implements OnInit {
   private readonly platformId = inject(PLATFORM_ID);
+  private readonly analyticsService = inject(AnalyticsService);
   readonly isVisible = signal<boolean>(false);
 
   ngOnInit(): void {
@@ -25,16 +27,12 @@ export class CookieNoticeComponent implements OnInit {
   }
 
   accept(): void {
-    if (isPlatformBrowser(this.platformId)) {
-      localStorage.setItem(COOKIE_CONSENT_KEY, 'accepted');
-    }
+    this.analyticsService.grantConsent();
     this.isVisible.set(false);
   }
 
   reject(): void {
-    if (isPlatformBrowser(this.platformId)) {
-      localStorage.setItem(COOKIE_CONSENT_KEY, 'rejected');
-    }
+    this.analyticsService.revokeConsent();
     this.isVisible.set(false);
   }
 }

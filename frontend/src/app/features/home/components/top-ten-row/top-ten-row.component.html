@@ -1,0 +1,176 @@
+<section class="top-ten-section" aria-label="Top 10 Trending Titles">
+  <div class="section-header">
+    <div class="header-title-wrap">
+      <div class="flame-badge">
+        <svg lucideFlame class="flame-icon"></svg>
+      </div>
+      <div class="title-text-group">
+        <h2 class="section-title">Top 10 Trending Today</h2>
+        <span class="trending-badge">
+          <span class="pulse-dot"></span>
+          Live Ranking
+        </span>
+      </div>
+    </div>
+
+    <!-- Filter Tabs (All / Movies / Series) -->
+    <div class="tabs-group" role="tablist" aria-label="Top 10 Category Filters">
+      <button 
+        type="button" 
+        role="tab"
+        class="tab-btn" 
+        [class.active]="activeTab() === 'all'"
+        [attr.aria-selected]="activeTab() === 'all'"
+        (click)="setTab('all')"
+      >
+        All
+      </button>
+      <button 
+        type="button" 
+        role="tab"
+        class="tab-btn" 
+        [class.active]="activeTab() === 'movie'"
+        [attr.aria-selected]="activeTab() === 'movie'"
+        (click)="setTab('movie')"
+      >
+        Movies
+      </button>
+      <button 
+        type="button" 
+        role="tab"
+        class="tab-btn" 
+        [class.active]="activeTab() === 'series'"
+        [attr.aria-selected]="activeTab() === 'series'"
+        (click)="setTab('series')"
+      >
+        TV Shows
+      </button>
+    </div>
+  </div>
+
+  <div class="carousel-wrapper">
+    <!-- Left Scroll Button -->
+    <button 
+      type="button" 
+      class="nav-arrow nav-arrow-left" 
+      (click)="scrollLeft()"
+      aria-label="Scroll left"
+    >
+      <svg lucideChevronLeft class="arrow-icon"></svg>
+    </button>
+
+    <!-- Scrollable Items Container -->
+    <div class="items-container" #scrollContainer>
+      @if (isLoading()) {
+        @for (num of [1, 2, 3, 4, 5]; track num) {
+          <div class="card-item-skeleton">
+            <div class="rank-skeleton skeleton"></div>
+            <div class="poster-skeleton skeleton"></div>
+          </div>
+        }
+      } @else {
+        @for (item of items(); track item.tmdbId; let i = $index) {
+          <div class="card-item">
+            <!-- Giant Cinema Rank Number -->
+            <div 
+              class="rank-number" 
+              [class.rank-1]="i === 0" 
+              [class.rank-2]="i === 1" 
+              [class.rank-3]="i === 2"
+              [attr.data-rank]="i + 1"
+            >
+              {{ i + 1 }}
+            </div>
+
+            <!-- Poster Card with Cinema Overlays -->
+            <div class="poster-card">
+              <a [routerLink]="getDetailLink(item)" class="poster-link" [attr.aria-label]="item.title">
+                <div class="poster-media">
+                  @if (getPosterUrl(item.posterPath)) {
+                    <img 
+                      [src]="getPosterUrl(item.posterPath)" 
+                      [alt]="item.title" 
+                      class="poster-img"
+                      loading="lazy"
+                    />
+                  } @else {
+                    <div class="poster-fallback">
+                      @if (item.type === 'series') {
+                        <svg lucideTv class="fallback-icon"></svg>
+                      } @else {
+                        <svg lucideFilm class="fallback-icon"></svg>
+                      }
+                      <span class="fallback-title">{{ item.title }}</span>
+                    </div>
+                  }
+
+                  <!-- Rating Badge -->
+                  @if (item.rating > 0) {
+                    <div class="rating-badge">
+                      <span class="star">★</span>
+                      <span class="score">{{ item.rating }}</span>
+                    </div>
+                  }
+
+                  <!-- Media Type Badge -->
+                  <div class="type-badge">
+                    {{ item.type === 'series' ? 'TV' : 'HD' }}
+                  </div>
+
+                  <!-- Quick Action Hover Overlay -->
+                  <div class="card-overlay">
+                    <div class="overlay-details">
+                      <h3 class="card-title">{{ item.title }}</h3>
+                      <div class="meta-row">
+                        @if (item.year) {
+                          <span class="year">{{ item.year }}</span>
+                        }
+                        @if (item.genres.length > 0) {
+                          <span class="genre">{{ item.genres[0] }}</span>
+                        }
+                      </div>
+                    </div>
+
+                    <div class="overlay-actions">
+                      <a 
+                        [routerLink]="getWatchLink(item)" 
+                        class="action-btn play-action-btn" 
+                        title="Watch Now"
+                        (click)="$event.stopPropagation()"
+                      >
+                        <svg lucidePlay class="icon fill-current"></svg>
+                      </a>
+                      <button 
+                        type="button" 
+                        class="action-btn bookmark-action-btn" 
+                        [class.active]="isInWatchlist(item.tmdbId)"
+                        [title]="isInWatchlist(item.tmdbId) ? 'Remove from Watchlist' : 'Add to Watchlist'"
+                        (click)="toggleWatchlist(item, $event)"
+                      >
+                        @if (isInWatchlist(item.tmdbId)) {
+                          <svg lucideCheck class="icon"></svg>
+                        } @else {
+                          <svg lucideBookmark class="icon"></svg>
+                        }
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            </div>
+          </div>
+        }
+      }
+    </div>
+
+    <!-- Right Scroll Button -->
+    <button 
+      type="button" 
+      class="nav-arrow nav-arrow-right" 
+      (click)="scrollRight()"
+      aria-label="Scroll right"
+    >
+      <svg lucideChevronRight class="arrow-icon"></svg>
+    </button>
+  </div>
+</section>
