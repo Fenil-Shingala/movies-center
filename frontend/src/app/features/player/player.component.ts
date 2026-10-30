@@ -317,10 +317,30 @@ export class PlayerComponent implements OnInit, OnDestroy {
       })
     ).subscribe(sources => {
       this.isLoading.set(false);
-      this.sources.set(sources);
-      if (sources.length > 0) {
-        // Default to highest priority source
-        this.selectedSource.set(sources[0]);
+
+      // Prioritize 2Embed as the first, default streaming server and renumber labels
+      const sortedSources = [...sources]
+        .sort((a, b) => {
+          const aIs2Embed = a.providerName.toLowerCase().includes('2embed') || a.label.toLowerCase().includes('2embed');
+          const bIs2Embed = b.providerName.toLowerCase().includes('2embed') || b.label.toLowerCase().includes('2embed');
+          if (aIs2Embed && !bIs2Embed) return -1;
+          if (!aIs2Embed && bIs2Embed) return 1;
+          return a.priority - b.priority;
+        })
+        .map((src, index) => {
+          let label = src.label;
+          if (/Server \d+/i.test(label)) {
+            label = label.replace(/Server \d+/i, `Server ${index + 1}`);
+          } else if (src.providerName.toLowerCase().includes('2embed')) {
+            label = `Server ${index + 1} (2Embed)`;
+          }
+          return { ...src, label, priority: index + 1 };
+        });
+
+      this.sources.set(sortedSources);
+      if (sortedSources.length > 0) {
+        // Default to 2Embed
+        this.selectedSource.set(sortedSources[0]);
         this.startProgressTracking();
         this.analyticsService.trackPlay(id, this.title()?.title ?? '', this.mediaType());
       } else {
