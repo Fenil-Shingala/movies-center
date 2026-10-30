@@ -3,16 +3,22 @@
     "target": "http://127.0.0.1:5142",
     "secure": false,
     "changeOrigin": true,
-    "logLevel": "debug"
+    "logLevel": "debug",
+    "timeout": 10000,
+    "proxyTimeout": 10000
   },
   "/health": {
     "target": "http://127.0.0.1:5142",
     "secure": false,
-    "changeOrigin": true
+    "changeOrigin": true,
+    "timeout": 5000,
+    "proxyTimeout": 5000
   },
   "/openapi": {
     "target": "http://127.0.0.1:5142",
     "secure": false,
-    "changeOrigin": true
+    "changeOrigin": true,
+    "timeout": 5000,
+    "proxyTimeout": 5000
   }
 }

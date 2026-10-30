@@ -18,7 +18,7 @@ export const appConfig: ApplicationConfig = {
       })
     ),
     provideHttpClient(withFetch(), withInterceptors([apiBaseUrlInterceptor, authInterceptor])),
-    provideClientHydration(),
+    ...(isDevMode() ? [] : [provideClientHydration()]),
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),
       registrationStrategy: 'registerWhenStable:30000'

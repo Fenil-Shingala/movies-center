@@ -1,4 +1,4 @@
-import { Injectable, signal, computed, inject, PLATFORM_ID, effect } from '@angular/core';
+import { Injectable, signal, computed, inject, PLATFORM_ID, effect, untracked } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 import { Observable, of, tap, map, catchError } from 'rxjs';
@@ -30,15 +30,17 @@ export class UserDataService {
 
   constructor() {
     if (this.isBrowser) {
-      // Re-load data when authentication state changes
+      // Re-load data when authentication state changes without tracking signals modified in loadGuestState/loadWatchlist
       effect(() => {
         const isAuth = this.authService.isAuthenticated();
-        if (isAuth) {
-          this.loadWatchlist().subscribe();
-          this.loadHistory().subscribe();
-        } else {
-          this.loadGuestState();
-        }
+        untracked(() => {
+          if (isAuth) {
+            this.loadWatchlist().subscribe();
+            this.loadHistory().subscribe();
+          } else {
+            this.loadGuestState();
+          }
+        });
       });
     }
   }
