@@ -110,27 +110,13 @@
       }
 
       @if (sanitizedUrl(); as streamUrl) {
-        @if (isAdShieldActive()) {
-          <iframe 
-            [src]="streamUrl" 
-            class="video-iframe"
-            title="Video Player"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-            referrerpolicy="no-referrer"
-            allowfullscreen>
-          </iframe>
-        } @else {
-          <iframe 
-            [src]="streamUrl" 
-            class="video-iframe"
-            title="Video Player"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups"
-            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-            referrerpolicy="no-referrer"
-            allowfullscreen>
-          </iframe>
-        }
+        <iframe 
+          [src]="streamUrl" 
+          class="video-iframe"
+          title="Video Player"
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+          allowfullscreen>
+        </iframe>
       }
     </div>
   </main>

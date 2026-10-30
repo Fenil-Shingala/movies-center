@@ -43,4 +43,22 @@ describe('adminGuard', () => {
     expect(result).toBe('/');
     expect(openedMode).toBe('login');
   });
+
+  it('should wait for initialization observable before granting access to Admin', async () => {
+    const { BehaviorSubject, firstValueFrom } = await import('rxjs');
+    const initSubject = new BehaviorSubject<boolean>(false);
+    authServiceMock.isAdmin = () => false;
+    (authServiceMock as any).isInitialized = () => initSubject.value;
+    (authServiceMock as any).isInitialized$ = initSubject.asObservable();
+
+    const result$ = TestBed.runInInjectionContext(() => adminGuard({} as any, {} as any)) as any;
+    expect(result$.subscribe).toBeDefined();
+
+    // Now complete initialization and set admin
+    authServiceMock.isAdmin = () => true;
+    initSubject.next(true);
+
+    const val = await firstValueFrom(result$);
+    expect(val).toBe(true);
+  });
 });

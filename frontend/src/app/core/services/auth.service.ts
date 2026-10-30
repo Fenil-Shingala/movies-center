@@ -1,4 +1,5 @@
 import { Injectable, signal, computed, inject, PLATFORM_ID } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 import { Observable, tap, catchError, of, throwError } from 'rxjs';
@@ -14,6 +15,7 @@ import {
 import { GuestStorageService } from './guest-storage.service';
 
 const TOKEN_KEY = 'mc_access_token';
+const USER_KEY = 'mc_user_profile';
 
 @Injectable({
   providedIn: 'root'
@@ -28,6 +30,7 @@ export class AuthService {
   readonly currentUser = signal<UserProfile | null>(null);
   readonly token = signal<string | null>(null);
   readonly isInitialized = signal<boolean>(false);
+  readonly isInitialized$ = toObservable(this.isInitialized);
   readonly isAuthModalOpen = signal<boolean>(false);
   readonly authModalMode = signal<'login' | 'register'>('login');
 
@@ -45,8 +48,18 @@ export class AuthService {
     }
 
     const savedToken = localStorage.getItem(TOKEN_KEY);
+    const savedUser = localStorage.getItem(USER_KEY);
+
     if (savedToken) {
       this.token.set(savedToken);
+      if (savedUser) {
+        try {
+          this.currentUser.set(JSON.parse(savedUser));
+        } catch {
+          localStorage.removeItem(USER_KEY);
+        }
+      }
+
       this.fetchCurrentUser().subscribe({
         next: () => this.isInitialized.set(true),
         error: () => {
@@ -127,7 +140,12 @@ export class AuthService {
 
   fetchCurrentUser(): Observable<UserProfile> {
     return this.http.get<UserProfile>(`${this.apiUrl}/auth/me`).pipe(
-      tap(user => this.currentUser.set(user))
+      tap(user => {
+        this.currentUser.set(user);
+        if (this.isBrowser) {
+          localStorage.setItem(USER_KEY, JSON.stringify(user));
+        }
+      })
     );
   }
 
@@ -157,6 +175,7 @@ export class AuthService {
     this.currentUser.set(res.user);
     if (this.isBrowser) {
       localStorage.setItem(TOKEN_KEY, res.accessToken);
+      localStorage.setItem(USER_KEY, JSON.stringify(res.user));
     }
     this.closeAuthModal();
   }
@@ -166,6 +185,7 @@ export class AuthService {
     this.currentUser.set(null);
     if (this.isBrowser) {
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
     }
   }
 }

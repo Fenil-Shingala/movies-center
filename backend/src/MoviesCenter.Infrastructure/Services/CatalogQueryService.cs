@@ -582,11 +582,11 @@ public class CatalogQueryService : ICatalogQueryService
             Url: ts.EmbedUrl ?? ts.StreamUrl ?? string.Empty,
             Quality: ts.Quality,
             Label: string.IsNullOrWhiteSpace(ts.SourceProvider.Name) ? $"Server {ts.Priority}" : $"{ts.SourceProvider.Name} ({ts.Quality})",
-            Priority: ts.Priority,
+            Priority: !string.IsNullOrEmpty(ts.StreamUrl) ? 0 : (ts.SourceProvider.Name.Equals("VidSrc", StringComparison.OrdinalIgnoreCase) ? 2 : ts.Priority),
             IsDirectStream: !string.IsNullOrEmpty(ts.StreamUrl)
         )).ToList();
 
-        // Ensure multiple fallback servers are always available so users have options if one buffers or displays ads
+        // Ensure multiple verified fallback servers are always available so users have options if one buffers
         var isSeries = string.Equals(title.Type, "series", StringComparison.OrdinalIgnoreCase);
         var s = season ?? 1;
         var e = episode ?? 1;
@@ -594,19 +594,19 @@ public class CatalogQueryService : ICatalogQueryService
         var standardSources = isSeries
             ? new List<TitleSourceDto>
             {
-                new(101, "VidSrc", "ThirdPartyEmbed", $"https://vidsrc.to/embed/tv/{title.TmdbId}/{s}/{e}", "1080p HD", "Server 1 (VidSrc Pro)", 1, false),
-                new(102, "SuperEmbed", "ThirdPartyEmbed", $"https://multiembed.mov/?video_id={title.TmdbId}&tmdb=1&s={s}&e={e}", "1080p/Auto", "Server 2 (SuperEmbed)", 2, false),
-                new(103, "VidSrc Mirror", "ThirdPartyEmbed", $"https://vidsrc.me/embed/tv?tmdb={title.TmdbId}&season={s}&episode={e}", "720p/1080p", "Server 3 (VidSrc Mirror)", 3, false),
-                new(104, "AutoEmbed", "ThirdPartyEmbed", $"https://player.autoembed.cc/embed/tv/{title.TmdbId}/{s}/{e}", "1080p", "Server 4 (AutoEmbed)", 4, false),
-                new(105, "2Embed", "ThirdPartyEmbed", $"https://www.2embed.cc/embedtv/{title.TmdbId}&s={s}&e={e}", "Auto", "Server 5 (2Embed)", 5, false)
+                new(101, "VidLink", "ThirdPartyEmbed", $"https://vidlink.pro/tv/{title.TmdbId}/{s}/{e}", "1080p HD", "Server 1 (VidLink HD)", 1, false),
+                new(102, "VidSrc", "ThirdPartyEmbed", $"https://vidsrc.to/embed/tv/{title.TmdbId}/{s}/{e}", "1080p HD", "Server 2 (VidSrc Pro)", 2, false),
+                new(103, "VidSrc Mirror", "ThirdPartyEmbed", $"https://vidsrc.pm/embed/tv/{title.TmdbId}/{s}/{e}", "720p/1080p", "Server 3 (VidSrc Mirror)", 3, false),
+                new(104, "2Embed", "ThirdPartyEmbed", $"https://www.2embed.cc/embedtv/{title.TmdbId}&s={s}&e={e}", "Auto", "Server 4 (2Embed)", 4, false),
+                new(105, "AutoEmbed", "ThirdPartyEmbed", $"https://autoembed.co/tv/tmdb/{title.TmdbId}-{s}-{e}", "1080p", "Server 5 (AutoEmbed)", 5, false)
             }
             : new List<TitleSourceDto>
             {
-                new(101, "VidSrc", "ThirdPartyEmbed", $"https://vidsrc.to/embed/movie/{title.TmdbId}", "1080p HD", "Server 1 (VidSrc Pro)", 1, false),
-                new(102, "SuperEmbed", "ThirdPartyEmbed", $"https://multiembed.mov/?video_id={title.TmdbId}&tmdb=1", "1080p/Auto", "Server 2 (SuperEmbed)", 2, false),
-                new(103, "VidSrc Mirror", "ThirdPartyEmbed", $"https://vidsrc.me/embed/movie?tmdb={title.TmdbId}", "720p/1080p", "Server 3 (VidSrc Mirror)", 3, false),
-                new(104, "AutoEmbed", "ThirdPartyEmbed", $"https://player.autoembed.cc/embed/movie/{title.TmdbId}", "1080p", "Server 4 (AutoEmbed)", 4, false),
-                new(105, "2Embed", "ThirdPartyEmbed", $"https://www.2embed.cc/embed/{title.TmdbId}", "Auto", "Server 5 (2Embed)", 5, false)
+                new(101, "VidLink", "ThirdPartyEmbed", $"https://vidlink.pro/movie/{title.TmdbId}", "1080p HD", "Server 1 (VidLink HD)", 1, false),
+                new(102, "VidSrc", "ThirdPartyEmbed", $"https://vidsrc.to/embed/movie/{title.TmdbId}", "1080p HD", "Server 2 (VidSrc Pro)", 2, false),
+                new(103, "VidSrc Mirror", "ThirdPartyEmbed", $"https://vidsrc.pm/embed/movie/{title.TmdbId}", "720p/1080p", "Server 3 (VidSrc Mirror)", 3, false),
+                new(104, "2Embed", "ThirdPartyEmbed", $"https://www.2embed.cc/embed/{title.TmdbId}", "Auto", "Server 4 (2Embed)", 4, false),
+                new(105, "AutoEmbed", "ThirdPartyEmbed", $"https://autoembed.co/movie/tmdb/{title.TmdbId}", "1080p", "Server 5 (AutoEmbed)", 5, false)
             };
 
         foreach (var standard in standardSources)
