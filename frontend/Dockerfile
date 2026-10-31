@@ -21,8 +21,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4000
 
-# Install curl for container health check
-RUN apk add --no-cache curl
+# # Install curl for container health check
+# RUN apk add --no-cache curl
 
 # Copy only the compiled SSR artifacts
 COPY --from=build /app/dist/frontend ./dist/frontend
@@ -31,9 +31,13 @@ COPY package*.json ./
 # Expose SSR Node server port
 EXPOSE 4000
 
-# Health check verifies the SSR server responds on root
-HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:4000/ || exit 1
+# # Health check verifies the SSR server responds on root
+# HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+#   CMD curl -f http://localhost:4000/ || exit 1
+
+ENV NODE_OPTIONS=--max-old-space-size=192
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:4000/ > /dev/null || exit 1
 
 # Start the Angular SSR Node.js server
 CMD ["node", "dist/frontend/server/server.mjs"]

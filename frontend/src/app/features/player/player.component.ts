@@ -16,6 +16,7 @@ import { CatalogService } from '../../core/services/catalog.service';
 import { UserDataService } from '../../core/services/user-data.service';
 import { AnalyticsService } from '../../core/services/analytics.service';
 import { TitleDetail, TitleSource, SeasonItem, EpisodeItem } from '../../core/models/media.models';
+import { DEFAULT_BACKDROP_IMAGE } from '../../core/constants/app.constants';
 import { CustomSelectComponent, SelectOption } from '../../shared/components/custom-select/custom-select.component';
 import { 
   LucidePlay, 
@@ -479,6 +480,6 @@ export class PlayerComponent implements OnInit, OnDestroy {
   }
 
   getEpisodeThumb(path: string | null): string {
-    return path ? `https://image.tmdb.org/t/p/w300${path}` : '/assets/images/placeholder-backdrop.jpg';
+    return path ? `https://image.tmdb.org/t/p/w300${path}` : DEFAULT_BACKDROP_IMAGE;
   }
 }
