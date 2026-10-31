@@ -30,13 +30,19 @@
   max-width: var(--container-max-width);
   margin: 0 auto;
   padding: 0 1rem;
-  gap: 1.5rem;
+  gap: 1rem;
 
   @media (min-width: 768px) {
-    padding: 0 2rem;
+    padding: 0 1.25rem;
+    gap: 1.25rem;
   }
 
-  @media (min-width: 1280px) {
+  @media (min-width: 1200px) {
+    padding: 0 2rem;
+    gap: 1.5rem;
+  }
+
+  @media (min-width: 1400px) {
     padding: 0 3rem;
   }
 }
@@ -44,8 +50,12 @@
 .left-section {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 1.25rem;
   flex-shrink: 0;
+
+  @media (min-width: 1200px) {
+    gap: 2rem;
+  }
 }
 
 .logo-link {
@@ -77,10 +87,14 @@
 .desktop-nav {
   display: none;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem;
 
   @media (min-width: 768px) {
     display: flex;
+  }
+
+  @media (min-width: 1200px) {
+    gap: 1.5rem;
   }
 
   .nav-item {
@@ -167,7 +181,8 @@
 .header-search-wrapper {
   display: none;
   position: relative;
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   max-width: 440px;
   margin: 0 auto;
 
@@ -184,6 +199,8 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 0.5rem 0.875rem;
+  min-width: 0;
+  width: 100%;
   transition: all var(--transition-fast);
 
   &:focus-within,
@@ -478,10 +495,20 @@
   color: #f1f5f9;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 
   &:hover, &.active {
     background: rgba(255, 255, 255, 0.12);
     border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  @media (max-width: 1199px) {
+    padding: 2px;
+    gap: 0;
+
+    .chevron-icon {
+      display: none;
+    }
   }
 
   .avatar-img {
@@ -507,15 +534,16 @@
   }
 
   .user-name {
-    font-size: 0.825rem;
-    font-weight: 600;
-    max-width: 120px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: none;
 
-    @media (max-width: 640px) {
-      display: none;
+    @media (min-width: 1200px) {
+      display: inline-block;
+      font-size: 0.825rem;
+      font-weight: 600;
+      max-width: 120px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
   }
 
@@ -524,6 +552,7 @@
     height: 14px;
     color: #94a3b8;
     transition: transform 0.2s ease;
+    flex-shrink: 0;
 
     &.rotate {
       transform: rotate(180deg);
@@ -535,7 +564,9 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  min-width: 220px;
+  min-width: 240px;
+  width: max-content;
+  max-width: 320px;
   background: linear-gradient(145deg, rgba(20, 24, 38, 0.98), rgba(12, 14, 24, 0.98));
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
@@ -557,12 +588,19 @@
     font-size: 0.875rem;
     font-weight: 600;
     color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
   }
 
   .dropdown-email {
     font-size: 0.75rem;
     color: #94a3b8;
-    word-break: break-all;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
   }
 
   .admin-badge {
@@ -599,12 +637,18 @@
   font-weight: 500;
   text-decoration: none;
   cursor: pointer;
+  white-space: nowrap;
   transition: all 0.15s ease;
+
+  span {
+    white-space: nowrap;
+  }
 
   .item-icon {
     width: 16px;
     height: 16px;
     color: #94a3b8;
+    flex-shrink: 0;
   }
 
   &:hover {

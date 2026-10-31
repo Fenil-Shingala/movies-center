@@ -7,7 +7,7 @@ export const adminGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  // If already confirmed as Admin (e.g. from cached user profile)
+  // If already confirmed as Admin (e.g. from cached user profile or active session)
   if (authService.isAdmin()) {
     return true;
   }
@@ -16,10 +16,10 @@ export const adminGuard: CanActivateFn = () => {
     if (authService.redirectUrl?.set) {
       authService.redirectUrl.set('/admin');
     }
-    if (authService.isAuthenticated?.()) {
-      authService.logout?.().subscribe?.();
+    // Only prompt login if the user is not authenticated at all
+    if (!authService.isAuthenticated?.()) {
+      authService.openAuthModal?.('login');
     }
-    authService.openAuthModal('login');
     return router.createUrlTree(['/']);
   };
 

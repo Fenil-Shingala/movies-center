@@ -55,7 +55,8 @@ export class AuthService {
       this.token.set(savedToken);
       if (savedUser) {
         try {
-          this.currentUser.set(JSON.parse(savedUser));
+          const parsed = JSON.parse(savedUser);
+          this.currentUser.set(parsed);
         } catch {
           localStorage.removeItem(USER_KEY);
         }

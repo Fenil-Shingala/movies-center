@@ -12,9 +12,7 @@ import {
   LucideLoader2, 
   LucideSparkles,
   LucideBookmark,
-  LucideLogIn,
-  LucideShield,
-  LucideShieldCheck
+  LucideLogIn
 } from '@lucide/angular';
 import { AuthService } from '../../../core/services/auth.service';
 import { GuestStorageService } from '../../../core/services/guest-storage.service';
@@ -34,9 +32,7 @@ import { GuestStorageService } from '../../../core/services/guest-storage.servic
     LucideLoader2,
     LucideSparkles,
     LucideBookmark,
-    LucideLogIn,
-    LucideShield,
-    LucideShieldCheck
+    LucideLogIn
   ],
   templateUrl: './auth-modal.component.html',
   styleUrl: './auth-modal.component.scss',
@@ -82,16 +78,6 @@ export class AuthModalComponent {
 
   togglePasswordVisibility(): void {
     this.showPassword.update(v => !v);
-  }
-
-  fillAdminCredentials(): void {
-    this.authService.authModalMode.set('login');
-    this.loginForm.patchValue({
-      email: 'admin.movies@gmail.com',
-      password: 'Admin#movies@123'
-    });
-    this.loginForm.markAsDirty();
-    this.errorMessage.set(null);
   }
 
   close(): void {

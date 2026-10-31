@@ -1,11 +1,21 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
-import { inject } from '@angular/core';
+import { inject, Injector } from '@angular/core';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
+const TOKEN_KEY = 'mc_access_token';
+
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const authService = inject(AuthService);
-  const token = authService.token();
+  const injector = inject(Injector);
+  let authService: AuthService | null = null;
+  try {
+    authService = injector.get(AuthService, null, { optional: true });
+  } catch {
+    // If AuthService is in the process of instantiation, fallback gracefully
+    authService = null;
+  }
+
+  const token = authService?.token?.() ?? (typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null);
 
   let authReq = req;
 
@@ -27,8 +37,9 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         !req.url.includes('/auth/register') &&
         !req.url.includes('/auth/refresh')
       ) {
+        const resolvedAuth = authService ?? injector.get(AuthService);
         // Attempt silent token rotation and retry once
-        return authService.refreshToken().pipe(
+        return resolvedAuth.refreshToken().pipe(
           switchMap(res => {
             const retryReq = req.clone({
               setHeaders: {
