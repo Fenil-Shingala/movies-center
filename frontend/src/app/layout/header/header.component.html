@@ -10,6 +10,12 @@
         <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="nav-item">Home</a>
         <a routerLink="/movies" routerLinkActive="active" class="nav-item">Movies</a>
         <a routerLink="/series" routerLinkActive="active" class="nav-item">Series</a>
+        @if (authService.isAdmin()) {
+          <a routerLink="/admin" routerLinkActive="active" class="nav-item admin-nav-pill">
+            <svg lucideShieldCheck class="nav-icon"></svg>
+            <span>Admin</span>
+          </a>
+        }
       </nav>
     </div>
 

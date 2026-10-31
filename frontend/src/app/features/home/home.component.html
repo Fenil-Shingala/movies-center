@@ -79,7 +79,11 @@
                   </div>
 
                   <div class="card-meta">
-                    <div class="card-title">{{ item.title }}</div>
+                    @if (item.title === 'Loading...') {
+                      <div class="card-title-skeleton skeleton"></div>
+                    } @else {
+                      <div class="card-title">{{ item.title }}</div>
+                    }
                     <div class="card-subtext">
                       @if (item.type === 'series' && item.seasonNumber) {
                         <span class="ep-badge">S{{ item.seasonNumber }}:E{{ item.episodeNumber }}</span>

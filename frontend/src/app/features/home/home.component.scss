@@ -180,6 +180,13 @@
         text-overflow: ellipsis;
       }
 
+      .card-title-skeleton {
+        width: 70%;
+        height: 14px;
+        margin: 2px 0;
+        border-radius: 4px;
+      }
+
       .card-subtext {
         display: flex;
         align-items: center;

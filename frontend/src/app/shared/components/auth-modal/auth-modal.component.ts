@@ -1,5 +1,6 @@
 import { Component, inject, signal, ChangeDetectionStrategy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { 
   LucideX, 
@@ -11,7 +12,9 @@ import {
   LucideLoader2, 
   LucideSparkles,
   LucideBookmark,
-  LucideLogIn
+  LucideLogIn,
+  LucideShield,
+  LucideShieldCheck
 } from '@lucide/angular';
 import { AuthService } from '../../../core/services/auth.service';
 import { GuestStorageService } from '../../../core/services/guest-storage.service';
@@ -31,7 +34,9 @@ import { GuestStorageService } from '../../../core/services/guest-storage.servic
     LucideLoader2,
     LucideSparkles,
     LucideBookmark,
-    LucideLogIn
+    LucideLogIn,
+    LucideShield,
+    LucideShieldCheck
   ],
   templateUrl: './auth-modal.component.html',
   styleUrl: './auth-modal.component.scss',
@@ -41,6 +46,7 @@ export class AuthModalComponent {
   readonly authService = inject(AuthService);
   readonly guestStorage = inject(GuestStorageService);
   private readonly fb = inject(FormBuilder);
+  private readonly router = inject(Router);
 
   readonly isSubmitting = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
@@ -78,8 +84,19 @@ export class AuthModalComponent {
     this.showPassword.update(v => !v);
   }
 
+  fillAdminCredentials(): void {
+    this.authService.authModalMode.set('login');
+    this.loginForm.patchValue({
+      email: 'admin.movies@gmail.com',
+      password: 'Admin#movies@123'
+    });
+    this.loginForm.markAsDirty();
+    this.errorMessage.set(null);
+  }
+
   close(): void {
     this.errorMessage.set(null);
+    this.authService.redirectUrl.set(null);
     this.authService.closeAuthModal();
   }
 
@@ -104,6 +121,11 @@ export class AuthModalComponent {
       next: () => {
         this.isSubmitting.set(false);
         this.loginForm.reset();
+        const targetUrl = this.authService.redirectUrl() || (this.authService.isAdmin() ? '/admin' : null);
+        this.authService.redirectUrl.set(null);
+        if (targetUrl) {
+          this.router.navigateByUrl(targetUrl);
+        }
       },
       error: err => {
         this.isSubmitting.set(false);

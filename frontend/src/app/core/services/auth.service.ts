@@ -33,6 +33,7 @@ export class AuthService {
   readonly isInitialized$ = toObservable(this.isInitialized);
   readonly isAuthModalOpen = signal<boolean>(false);
   readonly authModalMode = signal<'login' | 'register'>('login');
+  readonly redirectUrl = signal<string | null>(null);
 
   readonly isAuthenticated = computed(() => !!this.currentUser() && !!this.token());
   readonly isAdmin = computed(() => this.currentUser()?.roles.includes('Admin') ?? false);

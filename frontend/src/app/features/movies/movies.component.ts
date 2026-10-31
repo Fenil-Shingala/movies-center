@@ -46,6 +46,26 @@ export class MoviesComponent implements OnInit {
 
   readonly skeletonCount = computed(() => Array.from({ length: 12 }, (_, i) => i));
 
+  readonly pageHeading = computed(() => {
+    const genreId = this.selectedGenre();
+    if (genreId) {
+      const genre = this.genres().find(g => g.id === genreId);
+      if (genre) return `${genre.name} Movies`;
+    }
+    const sort = this.selectedSort();
+    if (sort === 'rating.desc') return 'Top Rated Movies';
+    if (sort === 'release_date.desc') return 'New & Upcoming Movies';
+    if (sort === 'title.asc') return 'Movies (A-Z)';
+    return 'Movies';
+  });
+
+  readonly pageDescription = computed(() => {
+    const sort = this.selectedSort();
+    if (sort === 'rating.desc') return 'Discover the highest-rated movies of all time, ranked by community reviews and critical acclaim.';
+    if (sort === 'release_date.desc') return 'Catch the newest arrivals and upcoming theatrical hits available to stream.';
+    return 'Browse our extensive movie catalog. Filter by genre, release year, or sort by highest rating and popularity.';
+  });
+
   ngOnInit(): void {
     this.loadGenres();
 
@@ -57,7 +77,13 @@ export class MoviesComponent implements OnInit {
 
       this.selectedGenre.set(genreParam ? parseInt(genreParam, 10) : null);
       this.selectedYear.set(yearParam ? parseInt(yearParam, 10) : null);
-      this.selectedSort.set(sortParam || 'popularity.desc');
+
+      let normalizedSort = sortParam || 'popularity.desc';
+      if (normalizedSort === 'popular' || normalizedSort === 'trending') normalizedSort = 'popularity.desc';
+      else if (normalizedSort === 'top_rated' || normalizedSort === 'rating') normalizedSort = 'rating.desc';
+      else if (normalizedSort === 'upcoming' || normalizedSort === 'newest') normalizedSort = 'release_date.desc';
+
+      this.selectedSort.set(normalizedSort);
       this.page.set(pageParam ? parseInt(pageParam, 10) : 1);
 
       this.loadTitles();

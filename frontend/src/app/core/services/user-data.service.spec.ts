@@ -71,18 +71,54 @@ describe('UserDataService', () => {
   it('should save progress and calculate percent in guest mode', () => {
     service.updateProgress(202, 1800, 7200, undefined, undefined, undefined, {
       title: 'Interstellar',
-      type: 'movie'
+      type: 'movie',
+      posterPath: '/interstellar.jpg'
     }).subscribe(item => {
       expect(item).toBeTruthy();
       expect(item?.progressPercent).toBe(25);
       expect(item?.isCompleted).toBe(false);
       expect(service.historyCount()).toBe(1);
       expect(service.continueWatching().length).toBe(1);
+      expect(service.continueWatching()[0].title).toBe('Interstellar');
+      expect(service.continueWatching()[0].posterPath).toBe('/interstellar.jpg');
     });
   });
 
+  it('should automatically resolve missing metadata for guest history items', () => {
+    // Add raw guest history item with missing metadata
+    guestStorage.saveProgress({
+      titleId: 303,
+      progressSeconds: 500,
+      durationSeconds: 2000
+    });
+
+    (service as any).loadGuestState();
+
+    const req = httpTesting.expectOne('/api/v1/titles/303');
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      id: 303,
+      tmdbId: 303,
+      title: 'Resolved Title',
+      posterPath: '/resolved.jpg',
+      backdropPath: '/resolved-bg.jpg',
+      type: 'movie',
+      rating: 8.5,
+      year: '2024'
+    });
+
+    const items = service.history();
+    const item = items.find(i => i.titleId === 303);
+    expect(item?.title).toBe('Resolved Title');
+    expect(item?.posterPath).toBe('/resolved.jpg');
+  });
+
   it('should clear history cleanly', () => {
-    service.updateProgress(202, 1800, 7200).subscribe();
+    service.updateProgress(202, 1800, 7200, undefined, undefined, undefined, {
+      title: 'Interstellar',
+      type: 'movie',
+      posterPath: '/interstellar.jpg'
+    }).subscribe();
     expect(service.historyCount()).toBe(1);
 
     service.clearHistory().subscribe(success => {

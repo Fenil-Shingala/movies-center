@@ -1,25 +1,61 @@
 <section class="content-row" [attr.aria-label]="row().title">
   <div class="row-header">
     <h2 class="row-title">{{ row().title }}</h2>
-    <a [routerLink]="row().viewAllRoute" class="view-all-link">
-      <span>View All</span>
-      <span class="arrow">&rarr;</span>
-    </a>
+    
+    <div class="row-header-actions">
+      <!-- Header Navigation Chevrons -->
+      <div class="header-nav-arrows" aria-hidden="true">
+        <button 
+          type="button" 
+          class="header-nav-btn" 
+          [disabled]="!canScrollLeft()"
+          [class.disabled]="!canScrollLeft()"
+          (click)="scrollLeft()"
+          aria-label="Scroll left"
+          tabindex="-1"
+        >
+          <svg lucideChevronLeft class="header-nav-icon"></svg>
+        </button>
+        <button 
+          type="button" 
+          class="header-nav-btn" 
+          [disabled]="!canScrollRight()"
+          [class.disabled]="!canScrollRight()"
+          (click)="scrollRight()"
+          aria-label="Scroll right"
+          tabindex="-1"
+        >
+          <svg lucideChevronRight class="header-nav-icon"></svg>
+        </button>
+      </div>
+
+      <a 
+        [routerLink]="viewAllPath()" 
+        [queryParams]="viewAllQueryParams()" 
+        class="view-all-link"
+        [attr.aria-label]="'View all ' + row().title"
+      >
+        <span>View All</span>
+        <span class="arrow">&rarr;</span>
+      </a>
+    </div>
   </div>
 
   <div class="carousel-wrapper">
     <!-- Left Navigation Button (Desktop Hover) -->
-    <button 
-      type="button" 
-      class="nav-arrow nav-arrow-left" 
-      (click)="scrollLeft()"
-      aria-label="Scroll left"
-    >
-      <svg lucideChevronLeft class="arrow-icon"></svg>
-    </button>
+    @if (canScrollLeft()) {
+      <button 
+        type="button" 
+        class="nav-arrow nav-arrow-left" 
+        (click)="scrollLeft()"
+        aria-label="Scroll left"
+      >
+        <svg lucideChevronLeft class="arrow-icon"></svg>
+      </button>
+    }
 
     <!-- Scrollable Items Container -->
-    <div class="items-container" #scrollContainer>
+    <div class="items-container" #scrollContainer (scroll)="updateScrollState()">
       @for (item of row().items; track item.tmdbId) {
         <div class="card-item">
           <app-media-card [item]="item" />
@@ -28,13 +64,15 @@
     </div>
 
     <!-- Right Navigation Button (Desktop Hover) -->
-    <button 
-      type="button" 
-      class="nav-arrow nav-arrow-right" 
-      (click)="scrollRight()"
-      aria-label="Scroll right"
-    >
-      <svg lucideChevronRight class="arrow-icon"></svg>
-    </button>
+    @if (canScrollRight()) {
+      <button 
+        type="button" 
+        class="nav-arrow nav-arrow-right" 
+        (click)="scrollRight()"
+        aria-label="Scroll right"
+      >
+        <svg lucideChevronRight class="arrow-icon"></svg>
+      </button>
+    }
   </div>
 </section>

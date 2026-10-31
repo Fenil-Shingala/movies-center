@@ -89,12 +89,12 @@ public class CatalogQueryService : ICatalogQueryService
 
         var rows = new List<ContentRowDto>
         {
-            new("trending-movies", "Trending Movies", "movie", "/movies?sort=trending", trendingMovies),
-            new("trending-series", "Trending Series", "series", "/series?sort=trending", trendingSeries),
-            new("popular-movies", "Popular Movies", "movie", "/movies?sort=popular", popularMovies),
-            new("top-rated-movies", "Top Rated Movies", "movie", "/movies?sort=top_rated", topRatedMovies),
-            new("popular-series", "Popular Series", "series", "/series?sort=popular", popularSeries),
-            new("upcoming-movies", "Upcoming Movies", "movie", "/movies?sort=upcoming", upcomingMovies)
+            new("trending-movies", "Trending Movies", "movie", "/movies?sort=popularity.desc", trendingMovies),
+            new("trending-series", "Trending Series", "series", "/series?sort=popularity.desc", trendingSeries),
+            new("popular-movies", "Popular Movies", "movie", "/movies?sort=popularity.desc", popularMovies),
+            new("top-rated-movies", "Top Rated Movies", "movie", "/movies?sort=rating.desc", topRatedMovies),
+            new("popular-series", "Popular Series", "series", "/series?sort=popularity.desc", popularSeries),
+            new("upcoming-movies", "Upcoming Movies", "movie", "/movies?sort=release_date.desc", upcomingMovies)
         };
 
         var top10 = await GetTop10Async("all", cancellationToken);
@@ -162,8 +162,8 @@ public class CatalogQueryService : ICatalogQueryService
         // Sorting
         queryable = (query.Sort?.ToLowerInvariant()) switch
         {
-            "rating.desc" or "rating" => queryable.OrderByDescending(t => t.TmdbRating).ThenByDescending(t => t.Popularity),
-            "release_date.desc" or "newest" => type == "series" 
+            "rating.desc" or "rating" or "top_rated" => queryable.OrderByDescending(t => t.TmdbRating).ThenByDescending(t => t.Popularity),
+            "release_date.desc" or "newest" or "upcoming" => type == "series" 
                 ? queryable.OrderByDescending(t => t.FirstAirDate).ThenByDescending(t => t.Popularity)
                 : queryable.OrderByDescending(t => t.ReleaseDate).ThenByDescending(t => t.Popularity),
             "title.asc" or "az" => queryable.OrderBy(t => t.TitleText),
@@ -595,18 +595,20 @@ public class CatalogQueryService : ICatalogQueryService
             ? new List<TitleSourceDto>
             {
                 new(101, "2Embed", "ThirdPartyEmbed", $"https://www.2embed.cc/embedtv/{title.TmdbId}&s={s}&e={e}", "Auto", "Server 1 (2Embed)", 1, false),
-                new(102, "VidLink", "ThirdPartyEmbed", $"https://vidlink.pro/tv/{title.TmdbId}/{s}/{e}", "1080p HD", "Server 2 (VidLink HD)", 2, false),
-                new(103, "VidSrc", "ThirdPartyEmbed", $"https://vidsrc.to/embed/tv/{title.TmdbId}/{s}/{e}", "1080p HD", "Server 3 (VidSrc Pro)", 3, false),
+                new(102, "SmashyStream", "ThirdPartyEmbed", $"https://player.smashystream.com/playere.php?tmdb={title.TmdbId}&season={s}&episode={e}", "1080p/Multi", "Server 2 (SmashyStream)", 2, false),
+                new(103, "VidLink", "ThirdPartyEmbed", $"https://vidlink.pro/tv/{title.TmdbId}/{s}/{e}", "1080p HD", "Server 3 (VidLink HD)", 3, false),
                 new(104, "VidSrc Mirror", "ThirdPartyEmbed", $"https://vidsrc.pm/embed/tv/{title.TmdbId}/{s}/{e}", "720p/1080p", "Server 4 (VidSrc Mirror)", 4, false),
-                new(105, "AutoEmbed", "ThirdPartyEmbed", $"https://autoembed.co/tv/tmdb/{title.TmdbId}-{s}-{e}", "1080p", "Server 5 (AutoEmbed)", 5, false)
+                new(105, "AutoEmbed", "ThirdPartyEmbed", $"https://autoembed.co/tv/tmdb/{title.TmdbId}-{s}-{e}", "1080p", "Server 5 (AutoEmbed)", 5, false),
+                new(106, "VidSrc", "ThirdPartyEmbed", $"https://vidsrc.to/embed/tv/{title.TmdbId}/{s}/{e}", "1080p HD", "Server 6 (VidSrc Pro)", 6, false)
             }
             : new List<TitleSourceDto>
             {
                 new(101, "2Embed", "ThirdPartyEmbed", $"https://www.2embed.cc/embed/{title.TmdbId}", "Auto", "Server 1 (2Embed)", 1, false),
-                new(102, "VidLink", "ThirdPartyEmbed", $"https://vidlink.pro/movie/{title.TmdbId}", "1080p HD", "Server 2 (VidLink HD)", 2, false),
-                new(103, "VidSrc", "ThirdPartyEmbed", $"https://vidsrc.to/embed/movie/{title.TmdbId}", "1080p HD", "Server 3 (VidSrc Pro)", 3, false),
+                new(102, "SmashyStream", "ThirdPartyEmbed", $"https://player.smashystream.com/playere.php?tmdb={title.TmdbId}", "1080p/Multi", "Server 2 (SmashyStream)", 2, false),
+                new(103, "VidLink", "ThirdPartyEmbed", $"https://vidlink.pro/movie/{title.TmdbId}", "1080p HD", "Server 3 (VidLink HD)", 3, false),
                 new(104, "VidSrc Mirror", "ThirdPartyEmbed", $"https://vidsrc.pm/embed/movie/{title.TmdbId}", "720p/1080p", "Server 4 (VidSrc Mirror)", 4, false),
-                new(105, "AutoEmbed", "ThirdPartyEmbed", $"https://autoembed.co/movie/tmdb/{title.TmdbId}", "1080p", "Server 5 (AutoEmbed)", 5, false)
+                new(105, "AutoEmbed", "ThirdPartyEmbed", $"https://autoembed.co/movie/tmdb/{title.TmdbId}", "1080p", "Server 5 (AutoEmbed)", 5, false),
+                new(106, "VidSrc", "ThirdPartyEmbed", $"https://vidsrc.to/embed/movie/{title.TmdbId}", "1080p HD", "Server 6 (VidSrc Pro)", 6, false)
             };
 
         foreach (var standard in standardSources)

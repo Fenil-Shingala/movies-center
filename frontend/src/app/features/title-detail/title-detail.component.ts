@@ -38,7 +38,9 @@ import { MediaCardComponent } from '../../shared/components/media-card';
 import { 
   TMDB_IMAGE_BASE_URL, 
   TMDB_POSTER_SIZE, 
-  TMDB_BACKDROP_SIZE 
+  TMDB_BACKDROP_SIZE,
+  TMDB_PROFILE_SIZE,
+  TMDB_STILL_SIZE
 } from '../../core/constants/app.constants';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { CustomSelectComponent, SelectOption } from '../../shared/components/custom-select/custom-select.component';
@@ -328,12 +330,30 @@ export class TitleDetailComponent implements OnInit {
     return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   }
 
-  getProfileUrl(path: string): string {
-    return `${TMDB_IMAGE_BASE_URL}w185${path}`;
+  getProfileUrl(path: string | null): string | null {
+    if (!path) return null;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `${TMDB_IMAGE_BASE_URL}${TMDB_PROFILE_SIZE}${cleanPath}`;
   }
 
-  getStillUrl(path: string): string {
-    return `${TMDB_IMAGE_BASE_URL}w300${path}`;
+  getStillUrl(path: string | null): string | null {
+    if (!path) return null;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `${TMDB_IMAGE_BASE_URL}${TMDB_STILL_SIZE}${cleanPath}`;
+  }
+
+  handleImageError(event: Event, name: string): void {
+    const img = event.target as HTMLImageElement;
+    if (img) {
+      img.style.display = 'none';
+      const parent = img.parentElement;
+      if (parent && !parent.querySelector('.avatar-placeholder')) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'avatar-placeholder';
+        placeholder.textContent = this.getInitials(name);
+        parent.appendChild(placeholder);
+      }
+    }
   }
 
   getInitials(name: string): string {

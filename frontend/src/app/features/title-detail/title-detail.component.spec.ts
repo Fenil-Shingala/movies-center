@@ -162,4 +162,14 @@ describe('TitleDetailComponent', () => {
     expect(mockCatalogService.submitRating).toHaveBeenCalledWith(1, 5);
     expect(component.averageRating()).toBe(5.0);
   });
+
+  it('should construct valid profile and still URLs with correct slashes', () => {
+    expect(component.getProfileUrl('/bale.jpg')).toBe('https://image.tmdb.org/t/p/w185/bale.jpg');
+    expect(component.getProfileUrl('bale.jpg')).toBe('https://image.tmdb.org/t/p/w185/bale.jpg');
+    expect(component.getProfileUrl(null)).toBeNull();
+
+    expect(component.getStillUrl('/ep1.jpg')).toBe('https://image.tmdb.org/t/p/w300/ep1.jpg');
+    expect(component.getStillUrl('ep1.jpg')).toBe('https://image.tmdb.org/t/p/w300/ep1.jpg');
+    expect(component.getStillUrl(null)).toBeNull();
+  });
 });

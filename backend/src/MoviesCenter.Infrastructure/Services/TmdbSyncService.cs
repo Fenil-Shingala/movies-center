@@ -83,12 +83,24 @@ public class TmdbSyncService : ITmdbSyncService
             {
                 ("trending/movie/week", "movie", "trending"),
                 ("trending/tv/week", "series", "trending"),
+                
+                // Add more pages for popular movies (e.g. pages 1 to 5 = 100 titles)
                 ("movie/popular?page=1", "movie", "popular"),
                 ("movie/popular?page=2", "movie", "popular"),
+                ("movie/popular?page=3", "movie", "popular"),
+                ("movie/popular?page=4", "movie", "popular"),
+                ("movie/popular?page=5", "movie", "popular"),
+                // Add more pages for popular TV shows
                 ("tv/popular?page=1", "series", "popular"),
                 ("tv/popular?page=2", "series", "popular"),
+                ("tv/popular?page=3", "series", "popular"),
+                // Top rated movies & shows
                 ("movie/top_rated?page=1", "movie", "top_rated"),
-                ("movie/upcoming?page=1", "movie", "upcoming")
+                ("movie/top_rated?page=2", "movie", "top_rated"),
+                ("tv/top_rated?page=1", "series", "top_rated"),
+                
+                ("movie/upcoming?page=1", "movie", "upcoming"),
+                ("movie/now_playing?page=1", "movie", "now_playing")
             };
 
             var processedTmdbIds = new HashSet<(int TmdbId, string Type)>();
@@ -330,6 +342,10 @@ public class TmdbSyncService : ITmdbSyncService
                     };
                     _db.People.Add(person);
                     await _db.SaveChangesAsync(cancellationToken);
+                }
+                else if (string.IsNullOrEmpty(person.ProfilePath) && !string.IsNullOrEmpty(c.ProfilePath))
+                {
+                    person.ProfilePath = c.ProfilePath;
                 }
 
                 _db.TitleCasts.Add(new TitleCast

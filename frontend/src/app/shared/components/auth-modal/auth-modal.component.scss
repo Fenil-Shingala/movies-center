@@ -117,6 +117,78 @@
   }
 }
 
+.admin-notice-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.95rem 1rem;
+  background: rgba(229, 9, 20, 0.12);
+  border: 1px solid rgba(229, 9, 20, 0.35);
+  border-radius: 12px;
+  margin-bottom: 1.25rem;
+
+  .admin-notice-left {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+
+    .banner-icon {
+      width: 20px;
+      height: 20px;
+      color: #f87171;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .banner-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+
+      strong {
+        font-size: 0.825rem;
+        color: #fca5a5;
+        font-weight: 600;
+      }
+
+      span {
+        font-size: 0.75rem;
+        color: #e2e8f0;
+        line-height: 1.4;
+      }
+    }
+  }
+
+  .quick-admin-fill-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.85rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 0.775rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+    .btn-icon {
+      width: 14px;
+      height: 14px;
+      color: #4ade80;
+    }
+
+    &:hover {
+      background: rgba(229, 9, 20, 0.25);
+      border-color: rgba(229, 9, 20, 0.5);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+  }
+}
+
 .guest-banner {
   display: flex;
   align-items: flex-start;
@@ -307,6 +379,36 @@
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+}
+
+.admin-helper-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.775rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.35rem;
+  margin-top: -0.25rem;
+  transition: all 0.2s ease;
+
+  .helper-icon {
+    width: 14px;
+    height: 14px;
+    color: #94a3b8;
+  }
+
+  &:hover {
+    color: #f87171;
+
+    .helper-icon {
+      color: #f87171;
+    }
   }
 }
 

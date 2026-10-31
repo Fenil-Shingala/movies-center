@@ -88,6 +88,8 @@ describe('TopTenRowComponent', () => {
   it('should scroll horizontally when navigation chevrons are triggered', () => {
     const dummyEl = {
       clientWidth: 800,
+      scrollLeft: 100,
+      scrollWidth: 1600,
       scrollBy: vi.fn()
     };
     Object.defineProperty(component, 'scrollContainer', {
@@ -99,5 +101,30 @@ describe('TopTenRowComponent', () => {
 
     component.scrollRight();
     expect(dummyEl.scrollBy).toHaveBeenCalledWith({ left: 600, behavior: 'smooth' });
+  });
+
+  it('should update canScrollLeft and canScrollRight based on scroll position', () => {
+    const dummyEl = {
+      clientWidth: 800,
+      scrollLeft: 0,
+      scrollWidth: 1600
+    };
+    Object.defineProperty(component, 'scrollContainer', {
+      value: () => ({ nativeElement: dummyEl })
+    });
+
+    component.updateScrollState();
+    expect(component.canScrollLeft()).toBe(false);
+    expect(component.canScrollRight()).toBe(true);
+
+    dummyEl.scrollLeft = 400;
+    component.updateScrollState();
+    expect(component.canScrollLeft()).toBe(true);
+    expect(component.canScrollRight()).toBe(true);
+
+    dummyEl.scrollLeft = 800;
+    component.updateScrollState();
+    expect(component.canScrollLeft()).toBe(true);
+    expect(component.canScrollRight()).toBe(false);
   });
 });

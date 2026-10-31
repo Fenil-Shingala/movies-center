@@ -47,6 +47,10 @@ describe('GuestStorageService', () => {
   it('should save and retrieve watch progress', () => {
     const historyItem: GuestHistoryItem = {
       titleId: 101,
+      title: 'Breaking Bad',
+      posterPath: '/bb.jpg',
+      backdropPath: '/bb-bg.jpg',
+      type: 'series',
       episodeId: 5,
       seasonNumber: 1,
       episodeNumber: 3,
@@ -60,6 +64,17 @@ describe('GuestStorageService', () => {
     const retrieved = service.getProgress(101, 5);
     expect(retrieved).toBeTruthy();
     expect(retrieved?.progressSeconds).toBe(600);
+    expect(retrieved?.title).toBe('Breaking Bad');
+    expect(retrieved?.posterPath).toBe('/bb.jpg');
+
+    service.updateItemMetadata(101, {
+      title: 'Breaking Bad Updated',
+      posterPath: '/bb-new.jpg'
+    });
+
+    const updated = service.getProgress(101, 5);
+    expect(updated?.title).toBe('Breaking Bad Updated');
+    expect(updated?.posterPath).toBe('/bb-new.jpg');
   });
 
   it('should clear guest data properly', () => {

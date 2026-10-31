@@ -199,8 +199,13 @@
             @for (actor of item.cast; track actor.personId) {
               <div class="cast-card">
                 <div class="cast-avatar">
-                  @if (actor.profilePath) {
-                    <img [src]="getProfileUrl(actor.profilePath)" [alt]="actor.name" loading="lazy" />
+                  @if (getProfileUrl(actor.profilePath); as profileSrc) {
+                    <img 
+                      [src]="profileSrc" 
+                      [alt]="actor.name" 
+                      loading="lazy"
+                      (error)="handleImageError($event, actor.name)"
+                    />
                   } @else {
                     <div class="avatar-placeholder">{{ getInitials(actor.name) }}</div>
                   }

@@ -13,54 +13,84 @@
       </div>
     </div>
 
-    <!-- Filter Tabs (All / Movies / Series) -->
-    <div class="tabs-group" role="tablist" aria-label="Top 10 Category Filters">
-      <button 
-        type="button" 
-        role="tab"
-        class="tab-btn" 
-        [class.active]="activeTab() === 'all'"
-        [attr.aria-selected]="activeTab() === 'all'"
-        (click)="setTab('all')"
-      >
-        All
-      </button>
-      <button 
-        type="button" 
-        role="tab"
-        class="tab-btn" 
-        [class.active]="activeTab() === 'movie'"
-        [attr.aria-selected]="activeTab() === 'movie'"
-        (click)="setTab('movie')"
-      >
-        Movies
-      </button>
-      <button 
-        type="button" 
-        role="tab"
-        class="tab-btn" 
-        [class.active]="activeTab() === 'series'"
-        [attr.aria-selected]="activeTab() === 'series'"
-        (click)="setTab('series')"
-      >
-        TV Shows
-      </button>
+    <div class="header-controls">
+      <!-- Filter Tabs (All / Movies / Series) -->
+      <div class="tabs-group" role="tablist" aria-label="Top 10 Category Filters">
+        <button 
+          type="button" 
+          role="tab"
+          class="tab-btn" 
+          [class.active]="activeTab() === 'all'"
+          [attr.aria-selected]="activeTab() === 'all'"
+          (click)="setTab('all')"
+        >
+          All
+        </button>
+        <button 
+          type="button" 
+          role="tab"
+          class="tab-btn" 
+          [class.active]="activeTab() === 'movie'"
+          [attr.aria-selected]="activeTab() === 'movie'"
+          (click)="setTab('movie')"
+        >
+          Movies
+        </button>
+        <button 
+          type="button" 
+          role="tab"
+          class="tab-btn" 
+          [class.active]="activeTab() === 'series'"
+          [attr.aria-selected]="activeTab() === 'series'"
+          (click)="setTab('series')"
+        >
+          TV Shows
+        </button>
+      </div>
+
+      <!-- Header Navigation Chevrons -->
+      <div class="header-nav-arrows" aria-hidden="true">
+        <button 
+          type="button" 
+          class="header-nav-btn" 
+          [disabled]="!canScrollLeft()"
+          [class.disabled]="!canScrollLeft()"
+          (click)="scrollLeft()"
+          aria-label="Scroll left"
+          tabindex="-1"
+        >
+          <svg lucideChevronLeft class="header-nav-icon"></svg>
+        </button>
+        <button 
+          type="button" 
+          class="header-nav-btn" 
+          [disabled]="!canScrollRight()"
+          [class.disabled]="!canScrollRight()"
+          (click)="scrollRight()"
+          aria-label="Scroll right"
+          tabindex="-1"
+        >
+          <svg lucideChevronRight class="header-nav-icon"></svg>
+        </button>
+      </div>
     </div>
   </div>
 
   <div class="carousel-wrapper">
     <!-- Left Scroll Button -->
-    <button 
-      type="button" 
-      class="nav-arrow nav-arrow-left" 
-      (click)="scrollLeft()"
-      aria-label="Scroll left"
-    >
-      <svg lucideChevronLeft class="arrow-icon"></svg>
-    </button>
+    @if (canScrollLeft()) {
+      <button 
+        type="button" 
+        class="nav-arrow nav-arrow-left" 
+        (click)="scrollLeft()"
+        aria-label="Scroll left"
+      >
+        <svg lucideChevronLeft class="arrow-icon"></svg>
+      </button>
+    }
 
     <!-- Scrollable Items Container -->
-    <div class="items-container" #scrollContainer>
+    <div class="items-container" #scrollContainer (scroll)="updateScrollState()">
       @if (isLoading()) {
         @for (num of [1, 2, 3, 4, 5]; track num) {
           <div class="card-item-skeleton">
@@ -164,13 +194,15 @@
     </div>
 
     <!-- Right Scroll Button -->
-    <button 
-      type="button" 
-      class="nav-arrow nav-arrow-right" 
-      (click)="scrollRight()"
-      aria-label="Scroll right"
-    >
-      <svg lucideChevronRight class="arrow-icon"></svg>
-    </button>
+    @if (canScrollRight()) {
+      <button 
+        type="button" 
+        class="nav-arrow nav-arrow-right" 
+        (click)="scrollRight()"
+        aria-label="Scroll right"
+      >
+        <svg lucideChevronRight class="arrow-icon"></svg>
+      </button>
+    }
   </div>
 </section>

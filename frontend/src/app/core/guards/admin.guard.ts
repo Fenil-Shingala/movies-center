@@ -7,23 +7,31 @@ export const adminGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-
   // If already confirmed as Admin (e.g. from cached user profile)
   if (authService.isAdmin()) {
     return true;
   }
 
-  // If auth has already completed its initialization check and user is not admin
-  if (typeof authService.isInitialized === 'function' && authService.isInitialized()) {
+  const blockAndPrompt = () => {
+    if (authService.redirectUrl?.set) {
+      authService.redirectUrl.set('/admin');
+    }
+    if (authService.isAuthenticated?.()) {
+      authService.logout?.().subscribe?.();
+    }
     authService.openAuthModal('login');
     return router.createUrlTree(['/']);
+  };
+
+  // If auth has already completed its initialization check and user is not admin
+  if (typeof authService.isInitialized === 'function' && authService.isInitialized()) {
+    return blockAndPrompt();
   }
 
   // If auth is still initializing (e.g. initial page refresh verifying session), wait for completion
   const initialized$ = authService.isInitialized$;
   if (!initialized$) {
-    authService.openAuthModal('login');
-    return router.createUrlTree(['/']);
+    return blockAndPrompt();
   }
 
   return initialized$.pipe(
@@ -33,8 +41,7 @@ export const adminGuard: CanActivateFn = () => {
       if (authService.isAdmin()) {
         return true;
       }
-      authService.openAuthModal('login');
-      return router.createUrlTree(['/']);
+      return blockAndPrompt();
     })
   );
 };

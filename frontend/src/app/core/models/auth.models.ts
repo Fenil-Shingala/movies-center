@@ -33,9 +33,14 @@ export interface GuestData {
 
 export interface GuestHistoryItem {
   titleId: number;
+  title?: string | null;
+  posterPath?: string | null;
+  backdropPath?: string | null;
+  type?: 'movie' | 'series' | null;
   episodeId?: number | null;
   seasonNumber?: number | null;
   episodeNumber?: number | null;
+  episodeName?: string | null;
   progressSeconds: number;
   durationSeconds?: number | null;
   watchedAt?: string | null;

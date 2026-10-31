@@ -35,6 +35,23 @@
         </div>
       </div>
 
+      <!-- Admin Access Prompt Banner -->
+      @if (authService.redirectUrl() === '/admin') {
+        <div class="admin-notice-banner">
+          <div class="admin-notice-left">
+            <svg lucideShield class="banner-icon"></svg>
+            <div class="banner-text">
+              <strong>Admin Panel Access</strong>
+              <span>Please sign in with administrator credentials to enter the admin control panel.</span>
+            </div>
+          </div>
+          <button type="button" class="quick-admin-fill-btn" (click)="fillAdminCredentials()">
+            <svg lucideShieldCheck class="btn-icon"></svg>
+            <span>Fill Admin Credentials</span>
+          </button>
+        </div>
+      }
+
       <!-- Guest Merge Banner -->
       @if (guestStorage.hasGuestData()) {
         <div class="guest-banner">
@@ -109,6 +126,11 @@
               <svg lucideLogIn class="btn-icon"></svg>
               <span>Sign In</span>
             }
+          </button>
+
+          <button type="button" class="admin-helper-link" (click)="fillAdminCredentials()">
+            <svg lucideShield class="helper-icon"></svg>
+            <span>Fill Admin Credentials</span>
           </button>
 
           <div class="switch-mode">

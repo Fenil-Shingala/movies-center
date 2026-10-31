@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 import { Observable, of, tap, map, catchError } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { WatchlistItem, WatchHistoryItem, PagedResult } from '../models/media.models';
+import { WatchlistItem, WatchHistoryItem, PagedResult, TitleDetail } from '../models/media.models';
 import { AuthService } from './auth.service';
 import { GuestStorageService } from './guest-storage.service';
 
@@ -52,17 +52,20 @@ export class UserDataService {
     const filtered = currentList.filter(item => rawWatchlist.includes(item.titleId));
     this.watchlist.set(filtered);
 
-    const guestHist = this.guestStorage.historyItems().map((g, index) => ({
+    // Resolve any missing watchlist titles
+    this.resolveMissingGuestWatchlist(rawWatchlist);
+
+    const guestHist: WatchHistoryItem[] = this.guestStorage.historyItems().map((g, index) => ({
       id: index + 1,
       titleId: g.titleId,
-      title: 'Loading...',
-      posterPath: null,
-      backdropPath: null,
-      type: (g.episodeId ? 'series' : 'movie') as 'movie' | 'series',
+      title: (g.title && g.title !== 'Loading...') ? g.title : 'Loading...',
+      posterPath: g.posterPath ?? null,
+      backdropPath: g.backdropPath ?? null,
+      type: (g.type || (g.episodeId ? 'series' : 'movie')) as 'movie' | 'series',
       episodeId: g.episodeId,
       seasonNumber: g.seasonNumber,
       episodeNumber: g.episodeNumber,
-      episodeName: g.episodeNumber ? `Episode ${g.episodeNumber}` : null,
+      episodeName: g.episodeName ?? (g.episodeNumber ? `Episode ${g.episodeNumber}` : null),
       progressSeconds: g.progressSeconds,
       durationSeconds: g.durationSeconds,
       progressPercent: (g.durationSeconds && g.durationSeconds > 0)
@@ -72,6 +75,83 @@ export class UserDataService {
       watchedAt: g.watchedAt ?? new Date().toISOString()
     }));
     this.history.set(guestHist);
+
+    // Automatically resolve missing metadata for titles that need it
+    this.resolveMissingGuestHistoryMetadata(guestHist);
+  }
+
+  private resolveMissingGuestHistoryMetadata(items: WatchHistoryItem[]): void {
+    if (!this.isBrowser) return;
+
+    const itemsToResolve = items.filter(
+      item => !item.title || item.title === 'Loading...' || (!item.posterPath && !item.backdropPath)
+    );
+
+    if (itemsToResolve.length === 0) return;
+
+    const uniqueTitleIds = Array.from(new Set(itemsToResolve.map(i => i.titleId)));
+
+    for (const titleId of uniqueTitleIds) {
+      this.http.get<TitleDetail>(`${this.apiUrl}/titles/${titleId}`).pipe(
+        catchError(() => of(null))
+      ).subscribe(detail => {
+        if (!detail) return;
+
+        // Update in-memory history signal
+        this.history.update(current => 
+          current.map(item => {
+            if (item.titleId === titleId) {
+              return {
+                ...item,
+                title: detail.title,
+                posterPath: detail.posterPath,
+                backdropPath: detail.backdropPath,
+                type: detail.type
+              };
+            }
+            return item;
+          })
+        );
+
+        // Persist to guestStorage so it stays cached in localStorage
+        this.guestStorage.updateItemMetadata(titleId, {
+          title: detail.title,
+          posterPath: detail.posterPath,
+          backdropPath: detail.backdropPath,
+          type: detail.type
+        });
+      });
+    }
+  }
+
+  private resolveMissingGuestWatchlist(rawWatchlist: number[]): void {
+    if (!this.isBrowser || rawWatchlist.length === 0) return;
+
+    const currentList = this.watchlist();
+    const missingIds = rawWatchlist.filter(id => !currentList.some(item => item.titleId === id));
+
+    for (const id of missingIds) {
+      this.http.get<TitleDetail>(`${this.apiUrl}/titles/${id}`).pipe(
+        catchError(() => of(null))
+      ).subscribe(detail => {
+        if (!detail) return;
+        this.watchlist.update(items => {
+          if (items.some(w => w.titleId === id)) return items;
+          return [...items, {
+            id: detail.id,
+            titleId: detail.id,
+            title: detail.title,
+            posterPath: detail.posterPath,
+            backdropPath: detail.backdropPath,
+            type: detail.type,
+            releaseDate: detail.releaseDate,
+            year: detail.year,
+            rating: detail.rating,
+            addedAt: new Date().toISOString()
+          }];
+        });
+      });
+    }
   }
 
   loadWatchlist(type?: string): Observable<WatchlistItem[]> {
@@ -248,11 +328,19 @@ export class UserDataService {
       );
     } else {
       // Guest mode
+      const type = mediaFallback?.type ?? (episodeId ? 'series' : 'movie');
+      const episodeName = episodeNumber ? `Episode ${episodeNumber}` : null;
+
       this.guestStorage.saveProgress({
         titleId,
+        title: mediaFallback?.title ?? null,
+        posterPath: mediaFallback?.posterPath ?? null,
+        backdropPath: mediaFallback?.backdropPath ?? null,
+        type,
         episodeId,
         seasonNumber,
         episodeNumber,
+        episodeName,
         progressSeconds,
         durationSeconds
       });
@@ -263,11 +351,11 @@ export class UserDataService {
         title: mediaFallback?.title ?? 'Unknown',
         posterPath: mediaFallback?.posterPath ?? null,
         backdropPath: mediaFallback?.backdropPath ?? null,
-        type: mediaFallback?.type ?? (episodeId ? 'series' : 'movie'),
+        type,
         episodeId: episodeId ?? null,
         seasonNumber: seasonNumber ?? null,
         episodeNumber: episodeNumber ?? null,
-        episodeName: episodeNumber ? `Episode ${episodeNumber}` : null,
+        episodeName,
         progressSeconds,
         durationSeconds: durationSeconds ?? null,
         progressPercent: percent,
@@ -286,6 +374,10 @@ export class UserDataService {
         }
         return [updatedItem, ...current];
       });
+
+      if (!mediaFallback?.title || (!mediaFallback?.posterPath && !mediaFallback?.backdropPath)) {
+        this.resolveMissingGuestHistoryMetadata([updatedItem]);
+      }
 
       return of(updatedItem);
     }

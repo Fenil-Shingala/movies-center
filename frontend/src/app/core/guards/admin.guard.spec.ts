@@ -61,4 +61,22 @@ describe('adminGuard', () => {
     const val = await firstValueFrom(result$);
     expect(val).toBe(true);
   });
+
+  it('should set redirectUrl to /admin and logout authenticated non-admin user', () => {
+    let redirectUrl = '';
+    let loggedOut = false;
+    authServiceMock.isAdmin = () => false;
+    (authServiceMock as any).isAuthenticated = () => true;
+    (authServiceMock as any).redirectUrl = {
+      set: (url: string) => { redirectUrl = url; }
+    };
+    (authServiceMock as any).logout = () => ({
+      subscribe: () => { loggedOut = true; }
+    });
+
+    const result = TestBed.runInInjectionContext(() => adminGuard({} as any, {} as any));
+    expect(result).toBe('/');
+    expect(redirectUrl).toBe('/admin');
+    expect(loggedOut).toBe(true);
+  });
 });
