@@ -40,7 +40,8 @@ import {
   TMDB_POSTER_SIZE, 
   TMDB_BACKDROP_SIZE,
   TMDB_PROFILE_SIZE,
-  TMDB_STILL_SIZE
+  TMDB_STILL_SIZE,
+  DEFAULT_POSTER_IMAGE
 } from '../../core/constants/app.constants';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { CustomSelectComponent, SelectOption } from '../../shared/components/custom-select/custom-select.component';
@@ -121,7 +122,7 @@ export class TitleDetailComponent implements OnInit {
 
   readonly posterUrl = computed(() => {
     const item = this.title();
-    return item?.posterPath ? `${TMDB_IMAGE_BASE_URL}${TMDB_POSTER_SIZE}${item.posterPath}` : null;
+    return item?.posterPath ? `${TMDB_IMAGE_BASE_URL}${TMDB_POSTER_SIZE}${item.posterPath}` : DEFAULT_POSTER_IMAGE;
   });
 
   readonly activeSeason = computed(() => {
@@ -340,6 +341,13 @@ export class TitleDetailComponent implements OnInit {
     if (!path) return null;
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
     return `${TMDB_IMAGE_BASE_URL}${TMDB_STILL_SIZE}${cleanPath}`;
+  }
+
+  onPosterError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img && !img.src.includes('default-poster.svg')) {
+      img.src = DEFAULT_POSTER_IMAGE;
+    }
   }
 
   handleImageError(event: Event, name: string): void {

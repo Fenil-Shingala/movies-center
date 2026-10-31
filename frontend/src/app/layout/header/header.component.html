@@ -57,13 +57,12 @@
               @for (item of suggestions(); track item.tmdbId) {
                 <button type="button" class="suggestion-item" (click)="selectSuggestion(item)">
                   <div class="poster-thumbnail">
-                    @if (item.posterPath) {
-                      <img [src]="getPosterUrl(item.posterPath)" [alt]="item.title" loading="lazy" />
-                    } @else {
-                      <div class="poster-placeholder">
-                        <svg lucideFilm class="ph-icon"></svg>
-                      </div>
-                    }
+                    <img 
+                      [src]="getPosterUrl(item.posterPath)" 
+                      [alt]="item.title" 
+                      loading="lazy" 
+                      (error)="onPosterError($event)"
+                    />
                   </div>
                   <div class="item-info">
                     <div class="item-title">{{ item.title }}</div>
@@ -319,13 +318,12 @@
           @for (item of suggestions(); track item.tmdbId) {
             <button type="button" class="suggestion-item" (click)="selectSuggestion(item)">
               <div class="poster-thumbnail">
-                @if (item.posterPath) {
-                  <img [src]="getPosterUrl(item.posterPath)" [alt]="item.title" loading="lazy" />
-                } @else {
-                  <div class="poster-placeholder">
-                    <svg lucideFilm class="ph-icon"></svg>
-                  </div>
-                }
+                <img 
+                  [src]="getPosterUrl(item.posterPath)" 
+                  [alt]="item.title" 
+                  loading="lazy" 
+                  (error)="onPosterError($event)"
+                />
               </div>
               <div class="item-info">
                 <div class="item-title">{{ item.title }}</div>

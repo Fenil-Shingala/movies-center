@@ -1,10 +1,11 @@
 import { Component, OnInit, signal, inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { LucideClock, LucidePlay, LucideFilm } from '@lucide/angular';
+import { LucideClock, LucidePlay } from '@lucide/angular';
 import { HomeService } from '../../core/services/home.service';
 import { UserDataService } from '../../core/services/user-data.service';
 import { HomeFeed, WatchHistoryItem } from '../../core/models/media.models';
+import { DEFAULT_BACKDROP_IMAGE } from '../../core/constants/app.constants';
 import { HeroBannerComponent } from './components/hero-banner/hero-banner.component';
 import { ContentRowComponent } from './components/content-row/content-row.component';
 import { TopTenRowComponent } from './components/top-ten-row/top-ten-row.component';
@@ -12,7 +13,7 @@ import { TopTenRowComponent } from './components/top-ten-row/top-ten-row.compone
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterLink, LucideClock, LucidePlay, LucideFilm, HeroBannerComponent, ContentRowComponent, TopTenRowComponent],
+  imports: [CommonModule, RouterLink, LucideClock, LucidePlay, HeroBannerComponent, ContentRowComponent, TopTenRowComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -57,6 +58,15 @@ export class HomeComponent implements OnInit {
   }
 
   getThumbnailUrl(path: string | null): string {
-    return path ? `https://image.tmdb.org/t/p/w300${path}` : '';
+    if (!path) return DEFAULT_BACKDROP_IMAGE;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `https://image.tmdb.org/t/p/w300${cleanPath}`;
+  }
+
+  onThumbnailError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img && !img.src.includes('default-backdrop.svg')) {
+      img.src = DEFAULT_BACKDROP_IMAGE;
+    }
   }
 }

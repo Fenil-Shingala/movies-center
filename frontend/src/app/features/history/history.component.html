@@ -47,13 +47,12 @@
       @for (item of userDataService.history(); track item.id) {
         <div class="history-card" [class.completed]="item.isCompleted">
           <div class="thumb-wrap">
-            @if (getThumbnailUrl(item)) {
-              <img [src]="getThumbnailUrl(item)" [alt]="item.title" loading="lazy" />
-            } @else {
-              <div class="thumb-placeholder">
-                <svg lucideFilm class="ph-icon"></svg>
-              </div>
-            }
+            <img 
+              [src]="getThumbnailUrl(item)" 
+              [alt]="item.title" 
+              loading="lazy" 
+              (error)="onImageError($event)"
+            />
 
             <!-- Progress Bar Track -->
             <div class="progress-track">

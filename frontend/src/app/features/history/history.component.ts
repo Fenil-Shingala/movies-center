@@ -7,12 +7,12 @@ import {
   LucidePlay, 
   LucideTrash2, 
   LucideCheck, 
-  LucideFilm, 
   LucideSparkles 
 } from '@lucide/angular';
 import { UserDataService } from '../../core/services/user-data.service';
 import { AuthService } from '../../core/services/auth.service';
 import { WatchHistoryItem } from '../../core/models/media.models';
+import { DEFAULT_BACKDROP_IMAGE } from '../../core/constants/app.constants';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 
 @Component({
@@ -25,7 +25,6 @@ import { EmptyStateComponent } from '../../shared/components/empty-state/empty-s
     LucidePlay,
     LucideTrash2,
     LucideCheck,
-    LucideFilm,
     LucideSparkles,
     EmptyStateComponent
   ],
@@ -58,7 +57,16 @@ export class HistoryComponent implements OnInit {
 
   getThumbnailUrl(item: WatchHistoryItem): string {
     const path = item.backdropPath || item.posterPath;
-    return path ? `https://image.tmdb.org/t/p/w300${path}` : '';
+    if (!path) return DEFAULT_BACKDROP_IMAGE;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `https://image.tmdb.org/t/p/w300${cleanPath}`;
+  }
+
+  onImageError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img && !img.src.includes('default-backdrop.svg')) {
+      img.src = DEFAULT_BACKDROP_IMAGE;
+    }
   }
 
   getWatchLink(item: WatchHistoryItem): string {

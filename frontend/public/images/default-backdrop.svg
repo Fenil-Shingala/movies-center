@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bdBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0e17" />
+      <stop offset="50%" stop-color="#121727" />
+      <stop offset="100%" stop-color="#080a11" />
+    </linearGradient>
+
+    <!-- Subtle Red Glow -->
+    <radialGradient id="bdRedGlow" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#e50914" stop-opacity="0.22" />
+      <stop offset="60%" stop-color="#e50914" stop-opacity="0.03" />
+      <stop offset="100%" stop-color="#e50914" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Card Inner Border Gradient -->
+    <linearGradient id="bdBorderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.15" />
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.03" />
+      <stop offset="100%" stop-color="#e50914" stop-opacity="0.25" />
+    </linearGradient>
+
+    <linearGradient id="bdClapperGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#b91c1c" />
+    </linearGradient>
+
+    <pattern id="bdFilmHoles" x="0" y="0" width="30" height="20" patternUnits="userSpaceOnUse">
+      <rect x="6" y="4" width="18" height="12" rx="3" fill="#ffffff" fill-opacity="0.04" />
+    </pattern>
+
+    <filter id="bdGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="640" height="360" fill="url(#bdBgGrad)" />
+
+  <!-- Radial Glow -->
+  <rect width="640" height="360" fill="url(#bdRedGlow)" />
+
+  <!-- Film Strip Top/Bottom Tracks -->
+  <rect x="0" y="0" width="640" height="20" fill="url(#bdFilmHoles)" />
+  <rect x="0" y="340" width="640" height="20" fill="url(#bdFilmHoles)" />
+
+  <!-- Inner Frame -->
+  <rect x="24" y="24" width="592" height="312" rx="14" fill="none" stroke="url(#bdBorderGrad)" stroke-width="1.5" />
+
+  <!-- Central Icon & Info Container -->
+  <g transform="translate(320, 150)">
+    <!-- Outer Glow Circle -->
+    <circle r="60" fill="#e50914" fill-opacity="0.09" filter="url(#bdGlow)" />
+    
+    <!-- Glass Circle -->
+    <circle r="48" fill="#1e2438" fill-opacity="0.75" stroke="#ffffff" stroke-opacity="0.14" stroke-width="1.5" />
+
+    <!-- Cinema Clapperboard / Film Graphic -->
+    <g transform="translate(-25, -25) scale(0.5)">
+      <!-- Clapper Top Sticks -->
+      <path d="M 6 22 L 94 4 L 94 20 L 6 38 Z" fill="url(#bdClapperGrad)" />
+      <!-- Stripes on top stick -->
+      <path d="M 22 19 L 34 16 L 24 35 L 12 37 Z" fill="#ffffff" fill-opacity="0.85" />
+      <path d="M 46 14 L 58 12 L 48 30 L 36 32 Z" fill="#ffffff" fill-opacity="0.85" />
+      <path d="M 70 10 L 82 7 L 72 25 L 60 27 Z" fill="#ffffff" fill-opacity="0.85" />
+
+      <!-- Clapper Base Body -->
+      <rect x="6" y="38" width="88" height="56" rx="6" fill="#131722" stroke="#ffffff" stroke-opacity="0.18" stroke-width="2" />
+
+      <!-- Play triangle inside clapper base -->
+      <polygon points="44,52 64,66 44,80" fill="#e50914" />
+      <circle cx="52" cy="66" r="2" fill="#ffffff" />
+    </g>
+  </g>
+
+  <!-- Typography Area -->
+  <g transform="translate(320, 245)" text-anchor="middle">
+    <!-- Brand Title -->
+    <text y="0" font-family="'Oswald', 'Montserrat', -apple-system, sans-serif" font-size="20" font-weight="700" letter-spacing="3" fill="#f8fafc">
+      MOVIES <tspan fill="#e50914">CENTER</tspan>
+    </text>
+
+    <!-- Subtitle / Notice -->
+    <text y="24" font-family="'Inter', -apple-system, sans-serif" font-size="11" font-weight="600" letter-spacing="2" fill="#64748b" text-transform="uppercase">
+      PREVIEW UNAVAILABLE
+    </text>
+
+    <!-- Decorative Divider Line -->
+    <line x1="-30" y1="36" x2="30" y2="36" stroke="#e50914" stroke-opacity="0.4" stroke-width="2" stroke-linecap="round" />
+  </g>
+</svg>

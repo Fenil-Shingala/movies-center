@@ -18,14 +18,12 @@
           <!-- Poster Column -->
           <div class="poster-column">
             <div class="detail-poster-card">
-              @if (posterUrl()) {
-                <img [src]="posterUrl()" [alt]="item.title" class="detail-poster-img" />
-              } @else {
-                <div class="poster-fallback-box">
-                  <svg [class.series]="item.type === 'series'" lucideFilm class="ph-icon"></svg>
-                  <span>{{ item.title }}</span>
-                </div>
-              }
+              <img 
+                [src]="posterUrl()" 
+                [alt]="item.title" 
+                class="detail-poster-img" 
+                (error)="onPosterError($event)"
+              />
               <div class="type-ribbon">{{ item.type === 'series' ? 'TV SERIES' : 'MOVIE' }}</div>
             </div>
           </div>

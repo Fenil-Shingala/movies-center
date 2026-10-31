@@ -7,12 +7,12 @@ import {
   LucidePlay, 
   LucideTrash2, 
   LucideStar, 
-  LucideFilm, 
   LucideSparkles 
 } from '@lucide/angular';
 import { UserDataService } from '../../core/services/user-data.service';
 import { AuthService } from '../../core/services/auth.service';
 import { WatchlistItem } from '../../core/models/media.models';
+import { DEFAULT_POSTER_IMAGE } from '../../core/constants/app.constants';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 
 @Component({
@@ -25,7 +25,6 @@ import { EmptyStateComponent } from '../../shared/components/empty-state/empty-s
     LucidePlay,
     LucideTrash2,
     LucideStar,
-    LucideFilm,
     LucideSparkles,
     EmptyStateComponent
   ],
@@ -64,7 +63,16 @@ export class WatchlistComponent implements OnInit {
   }
 
   getPosterUrl(path: string | null): string {
-    return path ? `https://image.tmdb.org/t/p/w342${path}` : '';
+    if (!path) return DEFAULT_POSTER_IMAGE;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `https://image.tmdb.org/t/p/w342${cleanPath}`;
+  }
+
+  onImageError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img && !img.src.includes('default-poster.svg')) {
+      img.src = DEFAULT_POSTER_IMAGE;
+    }
   }
 
   getWatchLink(item: WatchlistItem): string {

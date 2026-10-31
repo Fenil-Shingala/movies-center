@@ -1,14 +1,13 @@
 import { Component, input, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { LucideFilm, LucideTv } from '@lucide/angular';
 import { MediaCard } from '../../../../core/models/media.models';
-import { TMDB_IMAGE_BASE_URL, TMDB_POSTER_SIZE } from '../../../../core/constants/app.constants';
+import { TMDB_IMAGE_BASE_URL, TMDB_POSTER_SIZE, DEFAULT_POSTER_IMAGE } from '../../../../core/constants/app.constants';
 
 @Component({
   selector: 'app-media-card',
   standalone: true,
-  imports: [CommonModule, RouterLink, LucideFilm, LucideTv],
+  imports: [CommonModule, RouterLink],
   templateUrl: './media-card.component.html',
   styleUrl: './media-card.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -20,9 +19,11 @@ export class MediaCardComponent {
   readonly posterUrl = computed(() => {
     const data = this.item();
     if (this.imageFailed() || !data.posterPath) {
-      return null;
+      return DEFAULT_POSTER_IMAGE;
     }
-    return `${TMDB_IMAGE_BASE_URL}${TMDB_POSTER_SIZE}${data.posterPath}`;
+    const path = data.posterPath;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `${TMDB_IMAGE_BASE_URL}${TMDB_POSTER_SIZE}${cleanPath}`;
   });
 
   readonly detailRoute = computed(() => {
@@ -30,7 +31,15 @@ export class MediaCardComponent {
     return `/${data.type}/${data.tmdbId}`;
   });
 
-  onImageError(): void {
-    this.imageFailed.set(true);
+  onImageError(event?: Event): void {
+    if (!this.imageFailed()) {
+      this.imageFailed.set(true);
+    }
+    if (event?.target) {
+      const img = event.target as HTMLImageElement;
+      if (!img.src.includes('default-poster.svg')) {
+        img.src = DEFAULT_POSTER_IMAGE;
+      }
+    }
   }
 }

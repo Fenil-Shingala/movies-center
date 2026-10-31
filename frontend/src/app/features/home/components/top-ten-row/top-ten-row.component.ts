@@ -18,14 +18,12 @@ import {
   LucideBookmark, 
   LucideCheck, 
   LucideChevronLeft, 
-  LucideChevronRight, 
-  LucideFilm, 
-  LucideTv 
+  LucideChevronRight 
 } from '@lucide/angular';
 import { MediaCard } from '../../../../core/models/media.models';
 import { HomeService } from '../../../../core/services/home.service';
 import { UserDataService } from '../../../../core/services/user-data.service';
-import { TMDB_IMAGE_BASE_URL, TMDB_POSTER_SIZE } from '../../../../core/constants/app.constants';
+import { TMDB_IMAGE_BASE_URL, TMDB_POSTER_SIZE, DEFAULT_POSTER_IMAGE } from '../../../../core/constants/app.constants';
 
 @Component({
   selector: 'app-top-ten-row',
@@ -38,9 +36,7 @@ import { TMDB_IMAGE_BASE_URL, TMDB_POSTER_SIZE } from '../../../../core/constant
     LucideBookmark, 
     LucideCheck, 
     LucideChevronLeft, 
-    LucideChevronRight, 
-    LucideFilm, 
-    LucideTv
+    LucideChevronRight
   ],
   templateUrl: './top-ten-row.component.html',
   styleUrl: './top-ten-row.component.scss',
@@ -138,9 +134,17 @@ export class TopTenRowComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  getPosterUrl(path: string | null): string | null {
-    if (!path) return null;
-    return `${TMDB_IMAGE_BASE_URL}${TMDB_POSTER_SIZE}${path}`;
+  getPosterUrl(path: string | null): string {
+    if (!path) return DEFAULT_POSTER_IMAGE;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `${TMDB_IMAGE_BASE_URL}${TMDB_POSTER_SIZE}${cleanPath}`;
+  }
+
+  onImageError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img && !img.src.includes('default-poster.svg')) {
+      img.src = DEFAULT_POSTER_IMAGE;
+    }
   }
 
   getWatchLink(item: MediaCard): string {

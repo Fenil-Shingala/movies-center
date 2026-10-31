@@ -1,23 +1,12 @@
 <a [routerLink]="detailRoute()" class="card-link" [attr.aria-label]="item().title">
   <div class="poster-container">
-    @if (posterUrl()) {
-      <img 
-        [src]="posterUrl()" 
-        [alt]="item().title" 
-        class="poster-image"
-        loading="lazy"
-        (error)="onImageError()"
-      />
-    } @else {
-      <div class="poster-fallback">
-        @if (item().type === 'series') {
-          <svg lucideTv class="fallback-icon"></svg>
-        } @else {
-          <svg lucideFilm class="fallback-icon"></svg>
-        }
-        <span class="fallback-title">{{ item().title }}</span>
-      </div>
-    }
+    <img 
+      [src]="posterUrl()" 
+      [alt]="item().title" 
+      class="poster-image"
+      loading="lazy"
+      (error)="onImageError($event)"
+    />
 
     <!-- Rating badge in top-right -->
     @if (item().rating > 0) {

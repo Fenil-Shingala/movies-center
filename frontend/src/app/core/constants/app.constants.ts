@@ -9,4 +9,7 @@ export const TMDB_PROFILE_SIZE = '/w185';
 export const TMDB_STILL_SIZE = '/w300';
 export const TMDB_ORIGINAL_SIZE = '/original';
 
+export const DEFAULT_POSTER_IMAGE = '/images/default-poster.svg';
+export const DEFAULT_BACKDROP_IMAGE = '/images/default-backdrop.svg';
+
 export const COOKIE_CONSENT_KEY = 'moviescenter_cookie_consent';

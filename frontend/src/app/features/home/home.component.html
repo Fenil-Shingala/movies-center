@@ -59,13 +59,12 @@
               <div class="continue-card">
                 <a [routerLink]="getWatchLink(item)" class="card-link">
                   <div class="poster-container">
-                    @if (item.backdropPath || item.posterPath) {
-                      <img [src]="getThumbnailUrl(item.backdropPath || item.posterPath)" [alt]="item.title" loading="lazy" />
-                    } @else {
-                      <div class="poster-placeholder">
-                        <svg lucideFilm class="ph-icon"></svg>
-                      </div>
-                    }
+                    <img 
+                      [src]="getThumbnailUrl(item.backdropPath || item.posterPath)" 
+                      [alt]="item.title" 
+                      loading="lazy" 
+                      (error)="onThumbnailError($event)"
+                    />
 
                     <div class="card-overlay">
                       <div class="play-btn">

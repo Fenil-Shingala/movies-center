@@ -31,7 +31,7 @@ import {
   LucideSettings,
   LucideSparkles
 } from '@lucide/angular';
-import { APP_NAME } from '../../core/constants/app.constants';
+import { APP_NAME, DEFAULT_POSTER_IMAGE } from '../../core/constants/app.constants';
 import { CatalogService } from '../../core/services/catalog.service';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -248,6 +248,15 @@ export class HeaderComponent implements OnDestroy {
   }
 
   getPosterUrl(path: string | null): string {
-    return path ? `https://image.tmdb.org/t/p/w92${path}` : '';
+    if (!path) return DEFAULT_POSTER_IMAGE;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `https://image.tmdb.org/t/p/w92${cleanPath}`;
+  }
+
+  onPosterError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img && !img.src.includes('default-poster.svg')) {
+      img.src = DEFAULT_POSTER_IMAGE;
+    }
   }
 }

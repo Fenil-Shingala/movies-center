@@ -72,13 +72,12 @@
         <div class="watchlist-card">
           <a [routerLink]="getDetailLink(item)" class="poster-link">
             <div class="poster-wrap">
-              @if (item.posterPath) {
-                <img [src]="getPosterUrl(item.posterPath)" [alt]="item.title" loading="lazy" />
-              } @else {
-                <div class="poster-placeholder">
-                  <svg lucideFilm class="ph-icon"></svg>
-                </div>
-              }
+              <img 
+                [src]="getPosterUrl(item.posterPath)" 
+                [alt]="item.title" 
+                loading="lazy" 
+                (error)="onImageError($event)"
+              />
 
               <!-- Rating Badge -->
               @if (item.rating > 0) {

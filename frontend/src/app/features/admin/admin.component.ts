@@ -3,6 +3,7 @@ import {
   OnInit, 
   inject, 
   signal, 
+  computed,
   ChangeDetectionStrategy 
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -13,7 +14,6 @@ import {
   LucideLayoutDashboard, 
   LucideRefreshCw, 
   LucideFilm, 
-  LucideTv, 
   LucideServer, 
   LucideAlertTriangle, 
   LucideUpload, 
@@ -25,10 +25,20 @@ import {
   LucideExternalLink, 
   LucideStar, 
   LucideEye, 
-  LucideEyeOff,
-  LucideBarChart3,
-  LucidePlay,
-  LucideUsers
+  LucideEyeOff, 
+  LucideBarChart3, 
+  LucidePlay, 
+  LucideUsers,
+  LucideChevronRight,
+  LucideFilter,
+  LucideClock,
+  LucideSparkles,
+  LucideLayers,
+  LucideActivity,
+  LucideZap,
+  LucideGlobe,
+  LucideCheckCircle2,
+  LucideCopy
 } from '@lucide/angular';
 import { AdminService } from '../../core/services/admin.service';
 import { AnalyticsService } from '../../core/services/analytics.service';
@@ -45,8 +55,9 @@ import {
   UploadStatus
 } from '../../core/models/admin.models';
 import { PagedResult } from '../../core/models/media.models';
-import { TMDB_IMAGE_BASE_URL, TMDB_POSTER_SIZE } from '../../core/constants/app.constants';
+import { TMDB_IMAGE_BASE_URL, TMDB_POSTER_SIZE, DEFAULT_POSTER_IMAGE } from '../../core/constants/app.constants';
 import { CustomSelectComponent, SelectOption } from '../../shared/components/custom-select/custom-select.component';
+import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
 
 export type AdminTab = 'overview' | 'tmdb' | 'titles' | 'sources' | 'reports' | 'uploads' | 'analytics';
 
@@ -58,6 +69,7 @@ export type AdminTab = 'overview' | 'tmdb' | 'titles' | 'sources' | 'reports' | 
     FormsModule, 
     RouterLink, 
     CustomSelectComponent,
+    PaginationComponent,
     LucideShieldCheck, 
     LucideLayoutDashboard, 
     LucideRefreshCw, 
@@ -73,10 +85,20 @@ export type AdminTab = 'overview' | 'tmdb' | 'titles' | 'sources' | 'reports' | 
     LucideExternalLink, 
     LucideStar, 
     LucideEye, 
-    LucideEyeOff,
-    LucideBarChart3,
-    LucidePlay,
-    LucideUsers
+    LucideEyeOff, 
+    LucideBarChart3, 
+    LucidePlay, 
+    LucideUsers,
+    LucideChevronRight,
+    LucideFilter,
+    LucideClock,
+    LucideSparkles,
+    LucideLayers,
+    LucideActivity,
+    LucideZap,
+    LucideGlobe,
+    LucideCheckCircle2,
+    LucideCopy
   ],
   templateUrl: './admin.component.html',
   styleUrl: './admin.component.scss',
@@ -85,6 +107,8 @@ export type AdminTab = 'overview' | 'tmdb' | 'titles' | 'sources' | 'reports' | 
 export class AdminComponent implements OnInit {
   private readonly adminService = inject(AdminService);
   private readonly analyticsService = inject(AnalyticsService);
+
+  readonly Math = Math;
 
   readonly currentTab = signal<AdminTab>('overview');
   readonly stats = signal<AdminStatsOverview | null>(null);
@@ -108,11 +132,14 @@ export class AdminComponent implements OnInit {
   readonly titlesPage = signal<number>(1);
   readonly titlesSearchQuery = signal<string>('');
   readonly titlesFilterType = signal<string>('all');
+  readonly titlesTotalPages = computed(() => Math.ceil(this.titlesTotalCount() / 20) || 1);
 
   // Streaming Sources
   readonly sources = signal<AdminSource[]>([]);
   readonly sourcesPage = signal<number>(1);
   readonly sourcesTotalCount = signal<number>(0);
+  readonly sourcesSearchQuery = signal<string>('');
+  readonly sourcesTotalPages = computed(() => Math.ceil(this.sourcesTotalCount() / 20) || 1);
   readonly isAddSourceModalOpen = signal<boolean>(false);
   readonly newSource = signal<CreateAdminSourceRequest>({
     titleId: 0,
@@ -131,6 +158,7 @@ export class AdminComponent implements OnInit {
   readonly reportsPage = signal<number>(1);
   readonly reportsTotalCount = signal<number>(0);
   readonly reportsStatusFilter = signal<string>('all');
+  readonly reportsTotalPages = computed(() => Math.ceil(this.reportsTotalCount() / 20) || 1);
 
   // Video Uploads
   readonly selectedUploadFile = signal<File | null>(null);
@@ -138,6 +166,9 @@ export class AdminComponent implements OnInit {
   readonly isUploading = signal<boolean>(false);
   readonly uploadProgress = signal<number>(0);
   readonly activeUploadAsset = signal<UploadUrlResponse | null>(null);
+
+  readonly commonProviders = ['VidSrc', '2Embed', 'SuperEmbed', 'Frembed', 'SmashyStream', 'Custom Embed'];
+  readonly qualityOptions = ['1080p', '720p', '4K UHD', '480p'];
 
   readonly typeSelectOptions: SelectOption<string>[] = [
     { value: 'all', label: 'All Formats' },
@@ -283,8 +314,17 @@ export class AdminComponent implements OnInit {
     });
   }
 
-  getPosterUrl(path: string | null): string | null {
-    return path ? `${TMDB_IMAGE_BASE_URL}${TMDB_POSTER_SIZE}${path}` : null;
+  getPosterUrl(path: string | null): string {
+    if (!path) return DEFAULT_POSTER_IMAGE;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `${TMDB_IMAGE_BASE_URL}${TMDB_POSTER_SIZE}${cleanPath}`;
+  }
+
+  onPosterError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img && !img.src.includes('default-poster.svg')) {
+      img.src = DEFAULT_POSTER_IMAGE;
+    }
   }
 
   // --- CATALOG TITLES ---
@@ -306,6 +346,17 @@ export class AdminComponent implements OnInit {
   }
 
   onTitlesSearch(): void {
+    this.titlesPage.set(1);
+    this.loadTitles();
+  }
+
+  onTitlesPageChange(page: number): void {
+    this.titlesPage.set(page);
+    this.loadTitles();
+  }
+
+  onTitlesTypeFilterChange(type: string): void {
+    this.titlesFilterType.set(type);
     this.titlesPage.set(1);
     this.loadTitles();
   }
@@ -333,7 +384,8 @@ export class AdminComponent implements OnInit {
   // --- STREAMING SOURCES ---
   loadSources(): void {
     this.isLoading.set(true);
-    this.adminService.getSources(undefined, undefined, this.sourcesPage(), 20).subscribe({
+    const titleIdFilter = Number(this.sourcesSearchQuery().trim()) || undefined;
+    this.adminService.getSources(titleIdFilter, undefined, this.sourcesPage(), 20).subscribe({
       next: (res) => {
         this.sources.set(res.items);
         this.sourcesTotalCount.set(res.totalCount);
@@ -343,12 +395,37 @@ export class AdminComponent implements OnInit {
     });
   }
 
+  onSourcesSearch(): void {
+    this.sourcesPage.set(1);
+    this.loadSources();
+  }
+
+  onSourcesPageChange(page: number): void {
+    this.sourcesPage.set(page);
+    this.loadSources();
+  }
+
+  setNewSourceProvider(name: string): void {
+    this.newSource.update(s => ({ ...s, providerName: name }));
+  }
+
+  setNewSourceQuality(quality: string): void {
+    this.newSource.update(s => ({ ...s, quality }));
+  }
+
+  copyToClipboard(text: string): void {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(text);
+      this.showToast('Copied URL to clipboard!');
+    }
+  }
+
   openAddSourceModal(): void {
     this.newSource.set({
       titleId: 0,
       seasonNumber: null,
       episodeNumber: null,
-      providerName: 'Custom Embed',
+      providerName: 'VidSrc',
       sourceType: 'embed',
       url: '',
       quality: '1080p',
@@ -405,6 +482,16 @@ export class AdminComponent implements OnInit {
       },
       error: () => this.isLoading.set(false)
     });
+  }
+
+  onReportsPageChange(page: number): void {
+    this.reportsPage.set(page);
+    this.loadReports();
+  }
+
+  formatReportReason(reason: string): string {
+    if (!reason) return 'Playback Issue';
+    return reason.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   }
 
   onReportsFilterChange(status: string): void {

@@ -11,6 +11,7 @@ describe('ContentRowComponent', () => {
   const mockRow: ContentRow = {
     id: 'trending-movies',
     title: 'Upcoming Movies',
+    type: 'movie',
     viewAllRoute: '/movies',
     items: [
       {

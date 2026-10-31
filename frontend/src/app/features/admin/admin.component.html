@@ -3,19 +3,27 @@
   <div class="admin-header-row">
     <div class="admin-title-area">
       <div class="admin-super-badge">
+        <span class="live-pulse-dot"></span>
         <svg lucideShieldCheck class="badge-icon"></svg>
-        <span>ADMIN ACCESS</span>
+        <span>ADMIN PLATFORM CONSOLE</span>
       </div>
       <h1 class="admin-title">Platform Operations Center</h1>
       <p class="admin-subtitle">Manage catalog synchronization, streaming servers, direct uploads, and reports.</p>
     </div>
 
-    @if (actionMessage(); as msg) {
-      <div class="action-toast-banner">
-        <svg lucideCheck class="toast-icon"></svg>
-        <span>{{ msg }}</span>
+    <div class="admin-header-actions">
+      <div class="system-status-pill">
+        <span class="status-dot"></span>
+        <span class="status-text">System Active</span>
       </div>
-    }
+
+      @if (actionMessage(); as msg) {
+        <div class="action-toast-banner" role="status">
+          <svg lucideCheck class="toast-icon"></svg>
+          <span>{{ msg }}</span>
+        </div>
+      }
+    </div>
   </div>
 
   <!-- Navigation Tabs -->
@@ -34,7 +42,7 @@
       [class.active]="currentTab() === 'tmdb'" 
       (click)="setTab('tmdb')">
       <svg lucideRefreshCw class="tab-icon"></svg>
-      <span>TMDB Sync & Import</span>
+      <span>TMDB Sync</span>
     </button>
     <button 
       type="button" 
@@ -43,6 +51,9 @@
       (click)="setTab('titles')">
       <svg lucideFilm class="tab-icon"></svg>
       <span>Catalog Titles</span>
+      @if (stats()?.totalTitles) {
+        <span class="tab-badge-sub">{{ stats()?.totalTitles }}</span>
+      }
     </button>
     <button 
       type="button" 
@@ -51,6 +62,9 @@
       (click)="setTab('sources')">
       <svg lucideServer class="tab-icon"></svg>
       <span>Streaming Sources</span>
+      @if (stats()?.totalSources) {
+        <span class="tab-badge-sub">{{ stats()?.totalSources }}</span>
+      }
     </button>
     <button 
       type="button" 
@@ -77,7 +91,7 @@
       [class.active]="currentTab() === 'analytics'" 
       (click)="setTab('analytics')">
       <svg lucideBarChart3 class="tab-icon"></svg>
-      <span>Analytics & Performance</span>
+      <span>Analytics</span>
     </button>
   </nav>
 
@@ -88,76 +102,115 @@
     <div class="tab-pane overview-pane">
       @if (stats(); as s) {
         <div class="kpi-grid">
-          <div class="kpi-card">
+          <div class="kpi-card card-titles">
             <div class="kpi-icon-box"><svg lucideFilm class="kpi-icon"></svg></div>
             <div class="kpi-info">
-              <span class="kpi-label">Total Titles</span>
+              <span class="kpi-label">Catalog Titles</span>
               <span class="kpi-val">{{ s.totalTitles | number }}</span>
               <span class="kpi-sub">{{ s.totalMovies }} Movies · {{ s.totalSeries }} Series</span>
             </div>
           </div>
-          <div class="kpi-card">
+          <div class="kpi-card card-sources">
             <div class="kpi-icon-box"><svg lucideServer class="kpi-icon"></svg></div>
             <div class="kpi-info">
               <span class="kpi-label">Playback Sources</span>
               <span class="kpi-val">{{ s.totalSources | number }}</span>
-              <span class="kpi-sub">5 High-Speed Server Providers</span>
+              <span class="kpi-sub">5 Server Providers Connected</span>
             </div>
           </div>
-          <div class="kpi-card" [class.warning]="s.pendingReports > 0">
+          <div class="kpi-card card-reports" [class.warning]="s.pendingReports > 0">
             <div class="kpi-icon-box"><svg lucideAlertTriangle class="kpi-icon"></svg></div>
             <div class="kpi-info">
               <span class="kpi-label">Pending Reports</span>
               <span class="kpi-val">{{ s.pendingReports | number }}</span>
-              <span class="kpi-sub">User-submitted playback issues</span>
+              <span class="kpi-sub">User Playback Issue Alerts</span>
             </div>
           </div>
-          <div class="kpi-card">
+          <div class="kpi-card card-sync">
             <div class="kpi-icon-box"><svg lucideRefreshCw class="kpi-icon"></svg></div>
             <div class="kpi-info">
               <span class="kpi-label">TMDB Catalog Status</span>
-              <span class="kpi-val status-pill" [class.success]="s.lastSyncStatus.lastStatus === 'Success'">
+              <span class="kpi-val status-pill" [class.success]="s.lastSyncStatus.lastStatus === 'Completed' || s.lastSyncStatus.lastStatus === 'Success'">
+                <span class="pill-dot"></span>
                 {{ s.lastSyncStatus.lastStatus || 'Active' }}
               </span>
-              <span class="kpi-sub">Hangfire Daily Sync Enabled</span>
+              <span class="kpi-sub">Hangfire Sync Active</span>
             </div>
           </div>
         </div>
 
-        <div class="overview-actions-grid">
+        <div class="overview-grid-row">
+          <!-- Quick Actions -->
           <div class="action-card">
-            <h3 class="card-title">Quick Actions</h3>
-            <div class="action-buttons-col">
-              <button type="button" class="btn btn-primary" (click)="setTab('tmdb')">
-                <svg lucideSearch class="btn-icon"></svg>
-                <span>Search & Import Titles</span>
+            <div class="card-header-simple">
+              <svg lucideZap class="header-icon"></svg>
+              <h3 class="card-title">Quick Operational Actions</h3>
+            </div>
+            <div class="action-buttons-list">
+              <button type="button" class="quick-action-row" (click)="setTab('tmdb')">
+                <div class="qa-icon-wrap search-qa"><svg lucideSearch class="qa-icon"></svg></div>
+                <div class="qa-text">
+                  <span class="qa-title">Search & Import Titles</span>
+                  <span class="qa-desc">Discover new movies & TV series directly from TMDB</span>
+                </div>
+                <svg lucideChevronRight class="qa-arrow"></svg>
               </button>
-              <button type="button" class="btn btn-secondary" (click)="setTab('sources')">
-                <svg lucidePlus class="btn-icon"></svg>
-                <span>Add Custom Source</span>
+              <button type="button" class="quick-action-row" (click)="setTab('sources'); openAddSourceModal()">
+                <div class="qa-icon-wrap plus-qa"><svg lucidePlus class="qa-icon"></svg></div>
+                <div class="qa-text">
+                  <span class="qa-title">Add Playback Streaming Source</span>
+                  <span class="qa-desc">Connect custom embed or stream URLs to titles</span>
+                </div>
+                <svg lucideChevronRight class="qa-arrow"></svg>
               </button>
-              <button type="button" class="btn btn-outline" (click)="setTab('reports')">
-                <svg lucideAlertTriangle class="btn-icon"></svg>
-                <span>Review Problem Reports</span>
+              <button type="button" class="quick-action-row" (click)="setTab('reports')">
+                <div class="qa-icon-wrap alert-qa"><svg lucideAlertTriangle class="qa-icon"></svg></div>
+                <div class="qa-text">
+                  <span class="qa-title">Review Problem Reports</span>
+                  <span class="qa-desc">Inspect broken stream submissions from viewers</span>
+                </div>
+                <svg lucideChevronRight class="qa-arrow"></svg>
+              </button>
+              <button type="button" class="quick-action-row" (click)="setTab('uploads')">
+                <div class="qa-icon-wrap upload-qa"><svg lucideUpload class="qa-icon"></svg></div>
+                <div class="qa-text">
+                  <span class="qa-title">Direct Video Uploads</span>
+                  <span class="qa-desc">Upload video files directly to Bunny Stream CDN</span>
+                </div>
+                <svg lucideChevronRight class="qa-arrow"></svg>
               </button>
             </div>
           </div>
 
+          <!-- Diagnostics -->
           <div class="action-card sync-summary-card">
-            <h3 class="card-title">Daily Sync Diagnostics</h3>
+            <div class="card-header-simple">
+              <svg lucideActivity class="header-icon"></svg>
+              <h3 class="card-title">Catalog Sync Diagnostics</h3>
+            </div>
             <div class="sync-info-list">
               <div class="info-row">
-                <span class="lbl">Last Run:</span>
+                <span class="lbl"><svg lucideClock class="info-icon"></svg> Last Run Time:</span>
                 <span class="val">{{ s.lastSyncStatus.lastRunAt ? (s.lastSyncStatus.lastRunAt | date:'medium') : 'Scheduled' }}</span>
               </div>
               <div class="info-row">
-                <span class="lbl">Last Items Updated:</span>
-                <span class="val">{{ s.lastSyncStatus.lastItemsSynced }}</span>
+                <span class="lbl"><svg lucideLayers class="info-icon"></svg> Last Updated:</span>
+                <span class="val badge-highlight">{{ s.lastSyncStatus.lastItemsSynced }} titles updated</span>
               </div>
               <div class="info-row">
-                <span class="lbl">Recurring Schedule:</span>
-                <span class="val">Daily at 03:00 UTC</span>
+                <span class="lbl"><svg lucideRefreshCw class="info-icon"></svg> Recurring Schedule:</span>
+                <span class="val">Daily at 03:00 UTC (Hangfire)</span>
               </div>
+              <div class="info-row">
+                <span class="lbl"><svg lucideCheckCircle2 class="info-icon"></svg> Sync Worker:</span>
+                <span class="val text-success">Healthy & Online</span>
+              </div>
+            </div>
+            <div class="card-footer-action">
+              <button type="button" class="btn btn-primary btn-block" [disabled]="isSyncing()" (click)="triggerTmdbSync()">
+                <svg lucideRefreshCw class="btn-icon" [class.spin]="isSyncing()"></svg>
+                <span>{{ isSyncing() ? 'Synchronizing Catalog...' : 'Trigger Manual Sync Now' }}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -168,10 +221,14 @@
   <!-- 2. TMDB SYNC & DISCOVERY TAB -->
   @if (currentTab() === 'tmdb') {
     <div class="tab-pane tmdb-pane">
-      <div class="pane-header-card">
+      <div class="pane-header-card tmdb-hero-card">
         <div class="pane-title-group">
-          <h2 class="pane-title">TMDB Catalog Synchronization & Import</h2>
-          <p class="pane-desc">Trigger full catalog synchronization or search TMDB directly to import new movies and series on-demand.</p>
+          <div class="tmdb-brand-tag">
+            <span class="tag-accent">TMDB 3.0</span>
+            <span>API Synchronizer</span>
+          </div>
+          <h2 class="pane-title">TMDB Catalog Synchronization & Live Import</h2>
+          <p class="pane-desc">Trigger full catalog synchronization across trending releases or search TMDB directly to import new movies and series on-demand with rich metadata, cast, stills, and trailers.</p>
         </div>
         <button type="button" class="btn btn-primary sync-now-btn" [disabled]="isSyncing()" (click)="triggerTmdbSync()">
           <svg lucideRefreshCw class="btn-icon" [class.spin]="isSyncing()"></svg>
@@ -181,40 +238,63 @@
 
       <!-- Live TMDB Discovery Search -->
       <div class="tmdb-search-box-card">
-        <h3 class="box-heading">Live TMDB Search & One-Click Import</h3>
+        <div class="box-heading-row">
+          <div>
+            <h3 class="box-heading">Live TMDB Search & One-Click Import</h3>
+            <p class="box-sub">Search across millions of titles in The Movie Database and add them straight to your streaming library.</p>
+          </div>
+          <!-- Type Filter Tabs -->
+          <div class="tmdb-type-pills">
+            <button type="button" class="type-pill" [class.active]="tmdbSearchType() === 'all'" (click)="tmdbSearchType.set('all')">All</button>
+            <button type="button" class="type-pill" [class.active]="tmdbSearchType() === 'movie'" (click)="tmdbSearchType.set('movie')">Movies</button>
+            <button type="button" class="type-pill" [class.active]="tmdbSearchType() === 'series'" (click)="tmdbSearchType.set('series')">TV Series</button>
+          </div>
+        </div>
+
         <div class="search-form-row">
           <div class="input-with-icon">
             <svg lucideSearch class="input-icon"></svg>
             <input 
               type="text" 
               class="form-input" 
-              placeholder="Search TMDB for any movie or series..." 
+              placeholder="Search TMDB for any movie, TV show, or franchise..." 
               [ngModel]="tmdbSearchQuery()" 
               (ngModelChange)="tmdbSearchQuery.set($event)"
               (keydown.enter)="searchTmdb()"
             />
           </div>
-          <button type="button" class="btn btn-primary" (click)="searchTmdb()" [disabled]="isSearchingTmdb()">
-            <span>{{ isSearchingTmdb() ? 'Searching...' : 'Search TMDB' }}</span>
+          <button type="button" class="btn btn-primary search-action-btn" (click)="searchTmdb()" [disabled]="isSearchingTmdb()">
+            @if (isSearchingTmdb()) {
+              <svg lucideRefreshCw class="btn-icon spin"></svg>
+              <span>Searching...</span>
+            } @else {
+              <svg lucideSearch class="btn-icon"></svg>
+              <span>Search TMDB</span>
+            }
           </button>
         </div>
 
         @if (tmdbSearchResults().length > 0) {
+          <div class="tmdb-results-header">
+            <span class="results-count">{{ tmdbSearchResults().length }} results found for "{{ tmdbSearchQuery() }}"</span>
+          </div>
+
           <div class="tmdb-results-grid">
             @for (item of tmdbSearchResults(); track item.tmdbId) {
               <div class="tmdb-result-card">
                 <div class="result-poster-box">
-                  @if (getPosterUrl(item.posterPath)) {
-                    <img [src]="getPosterUrl(item.posterPath)!" [alt]="item.title" loading="lazy" />
-                  } @else {
-                    <div class="poster-empty"><svg lucideFilm class="ph-icon"></svg></div>
-                  }
-                  <div class="result-type-badge">{{ item.type.toUpperCase() }}</div>
+                  <img 
+                    [src]="getPosterUrl(item.posterPath)" 
+                    [alt]="item.title" 
+                    loading="lazy" 
+                    (error)="onPosterError($event)"
+                  />
+                  <div class="result-type-badge" [class.series]="item.type === 'series'">{{ item.type.toUpperCase() }}</div>
                 </div>
                 <div class="result-details">
                   <h4 class="result-title">{{ item.title }}</h4>
                   <div class="result-meta">
-                    @if (item.year) { <span>{{ item.year }}</span> }
+                    @if (item.year) { <span class="meta-year">{{ item.year }}</span> }
                     @if (item.rating > 0) {
                       <span class="rating-badge">★ {{ item.rating.toFixed(1) }}</span>
                     }
@@ -225,12 +305,23 @@
                     class="btn btn-primary btn-sm import-btn"
                     [disabled]="importingTmdbId() === item.tmdbId" 
                     (click)="importTmdbTitle(item)">
-                    <svg lucidePlus class="btn-icon-sm"></svg>
-                    <span>{{ importingTmdbId() === item.tmdbId ? 'Importing...' : 'Import to Catalog' }}</span>
+                    @if (importingTmdbId() === item.tmdbId) {
+                      <svg lucideRefreshCw class="btn-icon-sm spin"></svg>
+                      <span>Importing Metadata...</span>
+                    } @else {
+                      <svg lucidePlus class="btn-icon-sm"></svg>
+                      <span>Import to Catalog</span>
+                    }
                   </button>
                 </div>
               </div>
             }
+          </div>
+        } @else if (!isSearchingTmdb() && tmdbSearchQuery().trim().length === 0) {
+          <div class="tmdb-discovery-empty">
+            <svg lucideSparkles class="empty-sparkle"></svg>
+            <h4>Ready to Expand Your Catalog</h4>
+            <p>Type a movie or TV show title above to instantly search TMDB and import it with 1 click.</p>
           </div>
         }
       </div>
@@ -240,71 +331,132 @@
   <!-- 3. CATALOG TITLES TAB -->
   @if (currentTab() === 'titles') {
     <div class="tab-pane titles-pane">
+      <!-- Fixed Filter Bar -->
       <div class="pane-filter-bar">
-        <div class="search-input-box">
-          <svg lucideSearch class="input-icon"></svg>
-          <input 
-            type="text" 
-            class="form-input" 
-            placeholder="Search catalog titles..." 
-            [ngModel]="titlesSearchQuery()" 
-            (ngModelChange)="titlesSearchQuery.set($event)"
-            (keydown.enter)="onTitlesSearch()"
-          />
+        <div class="filter-controls-left">
+          <div class="search-input-box">
+            <svg lucideSearch class="input-icon"></svg>
+            <input 
+              type="text" 
+              class="form-input" 
+              placeholder="Search catalog titles by name..." 
+              [ngModel]="titlesSearchQuery()" 
+              (ngModelChange)="titlesSearchQuery.set($event)"
+              (keydown.enter)="onTitlesSearch()"
+            />
+          </div>
+          <div class="filter-type-select">
+            <app-custom-select 
+              [options]="typeSelectOptions" 
+              [value]="titlesFilterType()" 
+              (valueChange)="onTitlesTypeFilterChange($event)">
+            </app-custom-select>
+          </div>
+          <button type="button" class="btn btn-primary" (click)="onTitlesSearch()">
+            <svg lucideFilter class="btn-icon"></svg>
+            <span>Filter</span>
+          </button>
         </div>
-        <button type="button" class="btn btn-secondary" (click)="onTitlesSearch()">Filter</button>
+
+        <div class="filter-stats-right">
+          <span class="count-pill">
+            Showing {{ (titlesPage() - 1) * 20 + 1 }}–{{ Math.min(titlesPage() * 20, titlesTotalCount()) }} of {{ titlesTotalCount() }} titles
+          </span>
+        </div>
       </div>
 
-      <div class="table-responsive">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Format</th>
-              <th>Year</th>
-              <th>Rating</th>
-              <th>Sources</th>
-              <th>Featured</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (t of titles(); track t.id) {
+      <div class="table-card glass-table-panel">
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
               <tr>
-                <td class="title-cell">
-                  <strong>{{ t.title }}</strong>
-                  <span class="tmdb-id-sub">TMDB #{{ t.tmdbId }}</span>
-                </td>
-                <td><span class="format-pill" [class.series]="t.type === 'series'">{{ t.type.toUpperCase() }}</span></td>
-                <td>{{ t.year || '—' }}</td>
-                <td>★ {{ t.rating.toFixed(1) }}</td>
-                <td><span class="source-count-badge">{{ t.sourceCount }} sources</span></td>
-                <td>
-                  <button type="button" class="toggle-btn" [class.active]="t.isFeatured" (click)="toggleFeatured(t)">
-                    <svg lucideStar class="toggle-icon"></svg>
-                    <span>{{ t.isFeatured ? 'Featured' : 'Standard' }}</span>
-                  </button>
-                </td>
-                <td>
-                  <button type="button" class="toggle-btn" [class.active]="t.isActive" (click)="toggleActive(t)">
-                    @if (t.isActive) {
-                      <svg lucideEye class="toggle-icon"></svg>
-                    } @else {
-                      <svg lucideEyeOff class="toggle-icon"></svg>
-                    }
-                    <span>{{ t.isActive ? 'Active' : 'Hidden' }}</span>
-                  </button>
-                </td>
-                <td>
-                  <a [routerLink]="['/title', t.id]" target="_blank" class="table-action-link" title="View Public Page">
-                    <svg lucideExternalLink class="action-icon"></svg>
-                  </a>
-                </td>
+                <th>Title</th>
+                <th>Format</th>
+                <th>Year</th>
+                <th>Rating</th>
+                <th>Sources</th>
+                <th>Featured</th>
+                <th>Status</th>
+                <th class="text-right">Actions</th>
               </tr>
-            }
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              @if (titles().length === 0) {
+                <tr>
+                  <td colspan="8" class="empty-cell">
+                    <div class="table-empty-box">
+                      <svg lucideFilm class="empty-icon"></svg>
+                      <span>No catalog titles matched your query.</span>
+                    </div>
+                  </td>
+                </tr>
+              }
+              @for (t of titles(); track t.id) {
+                <tr>
+                  <td class="title-cell">
+                    <div class="title-info-wrap">
+                      <strong class="title-text">{{ t.title }}</strong>
+                      <span class="tmdb-id-sub">TMDB #{{ t.tmdbId }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="format-pill" [class.series]="t.type === 'series'">
+                      {{ t.type === 'series' ? 'TV SERIES' : 'MOVIE' }}
+                    </span>
+                  </td>
+                  <td><span class="year-text">{{ t.year || '—' }}</span></td>
+                  <td>
+                    <span class="rating-pill">
+                      <svg lucideStar class="star-icon"></svg>
+                      {{ t.rating.toFixed(1) }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="source-count-badge" [class.has-sources]="t.sourceCount > 0">
+                      {{ t.sourceCount }} {{ t.sourceCount === 1 ? 'source' : 'sources' }}
+                    </span>
+                  </td>
+                  <td>
+                    <button type="button" class="toggle-chip" [class.featured]="t.isFeatured" (click)="toggleFeatured(t)">
+                      <svg lucideStar class="toggle-icon"></svg>
+                      <span>{{ t.isFeatured ? 'Featured' : 'Standard' }}</span>
+                    </button>
+                  </td>
+                  <td>
+                    <button type="button" class="toggle-chip status" [class.active]="t.isActive" (click)="toggleActive(t)">
+                      @if (t.isActive) {
+                        <svg lucideEye class="toggle-icon text-success"></svg>
+                        <span>Active</span>
+                      } @else {
+                        <svg lucideEyeOff class="toggle-icon text-muted"></svg>
+                        <span>Hidden</span>
+                      }
+                    </button>
+                  </td>
+                  <td class="text-right">
+                    <a [routerLink]="['/title', t.id]" target="_blank" class="table-action-link" title="View Public Page">
+                      <svg lucideExternalLink class="action-icon"></svg>
+                      <span>View</span>
+                    </a>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        @if (titlesTotalPages() > 1) {
+          <div class="table-pagination-footer">
+            <app-pagination 
+              [page]="titlesPage()" 
+              [totalPages]="titlesTotalPages()" 
+              [hasPreviousPage]="titlesPage() > 1" 
+              [hasNextPage]="titlesPage() < titlesTotalPages()" 
+              (pageChange)="onTitlesPageChange($event)">
+            </app-pagination>
+          </div>
+        }
       </div>
     </div>
   }
@@ -313,99 +465,190 @@
   @if (currentTab() === 'sources') {
     <div class="tab-pane sources-pane">
       <div class="pane-action-bar">
-        <h2 class="pane-title">Playback Streaming Sources & Embeds</h2>
-        <button type="button" class="btn btn-primary" (click)="openAddSourceModal()">
-          <svg lucidePlus class="btn-icon"></svg>
-          <span>Add New Source</span>
-        </button>
+        <div class="pane-action-title">
+          <h2 class="pane-title">Playback Streaming Sources & Embeds</h2>
+          <span class="count-pill">{{ sourcesTotalCount() }} server sources connected</span>
+        </div>
+        <div class="sources-actions-group">
+          <div class="search-input-box sm">
+            <svg lucideSearch class="input-icon"></svg>
+            <input 
+              type="text" 
+              class="form-input" 
+              placeholder="Filter by Title ID..." 
+              [ngModel]="sourcesSearchQuery()" 
+              (ngModelChange)="sourcesSearchQuery.set($event)"
+              (keydown.enter)="onSourcesSearch()"
+            />
+          </div>
+          <button type="button" class="btn btn-primary" (click)="openAddSourceModal()">
+            <svg lucidePlus class="btn-icon"></svg>
+            <span>Add New Source</span>
+          </button>
+        </div>
       </div>
 
-      <div class="table-responsive">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Provider</th>
-              <th>Episode</th>
-              <th>Type</th>
-              <th>Quality</th>
-              <th>Priority</th>
-              <th>URL</th>
-              <th>Active</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (s of sources(); track s.id) {
+      <div class="table-card glass-table-panel">
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
               <tr>
-                <td><strong>{{ s.titleName }}</strong> (ID: {{ s.titleId }})</td>
-                <td><span class="provider-pill">{{ s.providerName }}</span></td>
-                <td>{{ s.seasonEpisode || 'Full Movie' }}</td>
-                <td><span class="badge-sub">{{ s.sourceType.toUpperCase() }}</span></td>
-                <td>{{ s.quality || '1080p' }}</td>
-                <td>P{{ s.priority }}</td>
-                <td class="url-cell" [title]="s.url">{{ s.url }}</td>
-                <td>
-                  <span class="status-indicator" [class.active]="s.isActive">
-                    {{ s.isActive ? 'Active' : 'Disabled' }}
-                  </span>
-                </td>
-                <td>
-                  <button type="button" class="btn-delete" (click)="deleteSource(s.id)" title="Delete Source">
-                    <svg lucideTrash2 class="trash-icon"></svg>
-                  </button>
-                </td>
+                <th>Title</th>
+                <th>Provider</th>
+                <th>Episode</th>
+                <th>Type</th>
+                <th>Quality</th>
+                <th>Priority</th>
+                <th>Stream URL</th>
+                <th>Status</th>
+                <th class="text-right">Actions</th>
               </tr>
-            }
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              @if (sources().length === 0) {
+                <tr>
+                  <td colspan="9" class="empty-cell">
+                    <div class="table-empty-box">
+                      <svg lucideServer class="empty-icon"></svg>
+                      <span>No playback sources found.</span>
+                    </div>
+                  </td>
+                </tr>
+              }
+              @for (s of sources(); track s.id) {
+                <tr>
+                  <td class="title-cell">
+                    <div class="title-info-wrap">
+                      <strong class="title-text">{{ s.titleName }}</strong>
+                      <span class="tmdb-id-sub">ID: #{{ s.titleId }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="provider-pill" [attr.data-provider]="s.providerName.toLowerCase()">
+                      {{ s.providerName }}
+                    </span>
+                  </td>
+                  <td><span class="ep-badge">{{ s.seasonEpisode || 'Full Movie' }}</span></td>
+                  <td><span class="type-pill-sub">{{ s.sourceType.toUpperCase() }}</span></td>
+                  <td><span class="quality-badge">{{ s.quality || '1080p' }}</span></td>
+                  <td><span class="priority-pill">P{{ s.priority }}</span></td>
+                  <td class="url-cell">
+                    <div class="url-cell-content">
+                      <span class="url-text" [title]="s.url">{{ s.url }}</span>
+                      <button type="button" class="btn-copy-url" (click)="copyToClipboard(s.url)" title="Copy stream URL">
+                        <svg lucideCopy class="copy-icon"></svg>
+                      </button>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="status-indicator-badge" [class.active]="s.isActive">
+                      <span class="dot"></span>
+                      {{ s.isActive ? 'Active' : 'Disabled' }}
+                    </span>
+                  </td>
+                  <td class="text-right">
+                    <button type="button" class="btn-delete" (click)="deleteSource(s.id)" title="Delete Source">
+                      <svg lucideTrash2 class="trash-icon"></svg>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        @if (sourcesTotalPages() > 1) {
+          <div class="table-pagination-footer">
+            <app-pagination 
+              [page]="sourcesPage()" 
+              [totalPages]="sourcesTotalPages()" 
+              [hasPreviousPage]="sourcesPage() > 1" 
+              [hasNextPage]="sourcesPage() < sourcesTotalPages()" 
+              (pageChange)="onSourcesPageChange($event)">
+            </app-pagination>
+          </div>
+        }
       </div>
 
       <!-- Add Source Modal Dialog -->
       @if (isAddSourceModalOpen()) {
         <div class="modal-backdrop" (click)="closeAddSourceModal()">
-          <div class="modal-dialog" (click)="$event.stopPropagation()">
+          <div class="modal-dialog glass-panel" (click)="$event.stopPropagation()">
             <div class="modal-header">
-              <h3 class="modal-title">Add Playback Source</h3>
+              <div class="modal-title-wrap">
+                <svg lucidePlus class="title-icon"></svg>
+                <h3 class="modal-title">Add Playback Streaming Source</h3>
+              </div>
               <button type="button" class="close-btn" (click)="closeAddSourceModal()"><svg lucideX class="close-icon"></svg></button>
             </div>
             <div class="modal-body">
+              <!-- Quick Provider Chips -->
               <div class="form-group">
-                <label>Title ID (Database ID):</label>
+                <label>Select Provider Template:</label>
+                <div class="provider-chips-grid">
+                  @for (p of commonProviders; track p) {
+                    <button 
+                      type="button" 
+                      class="provider-chip" 
+                      [class.active]="newSource().providerName === p"
+                      (click)="setNewSourceProvider(p)">
+                      {{ p }}
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Catalog Title ID (Database ID):</label>
                 <input type="number" class="form-input" [(ngModel)]="newSource().titleId" placeholder="e.g. 1" />
               </div>
+
               <div class="form-row">
                 <div class="form-group col">
-                  <label>Season (optional):</label>
+                  <label>Season (optional for series):</label>
                   <input type="number" class="form-input" [(ngModel)]="newSource().seasonNumber" placeholder="e.g. 1" />
                 </div>
                 <div class="form-group col">
-                  <label>Episode (optional):</label>
+                  <label>Episode (optional for series):</label>
                   <input type="number" class="form-input" [(ngModel)]="newSource().episodeNumber" placeholder="e.g. 1" />
                 </div>
               </div>
+
               <div class="form-group">
                 <label>Provider Name:</label>
-                <input type="text" class="form-input" [(ngModel)]="newSource().providerName" placeholder="e.g. SuperEmbed, VidSrc Pro" />
+                <input type="text" class="form-input" [(ngModel)]="newSource().providerName" placeholder="e.g. VidSrc, SuperEmbed, 2Embed" />
               </div>
+
               <div class="form-group">
                 <label>Stream / Embed URL:</label>
                 <input type="text" class="form-input" [(ngModel)]="newSource().url" placeholder="https://..." />
               </div>
+
               <div class="form-row">
                 <div class="form-group col">
                   <label>Quality:</label>
-                  <input type="text" class="form-input" [(ngModel)]="newSource().quality" placeholder="1080p" />
+                  <div class="quality-chips-row">
+                    @for (q of qualityOptions; track q) {
+                      <button 
+                        type="button" 
+                        class="quality-chip" 
+                        [class.active]="newSource().quality === q"
+                        (click)="setNewSourceQuality(q)">
+                        {{ q }}
+                      </button>
+                    }
+                  </div>
                 </div>
                 <div class="form-group col">
                   <label>Priority (1 = Highest):</label>
-                  <input type="number" class="form-input" [(ngModel)]="newSource().priority" />
+                  <input type="number" class="form-input" [(ngModel)]="newSource().priority" min="1" max="10" />
                 </div>
               </div>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" (click)="closeAddSourceModal()">Cancel</button>
-              <button type="button" class="btn btn-primary" (click)="submitAddSource()">Save Source</button>
+              <button type="button" class="btn btn-primary" (click)="submitAddSource()">Save Playback Source</button>
             </div>
           </div>
         </div>
@@ -417,9 +660,12 @@
   @if (currentTab() === 'reports') {
     <div class="tab-pane reports-pane">
       <div class="pane-action-bar">
-        <h2 class="pane-title">Broken Source Reports Queue</h2>
+        <div class="pane-action-title">
+          <h2 class="pane-title">Broken Source Reports Queue</h2>
+          <span class="count-pill">{{ reportsTotalCount() }} total reports</span>
+        </div>
         <div class="filter-group">
-          <label class="filter-lbl">Status:</label>
+          <label class="filter-lbl">Filter Status:</label>
           <app-custom-select 
             [options]="reportStatusOptions" 
             [value]="reportsStatusFilter()" 
@@ -428,52 +674,92 @@
         </div>
       </div>
 
-      <div class="table-responsive">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Server</th>
-              <th>Reason</th>
-              <th>User Details</th>
-              <th>Date</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @if (reports().length === 0) {
+      <div class="table-card glass-table-panel">
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
               <tr>
-                <td colspan="7" class="empty-cell">No reports found for the selected status.</td>
+                <th>Title</th>
+                <th>Server</th>
+                <th>Reason</th>
+                <th>User Details</th>
+                <th>Reported At</th>
+                <th>Status</th>
+                <th class="text-right">Actions</th>
               </tr>
-            }
-            @for (r of reports(); track r.id) {
-              <tr>
-                <td><strong>{{ r.titleName }}</strong></td>
-                <td><span class="provider-pill">{{ r.providerName }}</span></td>
-                <td><span class="reason-pill">{{ r.reason }}</span></td>
-                <td>{{ r.details || 'No details provided' }}</td>
-                <td>{{ r.createdAt | date:'short' }}</td>
-                <td>
-                  <span class="status-indicator" [class.pending]="r.status === 'Pending'" [class.resolved]="r.status === 'Resolved'">
-                    {{ r.status }}
-                  </span>
-                </td>
-                <td class="action-buttons-cell">
-                  @if (r.status === 'Pending') {
-                    <button type="button" class="btn-sm-action review" (click)="updateReportStatus(r, 'Reviewed')">Review</button>
-                    <button type="button" class="btn-sm-action resolve" (click)="updateReportStatus(r, 'Resolved')">Resolve</button>
-                  } @else if (r.status === 'Reviewed') {
-                    <button type="button" class="btn-sm-action resolve" (click)="updateReportStatus(r, 'Resolved')">Resolve</button>
-                    <button type="button" class="btn-sm-action dismiss" (click)="updateReportStatus(r, 'Dismissed')">Dismiss</button>
-                  } @else {
-                    <span class="text-muted text-sm">Archived</span>
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              @if (reports().length === 0) {
+                <tr>
+                  <td colspan="7" class="empty-cell">
+                    <div class="table-empty-box">
+                      <svg lucideCheckCircle2 class="empty-icon text-success"></svg>
+                      <span>No playback issue reports found in this queue.</span>
+                    </div>
+                  </td>
+                </tr>
+              }
+              @for (r of reports(); track r.id) {
+                <tr>
+                  <td><strong class="title-text">{{ r.titleName }}</strong></td>
+                  <td><span class="provider-pill">{{ r.providerName }}</span></td>
+                  <td>
+                    <span class="reason-pill">
+                      <svg lucideAlertTriangle class="reason-icon"></svg>
+                      {{ formatReportReason(r.reason) }}
+                    </span>
+                  </td>
+                  <td class="details-cell">{{ r.details || 'No additional details provided' }}</td>
+                  <td><span class="date-text">{{ r.createdAt | date:'short' }}</span></td>
+                  <td>
+                    <span class="status-indicator-badge" [class.pending]="r.status === 'Pending'" [class.resolved]="r.status === 'Resolved'" [class.reviewed]="r.status === 'Reviewed'">
+                      <span class="dot"></span>
+                      {{ r.status }}
+                    </span>
+                  </td>
+                  <td class="text-right">
+                    <div class="action-buttons-cell">
+                      @if (r.status === 'Pending') {
+                        <button type="button" class="btn-sm-action review" (click)="updateReportStatus(r, 'Reviewed')" title="Mark as Reviewed">
+                          <svg lucideEye class="action-btn-icon"></svg>
+                          <span>Review</span>
+                        </button>
+                        <button type="button" class="btn-sm-action resolve" (click)="updateReportStatus(r, 'Resolved')" title="Mark as Resolved">
+                          <svg lucideCheck class="action-btn-icon"></svg>
+                          <span>Resolve</span>
+                        </button>
+                      } @else if (r.status === 'Reviewed') {
+                        <button type="button" class="btn-sm-action resolve" (click)="updateReportStatus(r, 'Resolved')" title="Mark as Resolved">
+                          <svg lucideCheck class="action-btn-icon"></svg>
+                          <span>Resolve</span>
+                        </button>
+                        <button type="button" class="btn-sm-action dismiss" (click)="updateReportStatus(r, 'Dismissed')" title="Dismiss Report">
+                          <svg lucideX class="action-btn-icon"></svg>
+                          <span>Dismiss</span>
+                        </button>
+                      } @else {
+                        <span class="archived-tag">Archived</span>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        @if (reportsTotalPages() > 1) {
+          <div class="table-pagination-footer">
+            <app-pagination 
+              [page]="reportsPage()" 
+              [totalPages]="reportsTotalPages()" 
+              [hasPreviousPage]="reportsPage() > 1" 
+              [hasNextPage]="reportsPage() < reportsTotalPages()" 
+              (pageChange)="onReportsPageChange($event)">
+            </app-pagination>
+          </div>
+        }
       </div>
     </div>
   }
@@ -481,40 +767,65 @@
   <!-- 6. DIRECT UPLOADS TAB (BUNNY STREAM) -->
   @if (currentTab() === 'uploads') {
     <div class="tab-pane uploads-pane">
-      <div class="pane-header-card">
+      <div class="pane-header-card uploads-hero-card">
         <div class="pane-title-group">
-          <h2 class="pane-title">Direct Video Uploads (Bunny Stream)</h2>
-          <p class="pane-desc">Upload video assets directly into high-speed CDN transcoding storage. Video files bypass the application server.</p>
+          <div class="bunny-brand-tag">
+            <svg lucideZap class="tag-icon"></svg>
+            <span>Bunny Stream CDN</span>
+          </div>
+          <h2 class="pane-title">Direct Video Ingestion & Adaptive Transcoding</h2>
+          <p class="pane-desc">Upload video files directly to high-speed CDN transcoding storage. Video files bypass the web backend directly via resumable TUS protocol, optimizing server bandwidth.</p>
         </div>
       </div>
 
-      <div class="upload-dropzone-card">
+      <div class="upload-dropzone-card glass-panel">
         <div class="dropzone-box">
-          <svg lucideUpload class="upload-icon-lg"></svg>
-          <h3 class="dropzone-title">Select video file to upload</h3>
-          <p class="dropzone-sub">MP4, MKV, or WebM video file (direct TUS upload)</p>
-          <input type="file" accept="video/*" class="file-input" (change)="onFileSelect($event)" />
+          <div class="dropzone-glow-icon">
+            <svg lucideUpload class="upload-icon-lg"></svg>
+          </div>
+          <h3 class="dropzone-title">Select or drag & drop video file</h3>
+          <p class="dropzone-sub">Supports MP4, MKV, AVI, and WebM high-definition media</p>
+          <div class="supported-codecs">
+            <span class="codec-pill">1080p / 4K</span>
+            <span class="codec-pill">H.264 / H.265</span>
+            <span class="codec-pill">Auto HLS Packaging</span>
+          </div>
+          <label class="btn btn-primary file-browse-btn">
+            <svg lucidePlus class="btn-icon"></svg>
+            <span>Choose Local File</span>
+            <input type="file" accept="video/*" class="file-input-hidden" (change)="onFileSelect($event)" />
+          </label>
         </div>
 
         @if (selectedUploadFile(); as file) {
           <div class="upload-form-box">
-            <div class="form-group">
-              <label>Title Name:</label>
-              <input type="text" class="form-input" [ngModel]="uploadTitle()" (ngModelChange)="uploadTitle.set($event)" />
+            <div class="file-staged-header">
+              <div class="file-icon-wrap"><svg lucideFilm class="icon"></svg></div>
+              <div class="file-meta">
+                <strong class="file-name">{{ file.name }}</strong>
+                <span class="file-size">{{ (file.size / (1024 * 1024)).toFixed(1) }} MB</span>
+              </div>
             </div>
-            <div class="file-summary-row">
-              <span>Selected file: <strong>{{ file.name }}</strong> ({{ (file.size / (1024 * 1024)).toFixed(1) }} MB)</span>
+
+            <div class="form-group mt-3">
+              <label>Target Title Name in Catalog:</label>
+              <input type="text" class="form-input" [ngModel]="uploadTitle()" (ngModelChange)="uploadTitle.set($event)" placeholder="Enter title name..." />
             </div>
 
             @if (isUploading()) {
-              <div class="progress-bar-wrapper">
-                <div class="progress-bar-fill" [style.width.%]="uploadProgress()"></div>
+              <div class="progress-box">
+                <div class="progress-bar-wrapper">
+                  <div class="progress-bar-fill" [style.width.%]="uploadProgress()"></div>
+                </div>
+                <div class="progress-status-row">
+                  <span>Uploading to Bunny Stream...</span>
+                  <span class="progress-pct">{{ uploadProgress() }}%</span>
+                </div>
               </div>
-              <span class="progress-text">Uploading & Transcoding: {{ uploadProgress() }}%</span>
             } @else {
-              <button type="button" class="btn btn-primary upload-btn" (click)="startUpload()">
+              <button type="button" class="btn btn-primary upload-btn btn-block" (click)="startUpload()">
                 <svg lucideUpload class="btn-icon"></svg>
-                <span>Start Direct Upload</span>
+                <span>Start Direct CDN Ingestion</span>
               </button>
             }
           </div>
@@ -522,14 +833,39 @@
 
         @if (activeUploadAsset(); as asset) {
           <div class="upload-success-card">
-            <svg lucideCheck class="success-icon"></svg>
+            <div class="success-icon-wrap"><svg lucideCheck class="success-icon"></svg></div>
             <div class="asset-details">
-              <h4>Asset Ready for Playback!</h4>
+              <h4>Asset Transcoded & Ready for Streaming!</h4>
               <p>Asset ID: <code>{{ asset.assetId }}</code></p>
-              <p>Direct Stream URL: <code>{{ asset.directPlayUrl }}</code></p>
+              <p>Direct Play URL: <code>{{ asset.directPlayUrl }}</code></p>
             </div>
           </div>
         }
+      </div>
+
+      <!-- Feature highlight cards -->
+      <div class="uploads-features-grid">
+        <div class="feature-item-card">
+          <div class="feat-icon-box"><svg lucideZap class="icon"></svg></div>
+          <div class="feat-info">
+            <h4>Adaptive Multi-Bitrate HLS</h4>
+            <p>Automatically renders 1080p, 720p, 480p, and 360p video streams for smooth playback on any connection.</p>
+          </div>
+        </div>
+        <div class="feature-item-card">
+          <div class="feat-icon-box"><svg lucideGlobe class="icon"></svg></div>
+          <div class="feat-info">
+            <h4>Global CDN Edge Caching</h4>
+            <p>Cached across 114 worldwide points of presence to eliminate video buffer stalls.</p>
+          </div>
+        </div>
+        <div class="feature-item-card">
+          <div class="feat-icon-box"><svg lucideShieldCheck class="icon"></svg></div>
+          <div class="feat-info">
+            <h4>Direct Browser-to-Cloud Upload</h4>
+            <p>Upload directly from your browser to storage with zero strain on application backend servers.</p>
+          </div>
+        </div>
       </div>
     </div>
   }
@@ -540,7 +876,7 @@
       @if (isLoadingAnalytics()) {
         <div class="admin-loading-state">
           <div class="spinner"></div>
-          <span>Aggregating analytics data...</span>
+          <span>Aggregating analytics telemetry...</span>
         </div>
       } @else if (analytics(); as a) {
         <!-- KPI Row -->
@@ -550,26 +886,26 @@
             <div class="kpi-info">
               <span class="kpi-label">Total Content Plays</span>
               <span class="kpi-val">{{ a.totalPlays | number }}</span>
-              <span class="kpi-sub">Consent-gated streaming events</span>
+              <span class="kpi-sub">Consent-gated streams</span>
             </div>
           </div>
-          <div class="kpi-card">
+          <div class="kpi-card card-searches">
             <div class="kpi-icon-box search-box"><svg lucideSearch class="kpi-icon"></svg></div>
             <div class="kpi-info">
               <span class="kpi-label">Catalog Searches</span>
               <span class="kpi-val">{{ a.totalSearches | number }}</span>
-              <span class="kpi-sub">Total user queries executed</span>
+              <span class="kpi-sub">User searches executed</span>
             </div>
           </div>
-          <div class="kpi-card" [class.warning]="a.totalEmptySearches > 0">
+          <div class="kpi-card card-empty-searches" [class.warning]="a.totalEmptySearches > 0">
             <div class="kpi-icon-box alert-box"><svg lucideAlertTriangle class="kpi-icon"></svg></div>
             <div class="kpi-info">
               <span class="kpi-label">Zero-Result Searches</span>
               <span class="kpi-val">{{ a.totalEmptySearches | number }}</span>
-              <span class="kpi-sub">Unmatched catalog requests</span>
+              <span class="kpi-sub">Unmatched search terms</span>
             </div>
           </div>
-          <div class="kpi-card">
+          <div class="kpi-card card-signups">
             <div class="kpi-icon-box user-box"><svg lucideUsers class="kpi-icon"></svg></div>
             <div class="kpi-info">
               <span class="kpi-label">New Registrations</span>
@@ -580,7 +916,7 @@
         </div>
 
         <!-- Daily Activity Chart -->
-        <div class="analytics-card chart-card">
+        <div class="analytics-card chart-card glass-panel">
           <div class="card-header-flex">
             <div>
               <h3 class="card-title">Daily Activity Trends (Past 14 Days)</h3>
@@ -608,7 +944,7 @@
         <!-- Top Insights Grid -->
         <div class="analytics-two-col">
           <!-- Top Streamed Titles -->
-          <div class="analytics-card">
+          <div class="analytics-card glass-panel">
             <div class="card-header-flex">
               <h3 class="card-title">Top 10 Streamed Titles</h3>
               <span class="badge-pill">Live Plays</span>
@@ -631,7 +967,7 @@
           </div>
 
           <!-- Top Searches & Zero Results -->
-          <div class="analytics-card">
+          <div class="analytics-card glass-panel">
             <div class="card-header-flex">
               <h3 class="card-title">Search Keyword Insights</h3>
               <span class="badge-pill">Demand</span>
@@ -671,7 +1007,7 @@
 
         <!-- Problematic Sources Breakdown -->
         @if (a.failingSources.length > 0) {
-          <div class="analytics-card mt-4">
+          <div class="analytics-card mt-4 glass-panel">
             <h3 class="card-title">Playback Failures & Broken Source Reports</h3>
             <div class="failing-sources-grid">
               @for (src of a.failingSources; track src.name) {

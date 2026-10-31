@@ -116,23 +116,13 @@
             <div class="poster-card">
               <a [routerLink]="getDetailLink(item)" class="poster-link" [attr.aria-label]="item.title">
                 <div class="poster-media">
-                  @if (getPosterUrl(item.posterPath)) {
-                    <img 
-                      [src]="getPosterUrl(item.posterPath)" 
-                      [alt]="item.title" 
-                      class="poster-img"
-                      loading="lazy"
-                    />
-                  } @else {
-                    <div class="poster-fallback">
-                      @if (item.type === 'series') {
-                        <svg lucideTv class="fallback-icon"></svg>
-                      } @else {
-                        <svg lucideFilm class="fallback-icon"></svg>
-                      }
-                      <span class="fallback-title">{{ item.title }}</span>
-                    </div>
-                  }
+                  <img 
+                    [src]="getPosterUrl(item.posterPath)" 
+                    [alt]="item.title" 
+                    class="poster-img"
+                    loading="lazy"
+                    (error)="onImageError($event)"
+                  />
 
                   <!-- Rating Badge -->
                   @if (item.rating > 0) {
