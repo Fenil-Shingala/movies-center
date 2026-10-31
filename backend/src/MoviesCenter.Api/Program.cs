@@ -155,24 +155,27 @@ catch (Exception ex)
     Log.Warning(ex, "Could not apply database migrations on startup. Please ensure SQL Server is running.");
 }
 
-// Hangfire Dashboard and Recurring Daily Sync Job
-try
+// Hangfire is disabled unless Hangfire:Enabled=true
+if (builder.Configuration.GetValue<bool>("Hangfire:Enabled"))
 {
-    app.UseHangfireDashboard("/admin/hangfire", new Hangfire.DashboardOptions
+    try
     {
-        Authorization = [] // Accessible locally / dev; can add role check filter in production
-    });
+        app.UseHangfireDashboard("/admin/hangfire", new Hangfire.DashboardOptions
+        {
+            Authorization = [] // TODO: add an admin-only filter before enabling in production
+        });
 
-    var cronSchedule = builder.Configuration["TmdbSync:CronSchedule"] ?? "0 3 * * *"; // Daily at 3 AM UTC
-    Hangfire.RecurringJob.AddOrUpdate<MoviesCenter.Application.Common.Interfaces.ITmdbSyncService>(
-        "daily-tmdb-sync",
-        service => service.RunFullSyncAsync("HangfireJob", CancellationToken.None),
-        cronSchedule
-    );
-}
-catch (Exception ex)
-{
-    Log.Warning(ex, "Could not initialize Hangfire dashboard or recurring job.");
+        var cronSchedule = builder.Configuration["TmdbSync:CronSchedule"] ?? "0 3 * * *";
+        Hangfire.RecurringJob.AddOrUpdate<MoviesCenter.Application.Common.Interfaces.ITmdbSyncService>(
+            "daily-tmdb-sync",
+            service => service.RunFullSyncAsync("HangfireJob", CancellationToken.None),
+            cronSchedule
+        );
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "Could not initialize Hangfire dashboard or recurring job.");
+    }
 }
 
 app.Run();
