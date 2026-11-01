@@ -100,10 +100,16 @@ public class TmdbSyncService : ITmdbSyncService
         {
             _logger.LogInformation("Starting extensive TMDB catalog synchronization triggered by {TriggeredBy}...", triggeredBy);
 
+            // Pre-fetch the VidLink/VidSrc provider once to avoid querying it repeatedly in loops
+            var vidsrcProviderId = await db.SourceProviders
+                .Where(sp => sp.Slug == AppConstants.Providers.VidSrc)
+                .Select(sp => (int?)sp.Id)
+                .FirstOrDefaultAsync();
+
             // 1. Sync genres
             await SyncGenresAsync(db, tmdbService, CancellationToken.None);
 
-            // 2. Generate comprehensive list of category and discover endpoints (covers thousands of titles)
+            // 2. Generate comprehensive list of category and discover endpoints (~20,000 titles)
             var categoryEndpoints = GenerateSyncEndpoints();
             var processedTmdbIds = new HashSet<(int TmdbId, string Type)>();
 
@@ -131,7 +137,15 @@ public class TmdbSyncService : ITmdbSyncService
                     if (items == null || items.Count == 0) continue;
 
                     // Micro-pause between TMDB requests (polite rate limiting)
-                    await Task.Delay(40);
+                    await Task.Delay(35);
+
+                    // Batch load existing titles from DB for this page of items (1 single query instead of 20)
+                    var batchTmdbIds = items.Select(i => i.Id).Distinct().ToList();
+                    var existingTitlesMap = await db.Titles
+                        .Include(t => t.TitleGenres)
+                        .Include(t => t.TitleSources)
+                        .Where(t => batchTmdbIds.Contains(t.TmdbId))
+                        .ToDictionaryAsync(t => t.TmdbId);
 
                     var newOrUpdatedInBatch = 0;
                     foreach (var item in items)
@@ -140,14 +154,14 @@ public class TmdbSyncService : ITmdbSyncService
                         if (!processedTmdbIds.Contains(key))
                         {
                             processedTmdbIds.Add(key);
-                            await UpsertTitleSummaryAsync(db, item, category, CancellationToken.None);
+                            existingTitlesMap.TryGetValue(item.Id, out var existingTitle);
+                            UpsertTitleSummary(db, existingTitle, item, category, vidsrcProviderId);
                             newOrUpdatedInBatch++;
                         }
                     }
 
                     if (newOrUpdatedInBatch > 0)
                     {
-                        await db.SaveChangesAsync();
                         itemsSyncedCount += newOrUpdatedInBatch;
 
                         // Periodically commit live itemsSyncedCount to TmdbSyncLog so live progress is visible in UI
@@ -162,11 +176,11 @@ public class TmdbSyncService : ITmdbSyncService
                 }
             }
 
-            // 3. For the top 80 most popular titles, fetch full details (cast, trailers, seasons breakdown)
+            // 3. For the top 100 most popular titles, fetch full details (cast, trailers, seasons breakdown)
             var topTitlesToEnrich = await db.Titles
                 .Where(t => t.IsActive && t.TmdbListCategory != null && (t.TmdbListCategory.Contains("trending") || t.TmdbListCategory.Contains("popular")))
                 .OrderByDescending(t => t.Popularity)
-                .Take(80)
+                .Take(100)
                 .ToListAsync();
 
             foreach (var title in topTitlesToEnrich)
@@ -174,7 +188,7 @@ public class TmdbSyncService : ITmdbSyncService
                 try
                 {
                     await EnrichTitleDetailsAsync(db, tmdbService, title, CancellationToken.None);
-                    await Task.Delay(40);
+                    await Task.Delay(35);
                 }
                 catch (Exception ex)
                 {
@@ -260,81 +274,101 @@ public class TmdbSyncService : ITmdbSyncService
             ("trending/tv/week", "series", "trending")
         };
 
-        // 2. Popular Movies (50 pages = 1,000 titles)
-        for (int p = 1; p <= 50; p++)
+        // 2. Popular Movies (150 pages = 3,000 titles)
+        for (int p = 1; p <= 150; p++)
         {
             endpoints.Add(($"movie/popular?page={p}", "movie", "popular"));
         }
 
-        // 3. Popular TV Series (40 pages = 800 titles)
-        for (int p = 1; p <= 40; p++)
+        // 3. Popular TV Series (100 pages = 2,000 titles)
+        for (int p = 1; p <= 100; p++)
         {
             endpoints.Add(($"tv/popular?page={p}", "series", "popular"));
         }
 
-        // 4. Top Rated Movies (30 pages = 600 titles)
-        for (int p = 1; p <= 30; p++)
+        // 4. Top Rated Movies (100 pages = 2,000 titles)
+        for (int p = 1; p <= 100; p++)
         {
             endpoints.Add(($"movie/top_rated?page={p}", "movie", "top_rated"));
         }
 
-        // 5. Top Rated TV Series (25 pages = 500 titles)
-        for (int p = 1; p <= 25; p++)
+        // 5. Top Rated TV Series (80 pages = 1,600 titles)
+        for (int p = 1; p <= 80; p++)
         {
             endpoints.Add(($"tv/top_rated?page={p}", "series", "top_rated"));
         }
 
-        // 6. Now Playing & Upcoming Theatrical Movies (20 pages = 400 titles)
-        for (int p = 1; p <= 10; p++)
+        // 6. Theatrical & Broadcast (Movie Now Playing, Upcoming, TV On The Air, Airing Today)
+        for (int p = 1; p <= 20; p++)
         {
             endpoints.Add(($"movie/now_playing?page={p}", "movie", "now_playing"));
             endpoints.Add(($"movie/upcoming?page={p}", "movie", "upcoming"));
-        }
-
-        // 7. On The Air & Airing Today TV Series (15 pages = 300 titles)
-        for (int p = 1; p <= 10; p++)
-        {
             endpoints.Add(($"tv/on_the_air?page={p}", "series", "on_the_air"));
         }
-        for (int p = 1; p <= 5; p++)
+        for (int p = 1; p <= 10; p++)
         {
             endpoints.Add(($"tv/airing_today?page={p}", "series", "airing_today"));
         }
 
-        // 8. Discover by Release Year (2016 through 2026 - 11 years)
-        // 5 pages of movies (100) + 3 pages of TV (60) per year = 1,760 titles
+        // 7. Modern Era by Year (2016 through 2026 - 11 years)
+        // 8 pages movies (160) + 5 pages TV (100) per year = 2,860 titles
         for (int year = 2026; year >= 2016; year--)
+        {
+            for (int p = 1; p <= 8; p++)
+            {
+                endpoints.Add(($"discover/movie?primary_release_year={year}&sort_by=popularity.desc&vote_count.gte=15&page={p}", "movie", $"year_{year}"));
+            }
+            for (int p = 1; p <= 5; p++)
+            {
+                endpoints.Add(($"discover/tv?first_air_date_year={year}&sort_by=popularity.desc&vote_count.gte=10&page={p}", "series", $"year_{year}"));
+            }
+        }
+
+        // 8. 2000s & Early 2010s Blockbusters (2000 to 2015 - 16 years)
+        // 5 pages movies (100) + 3 pages TV (60) per year = 2,560 titles
+        for (int year = 2015; year >= 2000; year--)
         {
             for (int p = 1; p <= 5; p++)
             {
-                endpoints.Add(($"discover/movie?primary_release_year={year}&sort_by=popularity.desc&vote_count.gte=30&page={p}", "movie", $"year_{year}"));
+                endpoints.Add(($"discover/movie?primary_release_year={year}&sort_by=vote_count.desc&vote_count.gte=50&page={p}", "movie", "classics"));
             }
             for (int p = 1; p <= 3; p++)
             {
-                endpoints.Add(($"discover/tv?first_air_date_year={year}&sort_by=popularity.desc&vote_count.gte=15&page={p}", "series", $"year_{year}"));
-            }
-        }
-
-        // 9. Discover Classic Blockbusters (2000 to 2014)
-        for (int year = 2014; year >= 2000; year -= 2)
-        {
-            for (int p = 1; p <= 3; p++)
-            {
-                endpoints.Add(($"discover/movie?primary_release_year={year}&sort_by=vote_count.desc&vote_count.gte=300&page={p}", "movie", "classics"));
+                endpoints.Add(($"discover/tv?first_air_date_year={year}&sort_by=vote_count.desc&vote_count.gte=20&page={p}", "series", "classics"));
             }
         }
 
-        // 10. Discover by Major Genres (Action, Comedy, Animation, Sci-Fi, Horror, Drama, Romance, Thriller)
-        var majorGenres = new[] { 28, 35, 16, 878, 27, 18, 10749, 53 };
-        foreach (var genreId in majorGenres)
+        // 9. Golden Era Classics (1980 to 1999 - 20 years)
+        // 4 pages movies (80) + 2 pages TV (40) per year = 2,400 titles
+        for (int year = 1999; year >= 1980; year--)
         {
-            for (int p = 1; p <= 3; p++)
+            for (int p = 1; p <= 4; p++)
             {
-                endpoints.Add(($"discover/movie?with_genres={genreId}&sort_by=vote_average.desc&vote_count.gte=150&page={p}", "movie", "genre_highlight"));
+                endpoints.Add(($"discover/movie?primary_release_year={year}&sort_by=vote_count.desc&vote_count.gte=75&page={p}", "movie", "golden_era"));
             }
             for (int p = 1; p <= 2; p++)
             {
-                endpoints.Add(($"discover/tv?with_genres={genreId}&sort_by=vote_average.desc&vote_count.gte=100&page={p}", "series", "genre_highlight"));
+                endpoints.Add(($"discover/tv?first_air_date_year={year}&sort_by=vote_count.desc&vote_count.gte=20&page={p}", "series", "golden_era"));
+            }
+        }
+
+        // 10. Discover by All 19 TMDB Movie Genres (19 genres * 4 pages = 1,520 titles)
+        var movieGenres = new[] { 28, 12, 16, 35, 80, 99, 18, 10751, 14, 36, 27, 10402, 9648, 10749, 878, 10770, 53, 10752, 37 };
+        foreach (var genreId in movieGenres)
+        {
+            for (int p = 1; p <= 4; p++)
+            {
+                endpoints.Add(($"discover/movie?with_genres={genreId}&sort_by=vote_average.desc&vote_count.gte=100&page={p}", "movie", "genre_highlight"));
+            }
+        }
+
+        // 11. Discover by Major TV Genres (10 genres * 4 pages = 800 titles)
+        var tvGenres = new[] { 10759, 16, 35, 80, 18, 10751, 9648, 10765, 10768, 37 };
+        foreach (var genreId in tvGenres)
+        {
+            for (int p = 1; p <= 4; p++)
+            {
+                endpoints.Add(($"discover/tv?with_genres={genreId}&sort_by=vote_average.desc&vote_count.gte=50&page={p}", "series", "genre_highlight"));
             }
         }
 
@@ -372,13 +406,13 @@ public class TmdbSyncService : ITmdbSyncService
         }
     }
 
-    private static async Task UpsertTitleSummaryAsync(ApplicationDbContext db, TmdbItemSummary summary, string categoryTag, CancellationToken cancellationToken)
+    private static void UpsertTitleSummary(
+        ApplicationDbContext db, 
+        Title? title, 
+        TmdbItemSummary summary, 
+        string categoryTag, 
+        int? vidsrcProviderId)
     {
-        var title = await db.Titles
-            .Include(t => t.TitleGenres)
-            .Include(t => t.TitleSources)
-            .FirstOrDefaultAsync(t => t.TmdbId == summary.Id, cancellationToken);
-
         var isNew = title == null;
         if (isNew)
         {
@@ -433,7 +467,28 @@ public class TmdbSyncService : ITmdbSyncService
         }
 
         // Auto-generate source (VidLink HD primary)
-        await EnsureTitleSourceAsync(db, title, cancellationToken);
+        EnsureTitleSource(title, vidsrcProviderId);
+    }
+
+    private static void EnsureTitleSource(Title title, int? vidsrcProviderId)
+    {
+        if (title.TitleSources.Any(ts => ts.IsActive)) return;
+        if (!vidsrcProviderId.HasValue) return;
+
+        var embedUrl = title.Type == "series"
+            ? $"https://vidlink.pro/tv/{title.TmdbId}/1/1"
+            : $"https://vidlink.pro/movie/{title.TmdbId}";
+
+        title.TitleSources.Add(new TitleSource
+        {
+            Title = title,
+            SourceProviderId = vidsrcProviderId.Value,
+            EmbedUrl = embedUrl,
+            Quality = "1080p HD",
+            IsActive = true,
+            SeasonNumber = title.Type == "series" ? 1 : null,
+            EpisodeNumber = title.Type == "series" ? 1 : null
+        });
     }
 
     private static async Task EnrichTitleDetailsAsync(ApplicationDbContext db, ITmdbService tmdbService, Title title, CancellationToken cancellationToken)
