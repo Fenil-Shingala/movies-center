@@ -1,0 +1,66 @@
+# ==============================================================================
+# Movies Center - Caddyfile Edge Gateway & Reverse Proxy
+# Automates Let's Encrypt / ZeroSSL TLS certificates, HTTP/3, and routing
+# ==============================================================================
+
+{
+    email {$ACME_EMAIL:admin@moviescenter.com}
+    # Auto-HTTPS is enabled by default for public domains
+}
+
+{$DOMAIN_NAME:localhost} {
+    encode gzip zstd
+
+    # Maximum payload size for media/video ingestion (100MB)
+    request_body {
+        max_size 100MB
+    }
+
+    # Production Security & CSP Headers
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://hcaptcha.com https://*.hcaptcha.com https://app.posthog.com https://us.i.posthog.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://hcaptcha.com https://*.hcaptcha.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https://image.tmdb.org https://img.youtube.com https://*.bunny.net; frame-src 'self' https://vidsrc.to https://vidsrc.me https://superembed.stream https://autoembed.to https://2embed.cc https://www.youtube.com https://www.youtube-nocookie.com https://hcaptcha.com https://*.hcaptcha.com; connect-src 'self' https://image.tmdb.org https://api.themoviedb.org https://app.posthog.com https://us.i.posthog.com https://hcaptcha.com https://*.hcaptcha.com; media-src 'self' blob: https:; worker-src 'self' blob:;"
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        -Server
+    }
+
+    # Static asset caching headers (30 days)
+    @static {
+        path *.ico *.css *.js *.gif *.jpg *.jpeg *.png *.svg *.webp *.woff *.woff2 *.map
+    }
+    header @static Cache-Control "public, max-age=2592000, no-transform"
+
+    # Backend Health Check
+    handle /health* {
+        reverse_proxy backend:8080
+    }
+
+    # Real-time SignalR Hubs (WebSockets are natively supported and upgraded by Caddy)
+    handle /hubs/* {
+        reverse_proxy backend:8080
+    }
+
+    # ASP.NET Core Web API Endpoints
+    handle /api/* {
+        reverse_proxy backend:8080
+    }
+
+    # OpenAPI / Swagger Endpoints
+    handle /openapi/* {
+        reverse_proxy backend:8080
+    }
+
+    # Hangfire Background Job Dashboard
+    handle /admin/hangfire* {
+        reverse_proxy backend:8080
+    }
+
+    # Frontend Angular SSR Engine (Node.js)
+    handle {
+        reverse_proxy frontend:4000
+    }
+}

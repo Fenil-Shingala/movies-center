@@ -112,17 +112,23 @@ services:
       - movies-center-net
 
   # ----------------------------------------------------------------------------
-  # 5. Nginx Production Reverse Proxy (Edge Gateway)
+  # 5. Caddy Production Reverse Proxy (Edge Gateway, Auto-HTTPS & HTTP/3)
   # ----------------------------------------------------------------------------
-  nginx:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
-    container_name: movies-center-nginx
+  caddy:
+    image: caddy:2-alpine
+    container_name: movies-center-caddy
     restart: unless-stopped
     ports:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp" # HTTP/3 QUIC
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME:-localhost}
+      - ACME_EMAIL=${ACME_EMAIL:-admin@moviescenter.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
     depends_on:
       frontend:
         condition: service_healthy
@@ -130,6 +136,27 @@ services:
         condition: service_healthy
     networks:
       - movies-center-net
+
+  # ----------------------------------------------------------------------------
+  # Optional: Nginx Reverse Proxy (Alternative to Caddy)
+  # To use Nginx instead: uncomment below and comment out the caddy service above.
+  # ----------------------------------------------------------------------------
+  # nginx:
+  #   build:
+  #     context: ./nginx
+  #     dockerfile: Dockerfile
+  #   container_name: movies-center-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${HTTP_PORT:-80}:80"
+  #     - "${HTTPS_PORT:-443}:443"
+  #   depends_on:
+  #     frontend:
+  #       condition: service_healthy
+  #     backend:
+  #       condition: service_healthy
+  #   networks:
+  #     - movies-center-net
 
 # ------------------------------------------------------------------------------
 # Persistent Storage Volumes
@@ -139,6 +166,10 @@ volumes:
     driver: local
   redis-prod-data:
     driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
 
 # ------------------------------------------------------------------------------
 # Isolated Internal Network
@@ -146,3 +177,4 @@ volumes:
 networks:
   movies-center-net:
     driver: bridge
+
