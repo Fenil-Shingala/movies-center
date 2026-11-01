@@ -1,6 +1,7 @@
 import { 
   Component, 
   OnInit, 
+  OnDestroy,
   inject, 
   signal, 
   computed,
@@ -9,6 +10,8 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { Subscription, interval } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 import { 
   LucideShieldCheck, 
   LucideLayoutDashboard, 
@@ -104,9 +107,10 @@ export type AdminTab = 'overview' | 'tmdb' | 'titles' | 'sources' | 'reports' | 
   styleUrl: './admin.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AdminComponent implements OnInit {
+export class AdminComponent implements OnInit, OnDestroy {
   private readonly adminService = inject(AdminService);
   private readonly analyticsService = inject(AnalyticsService);
+  private syncPollSub?: Subscription;
 
   readonly Math = Math;
 
@@ -262,7 +266,12 @@ export class AdminComponent implements OnInit {
   // --- TMDB SYNC & SEARCH ---
   loadSyncStatus(): void {
     this.adminService.getSyncStatus().subscribe({
-      next: (res) => this.syncStatus.set(res)
+      next: (res) => {
+        this.syncStatus.set(res);
+        if (res.isRunning && !this.syncPollSub) {
+          this.startSyncPolling();
+        }
+      }
     });
   }
 
@@ -270,16 +279,41 @@ export class AdminComponent implements OnInit {
     this.isSyncing.set(true);
     this.adminService.triggerSync().subscribe({
       next: (res) => {
-        this.isSyncing.set(false);
-        this.showToast(`Sync completed: ${res.itemsSynced} items updated.`);
-        this.loadSyncStatus();
-        this.loadStats();
+        this.showToast(res.message || 'Extensive catalog synchronization started in background...');
+        this.startSyncPolling();
       },
       error: () => {
         this.isSyncing.set(false);
         this.showToast('Sync encountered an error. Check logs.');
       }
     });
+  }
+
+  startSyncPolling(): void {
+    this.syncPollSub?.unsubscribe();
+    this.isSyncing.set(true);
+    this.syncPollSub = interval(2500).pipe(
+      switchMap(() => this.adminService.getSyncStatus())
+    ).subscribe({
+      next: (status) => {
+        this.syncStatus.set(status);
+        if (!status.isRunning) {
+          this.syncPollSub?.unsubscribe();
+          this.syncPollSub = undefined;
+          this.isSyncing.set(false);
+          this.showToast(`Sync completed: ${status.lastItemsSynced} titles synced!`);
+          this.loadStats();
+          this.loadTitles();
+        }
+      },
+      error: () => {
+        this.isSyncing.set(false);
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.syncPollSub?.unsubscribe();
   }
 
   searchTmdb(): void {

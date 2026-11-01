@@ -5,7 +5,8 @@ public record TmdbSyncResultDto(
     int ItemsSynced,
     int Errors,
     TimeSpan Duration,
-    string? ErrorMessage = null
+    string? ErrorMessage = null,
+    string? Message = null
 );
 
 public record TmdbSyncStatusDto(

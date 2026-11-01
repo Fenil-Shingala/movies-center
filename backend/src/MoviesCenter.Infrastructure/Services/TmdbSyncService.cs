@@ -1,6 +1,7 @@
 using System.Diagnostics;
+using System.Net;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MoviesCenter.Application.Common.Interfaces;
 using MoviesCenter.Application.Common.Models;
@@ -17,18 +18,21 @@ public class TmdbSyncService : ITmdbSyncService
     private readonly ITmdbService _tmdbService;
     private readonly ICacheService _cacheService;
     private readonly ILogger<TmdbSyncService> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
     private static readonly SemaphoreSlim SyncLock = new(1, 1);
 
     public TmdbSyncService(
         ApplicationDbContext db,
         ITmdbService tmdbService,
         ICacheService cacheService,
-        ILogger<TmdbSyncService> logger)
+        ILogger<TmdbSyncService> logger,
+        IServiceScopeFactory scopeFactory)
     {
         _db = db;
         _tmdbService = tmdbService;
         _cacheService = cacheService;
         _logger = logger;
+        _scopeFactory = scopeFactory;
     }
 
     public async Task<TmdbSyncStatusDto> GetSyncStatusAsync(CancellationToken cancellationToken = default)
@@ -50,12 +54,33 @@ public class TmdbSyncService : ITmdbSyncService
         );
     }
 
-    public async Task<TmdbSyncResultDto> RunFullSyncAsync(string triggeredBy = "Admin", CancellationToken cancellationToken = default)
+    public Task<TmdbSyncResultDto> RunFullSyncAsync(string triggeredBy = "Admin", CancellationToken cancellationToken = default)
     {
-        if (!await SyncLock.WaitAsync(0, cancellationToken))
+        if (SyncLock.CurrentCount == 0)
         {
-            return new TmdbSyncResultDto(false, 0, 0, TimeSpan.Zero, "A TMDB synchronization is already in progress.");
+            return Task.FromResult(new TmdbSyncResultDto(false, 0, 0, TimeSpan.Zero, "A TMDB synchronization is already in progress.", "A TMDB synchronization is already in progress."));
         }
+
+        // Launch in background so HTTP request returns immediately and does not time out
+        _ = Task.Run(async () =>
+        {
+            await ExecuteFullSyncBackgroundAsync(triggeredBy);
+        }, CancellationToken.None);
+
+        return Task.FromResult(new TmdbSyncResultDto(true, 0, 0, TimeSpan.Zero, null, "Extensive TMDB catalog synchronization initiated in background."));
+    }
+
+    private async Task ExecuteFullSyncBackgroundAsync(string triggeredBy)
+    {
+        if (!await SyncLock.WaitAsync(0))
+        {
+            return;
+        }
+
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var tmdbService = scope.ServiceProvider.GetRequiredService<ITmdbService>();
+        var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
 
         var stopwatch = Stopwatch.StartNew();
         var syncLog = new TmdbSyncLog
@@ -65,61 +90,69 @@ public class TmdbSyncService : ITmdbSyncService
             TriggeredBy = triggeredBy
         };
 
-        _db.TmdbSyncLogs.Add(syncLog);
-        await _db.SaveChangesAsync(cancellationToken);
+        db.TmdbSyncLogs.Add(syncLog);
+        await db.SaveChangesAsync();
 
         var itemsSyncedCount = 0;
         var errorCount = 0;
 
         try
         {
-            _logger.LogInformation("Starting TMDB catalog synchronization triggered by {TriggeredBy}...", triggeredBy);
+            _logger.LogInformation("Starting extensive TMDB catalog synchronization triggered by {TriggeredBy}...", triggeredBy);
 
             // 1. Sync genres
-            await SyncGenresAsync(cancellationToken);
+            await SyncGenresAsync(db, tmdbService, CancellationToken.None);
 
-            // 2. Sync category lists
-            var categoryEndpoints = new (string Endpoint, string Type, string Category)[]
-            {
-                ("trending/movie/week", "movie", "trending"),
-                ("trending/tv/week", "series", "trending"),
-                
-                // Add more pages for popular movies (e.g. pages 1 to 5 = 100 titles)
-                ("movie/popular?page=1", "movie", "popular"),
-                ("movie/popular?page=2", "movie", "popular"),
-                ("movie/popular?page=3", "movie", "popular"),
-                ("movie/popular?page=4", "movie", "popular"),
-                ("movie/popular?page=5", "movie", "popular"),
-                // Add more pages for popular TV shows
-                ("tv/popular?page=1", "series", "popular"),
-                ("tv/popular?page=2", "series", "popular"),
-                ("tv/popular?page=3", "series", "popular"),
-                // Top rated movies & shows
-                ("movie/top_rated?page=1", "movie", "top_rated"),
-                ("movie/top_rated?page=2", "movie", "top_rated"),
-                ("tv/top_rated?page=1", "series", "top_rated"),
-                
-                ("movie/upcoming?page=1", "movie", "upcoming"),
-                ("movie/now_playing?page=1", "movie", "now_playing")
-            };
-
+            // 2. Generate comprehensive list of category and discover endpoints (covers thousands of titles)
+            var categoryEndpoints = GenerateSyncEndpoints();
             var processedTmdbIds = new HashSet<(int TmdbId, string Type)>();
 
             foreach (var (endpoint, type, category) in categoryEndpoints)
             {
                 try
                 {
-                    var items = await _tmdbService.GetListEndpointAsync(endpoint, type, cancellationToken);
+                    List<TmdbItemSummary>? items = null;
+
+                    // Retry up to 3 times with polite backoff if rate limited (429)
+                    for (int attempt = 1; attempt <= 3; attempt++)
+                    {
+                        try
+                        {
+                            items = await tmdbService.GetListEndpointAsync(endpoint, type, CancellationToken.None);
+                            break;
+                        }
+                        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
+                        {
+                            _logger.LogWarning("TMDB rate limit hit on {Endpoint}. Retrying in 2.5s (attempt {Attempt}/3)...", endpoint, attempt);
+                            await Task.Delay(2500);
+                        }
+                    }
+
+                    if (items == null || items.Count == 0) continue;
+
+                    // Micro-pause between TMDB requests (polite rate limiting)
+                    await Task.Delay(40);
+
+                    var newOrUpdatedInBatch = 0;
                     foreach (var item in items)
                     {
                         var key = (item.Id, type);
                         if (!processedTmdbIds.Contains(key))
                         {
                             processedTmdbIds.Add(key);
+                            await UpsertTitleSummaryAsync(db, item, category, CancellationToken.None);
+                            newOrUpdatedInBatch++;
                         }
+                    }
 
-                        await UpsertTitleSummaryAsync(item, category, cancellationToken);
-                        itemsSyncedCount++;
+                    if (newOrUpdatedInBatch > 0)
+                    {
+                        await db.SaveChangesAsync();
+                        itemsSyncedCount += newOrUpdatedInBatch;
+
+                        // Periodically commit live itemsSyncedCount to TmdbSyncLog so live progress is visible in UI
+                        syncLog.ItemsSynced = itemsSyncedCount;
+                        await db.SaveChangesAsync();
                     }
                 }
                 catch (Exception ex)
@@ -129,18 +162,19 @@ public class TmdbSyncService : ITmdbSyncService
                 }
             }
 
-            // 3. For the top items (trending + popular), fetch full details (cast, trailers, seasons)
-            var topTitlesToEnrich = await _db.Titles
+            // 3. For the top 80 most popular titles, fetch full details (cast, trailers, seasons breakdown)
+            var topTitlesToEnrich = await db.Titles
                 .Where(t => t.IsActive && t.TmdbListCategory != null && (t.TmdbListCategory.Contains("trending") || t.TmdbListCategory.Contains("popular")))
                 .OrderByDescending(t => t.Popularity)
-                .Take(40)
-                .ToListAsync(cancellationToken);
+                .Take(80)
+                .ToListAsync();
 
             foreach (var title in topTitlesToEnrich)
             {
                 try
                 {
-                    await EnrichTitleDetailsAsync(title, cancellationToken);
+                    await EnrichTitleDetailsAsync(db, tmdbService, title, CancellationToken.None);
+                    await Task.Delay(40);
                 }
                 catch (Exception ex)
                 {
@@ -149,20 +183,18 @@ public class TmdbSyncService : ITmdbSyncService
                 }
             }
 
-            // 4. Invalidate relevant caches
-            await _cacheService.RemoveAsync("home_feed_v1", cancellationToken);
+            // 4. Invalidate home feed cache so new catalog immediately reflects
+            await cacheService.RemoveAsync("home_feed_v1");
 
             stopwatch.Stop();
             syncLog.Status = "Completed";
             syncLog.CompletedAt = DateTimeOffset.UtcNow;
             syncLog.ItemsSynced = itemsSyncedCount;
             syncLog.Errors = errorCount;
-            await _db.SaveChangesAsync(cancellationToken);
+            await db.SaveChangesAsync();
 
-            _logger.LogInformation("TMDB catalog sync completed successfully in {Duration}s. Synced: {Synced}, Errors: {Errors}",
+            _logger.LogInformation("Comprehensive TMDB catalog sync completed successfully in {Duration}s. Synced: {Synced}, Errors: {Errors}",
                 stopwatch.Elapsed.TotalSeconds, itemsSyncedCount, errorCount);
-
-            return new TmdbSyncResultDto(true, itemsSyncedCount, errorCount, stopwatch.Elapsed);
         }
         catch (Exception ex)
         {
@@ -173,9 +205,7 @@ public class TmdbSyncService : ITmdbSyncService
             syncLog.CompletedAt = DateTimeOffset.UtcNow;
             syncLog.ErrorMessage = ex.Message;
             syncLog.Errors = errorCount + 1;
-            await _db.SaveChangesAsync(CancellationToken.None);
-
-            return new TmdbSyncResultDto(false, itemsSyncedCount, errorCount + 1, stopwatch.Elapsed, ex.Message);
+            await db.SaveChangesAsync();
         }
         finally
         {
@@ -206,7 +236,7 @@ public class TmdbSyncService : ITmdbSyncService
             }
 
             ApplyFullDetailToEntity(existing, detail);
-            await EnsureTitleSourceAsync(existing, cancellationToken);
+            await EnsureTitleSourceAsync(_db, existing, cancellationToken);
             await _db.SaveChangesAsync(cancellationToken);
 
             await _cacheService.RemoveAsync("home_feed_v1", cancellationToken);
@@ -219,17 +249,109 @@ public class TmdbSyncService : ITmdbSyncService
         }
     }
 
-    private async Task SyncGenresAsync(CancellationToken cancellationToken)
+    private static List<(string Endpoint, string Type, string Category)> GenerateSyncEndpoints()
+    {
+        var endpoints = new List<(string Endpoint, string Type, string Category)>
+        {
+            // 1. Trending Day & Week
+            ("trending/movie/day", "movie", "trending"),
+            ("trending/movie/week", "movie", "trending"),
+            ("trending/tv/day", "series", "trending"),
+            ("trending/tv/week", "series", "trending")
+        };
+
+        // 2. Popular Movies (50 pages = 1,000 titles)
+        for (int p = 1; p <= 50; p++)
+        {
+            endpoints.Add(($"movie/popular?page={p}", "movie", "popular"));
+        }
+
+        // 3. Popular TV Series (40 pages = 800 titles)
+        for (int p = 1; p <= 40; p++)
+        {
+            endpoints.Add(($"tv/popular?page={p}", "series", "popular"));
+        }
+
+        // 4. Top Rated Movies (30 pages = 600 titles)
+        for (int p = 1; p <= 30; p++)
+        {
+            endpoints.Add(($"movie/top_rated?page={p}", "movie", "top_rated"));
+        }
+
+        // 5. Top Rated TV Series (25 pages = 500 titles)
+        for (int p = 1; p <= 25; p++)
+        {
+            endpoints.Add(($"tv/top_rated?page={p}", "series", "top_rated"));
+        }
+
+        // 6. Now Playing & Upcoming Theatrical Movies (20 pages = 400 titles)
+        for (int p = 1; p <= 10; p++)
+        {
+            endpoints.Add(($"movie/now_playing?page={p}", "movie", "now_playing"));
+            endpoints.Add(($"movie/upcoming?page={p}", "movie", "upcoming"));
+        }
+
+        // 7. On The Air & Airing Today TV Series (15 pages = 300 titles)
+        for (int p = 1; p <= 10; p++)
+        {
+            endpoints.Add(($"tv/on_the_air?page={p}", "series", "on_the_air"));
+        }
+        for (int p = 1; p <= 5; p++)
+        {
+            endpoints.Add(($"tv/airing_today?page={p}", "series", "airing_today"));
+        }
+
+        // 8. Discover by Release Year (2016 through 2026 - 11 years)
+        // 5 pages of movies (100) + 3 pages of TV (60) per year = 1,760 titles
+        for (int year = 2026; year >= 2016; year--)
+        {
+            for (int p = 1; p <= 5; p++)
+            {
+                endpoints.Add(($"discover/movie?primary_release_year={year}&sort_by=popularity.desc&vote_count.gte=30&page={p}", "movie", $"year_{year}"));
+            }
+            for (int p = 1; p <= 3; p++)
+            {
+                endpoints.Add(($"discover/tv?first_air_date_year={year}&sort_by=popularity.desc&vote_count.gte=15&page={p}", "series", $"year_{year}"));
+            }
+        }
+
+        // 9. Discover Classic Blockbusters (2000 to 2014)
+        for (int year = 2014; year >= 2000; year -= 2)
+        {
+            for (int p = 1; p <= 3; p++)
+            {
+                endpoints.Add(($"discover/movie?primary_release_year={year}&sort_by=vote_count.desc&vote_count.gte=300&page={p}", "movie", "classics"));
+            }
+        }
+
+        // 10. Discover by Major Genres (Action, Comedy, Animation, Sci-Fi, Horror, Drama, Romance, Thriller)
+        var majorGenres = new[] { 28, 35, 16, 878, 27, 18, 10749, 53 };
+        foreach (var genreId in majorGenres)
+        {
+            for (int p = 1; p <= 3; p++)
+            {
+                endpoints.Add(($"discover/movie?with_genres={genreId}&sort_by=vote_average.desc&vote_count.gte=150&page={p}", "movie", "genre_highlight"));
+            }
+            for (int p = 1; p <= 2; p++)
+            {
+                endpoints.Add(($"discover/tv?with_genres={genreId}&sort_by=vote_average.desc&vote_count.gte=100&page={p}", "series", "genre_highlight"));
+            }
+        }
+
+        return endpoints;
+    }
+
+    private static async Task SyncGenresAsync(ApplicationDbContext db, ITmdbService tmdbService, CancellationToken cancellationToken)
     {
         try
         {
-            var genres = await _tmdbService.GetGenreMapAsync(cancellationToken);
+            var genres = await tmdbService.GetGenreMapAsync(cancellationToken);
             foreach (var (id, name) in genres)
             {
-                var existing = await _db.Genres.FindAsync([id], cancellationToken);
+                var existing = await db.Genres.FindAsync([id], cancellationToken);
                 if (existing == null)
                 {
-                    _db.Genres.Add(new Genre
+                    db.Genres.Add(new Genre
                     {
                         Id = id,
                         Name = name,
@@ -241,17 +363,18 @@ public class TmdbSyncService : ITmdbSyncService
                     existing.Name = name;
                 }
             }
-            await _db.SaveChangesAsync(cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to sync TMDB genres");
+            // Log non-fatal genre sync error
+            Debug.WriteLine($"Failed to sync TMDB genres: {ex.Message}");
         }
     }
 
-    private async Task UpsertTitleSummaryAsync(TmdbItemSummary summary, string categoryTag, CancellationToken cancellationToken)
+    private static async Task UpsertTitleSummaryAsync(ApplicationDbContext db, TmdbItemSummary summary, string categoryTag, CancellationToken cancellationToken)
     {
-        var title = await _db.Titles
+        var title = await db.Titles
             .Include(t => t.TitleGenres)
             .Include(t => t.TitleSources)
             .FirstOrDefaultAsync(t => t.TmdbId == summary.Id, cancellationToken);
@@ -264,7 +387,7 @@ public class TmdbSyncService : ITmdbSyncService
                 TmdbId = summary.Id,
                 Type = summary.Type
             };
-            _db.Titles.Add(title);
+            db.Titles.Add(title);
         }
 
         title!.TitleText = summary.Title;
@@ -309,15 +432,13 @@ public class TmdbSyncService : ITmdbSyncService
             }
         }
 
-        // Auto-generate source
-        await EnsureTitleSourceAsync(title, cancellationToken);
-
-        await _db.SaveChangesAsync(cancellationToken);
+        // Auto-generate source (VidLink HD primary)
+        await EnsureTitleSourceAsync(db, title, cancellationToken);
     }
 
-    private async Task EnrichTitleDetailsAsync(Title title, CancellationToken cancellationToken)
+    private static async Task EnrichTitleDetailsAsync(ApplicationDbContext db, ITmdbService tmdbService, Title title, CancellationToken cancellationToken)
     {
-        var detail = await _tmdbService.GetFullDetailsAsync(title.TmdbId, title.Type, cancellationToken);
+        var detail = await tmdbService.GetFullDetailsAsync(title.TmdbId, title.Type, cancellationToken);
         if (detail == null) return;
 
         ApplyFullDetailToEntity(title, detail);
@@ -325,13 +446,12 @@ public class TmdbSyncService : ITmdbSyncService
         // Enrich Cast
         if (detail.Cast.Count > 0)
         {
-            // Remove old cast
-            var oldCasts = await _db.TitleCasts.Where(tc => tc.TitleId == title.Id).ToListAsync(cancellationToken);
-            _db.TitleCasts.RemoveRange(oldCasts);
+            var oldCasts = await db.TitleCasts.Where(tc => tc.TitleId == title.Id).ToListAsync(cancellationToken);
+            db.TitleCasts.RemoveRange(oldCasts);
 
             foreach (var c in detail.Cast)
             {
-                var person = await _db.People.FirstOrDefaultAsync(p => p.TmdbId == c.PersonTmdbId, cancellationToken);
+                var person = await db.People.FirstOrDefaultAsync(p => p.TmdbId == c.PersonTmdbId, cancellationToken);
                 if (person == null)
                 {
                     person = new Person
@@ -340,15 +460,15 @@ public class TmdbSyncService : ITmdbSyncService
                         Name = c.Name,
                         ProfilePath = c.ProfilePath
                     };
-                    _db.People.Add(person);
-                    await _db.SaveChangesAsync(cancellationToken);
+                    db.People.Add(person);
+                    await db.SaveChangesAsync(cancellationToken);
                 }
                 else if (string.IsNullOrEmpty(person.ProfilePath) && !string.IsNullOrEmpty(c.ProfilePath))
                 {
                     person.ProfilePath = c.ProfilePath;
                 }
 
-                _db.TitleCasts.Add(new TitleCast
+                db.TitleCasts.Add(new TitleCast
                 {
                     TitleId = title.Id,
                     PersonId = person.Id,
@@ -361,12 +481,12 @@ public class TmdbSyncService : ITmdbSyncService
         // Enrich Videos (trailers)
         if (detail.Videos.Count > 0)
         {
-            var oldVideos = await _db.Videos.Where(v => v.TitleId == title.Id).ToListAsync(cancellationToken);
-            _db.Videos.RemoveRange(oldVideos);
+            var oldVideos = await db.Videos.Where(v => v.TitleId == title.Id).ToListAsync(cancellationToken);
+            db.Videos.RemoveRange(oldVideos);
 
             foreach (var v in detail.Videos)
             {
-                _db.Videos.Add(new Video
+                db.Videos.Add(new Video
                 {
                     TitleId = title.Id,
                     TmdbKey = v.Key,
@@ -380,12 +500,12 @@ public class TmdbSyncService : ITmdbSyncService
         // Enrich Providers
         if (detail.Providers.Count > 0)
         {
-            var oldProviders = await _db.TitleProviders.Where(tp => tp.TitleId == title.Id).ToListAsync(cancellationToken);
-            _db.TitleProviders.RemoveRange(oldProviders);
+            var oldProviders = await db.TitleProviders.Where(tp => tp.TitleId == title.Id).ToListAsync(cancellationToken);
+            db.TitleProviders.RemoveRange(oldProviders);
 
             foreach (var p in detail.Providers)
             {
-                var provider = await _db.Providers.FirstOrDefaultAsync(pr => pr.TmdbId == p.ProviderTmdbId, cancellationToken);
+                var provider = await db.Providers.FirstOrDefaultAsync(pr => pr.TmdbId == p.ProviderTmdbId, cancellationToken);
                 if (provider == null)
                 {
                     provider = new Provider
@@ -394,11 +514,11 @@ public class TmdbSyncService : ITmdbSyncService
                         Name = p.Name,
                         LogoPath = p.LogoPath
                     };
-                    _db.Providers.Add(provider);
-                    await _db.SaveChangesAsync(cancellationToken);
+                    db.Providers.Add(provider);
+                    await db.SaveChangesAsync(cancellationToken);
                 }
 
-                _db.TitleProviders.Add(new TitleProvider
+                db.TitleProviders.Add(new TitleProvider
                 {
                     TitleId = title.Id,
                     ProviderId = provider.Id,
@@ -411,7 +531,7 @@ public class TmdbSyncService : ITmdbSyncService
         // If Series, enrich Seasons
         if (title.Type == "series" && detail.Seasons.Count > 0)
         {
-            var existingSeasons = await _db.Seasons.Where(s => s.TitleId == title.Id).ToListAsync(cancellationToken);
+            var existingSeasons = await db.Seasons.Where(s => s.TitleId == title.Id).ToListAsync(cancellationToken);
 
             foreach (var s in detail.Seasons)
             {
@@ -429,7 +549,7 @@ public class TmdbSyncService : ITmdbSyncService
                         EpisodeCount = s.EpisodeCount
                     };
                     if (DateTime.TryParse(s.AirDate, out var sa)) season.AirDate = sa;
-                    _db.Seasons.Add(season);
+                    db.Seasons.Add(season);
                 }
                 else
                 {
@@ -442,7 +562,7 @@ public class TmdbSyncService : ITmdbSyncService
             }
         }
 
-        await _db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     private static void ApplyFullDetailToEntity(Title title, TmdbFullDetail detail)
@@ -471,23 +591,23 @@ public class TmdbSyncService : ITmdbSyncService
         }
     }
 
-    private async Task EnsureTitleSourceAsync(Title title, CancellationToken cancellationToken)
+    private static async Task EnsureTitleSourceAsync(ApplicationDbContext db, Title title, CancellationToken cancellationToken)
     {
         if (title.TitleSources.Any(ts => ts.IsActive)) return;
 
-        var vidsrcProvider = await _db.SourceProviders.FirstOrDefaultAsync(sp => sp.Slug == AppConstants.Providers.VidSrc, cancellationToken);
+        var vidsrcProvider = await db.SourceProviders.FirstOrDefaultAsync(sp => sp.Slug == AppConstants.Providers.VidSrc, cancellationToken);
         if (vidsrcProvider == null) return;
 
         var embedUrl = title.Type == "series"
-            ? $"https://vidsrc.to/embed/tv/{title.TmdbId}/1/1"
-            : $"https://vidsrc.to/embed/movie/{title.TmdbId}";
+            ? $"https://vidlink.pro/tv/{title.TmdbId}/1/1"
+            : $"https://vidlink.pro/movie/{title.TmdbId}";
 
         title.TitleSources.Add(new TitleSource
         {
             Title = title,
             SourceProviderId = vidsrcProvider.Id,
             EmbedUrl = embedUrl,
-            Quality = "1080p",
+            Quality = "1080p HD",
             IsActive = true,
             SeasonNumber = title.Type == "series" ? 1 : null,
             EpisodeNumber = title.Type == "series" ? 1 : null

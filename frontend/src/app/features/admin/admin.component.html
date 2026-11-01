@@ -209,7 +209,7 @@
             <div class="card-footer-action">
               <button type="button" class="btn btn-primary btn-block" [disabled]="isSyncing()" (click)="triggerTmdbSync()">
                 <svg lucideRefreshCw class="btn-icon" [class.spin]="isSyncing()"></svg>
-                <span>{{ isSyncing() ? 'Synchronizing Catalog...' : 'Trigger Manual Sync Now' }}</span>
+                <span>{{ isSyncing() ? 'Synchronizing (' + (syncStatus()?.lastItemsSynced ?? 0) + ' items)...' : 'Trigger Manual Sync Now' }}</span>
               </button>
             </div>
           </div>
@@ -232,7 +232,7 @@
         </div>
         <button type="button" class="btn btn-primary sync-now-btn" [disabled]="isSyncing()" (click)="triggerTmdbSync()">
           <svg lucideRefreshCw class="btn-icon" [class.spin]="isSyncing()"></svg>
-          <span>{{ isSyncing() ? 'Synchronizing Catalog...' : 'Run Full Sync Now' }}</span>
+          <span>{{ isSyncing() ? 'Synchronizing (' + (syncStatus()?.lastItemsSynced ?? 0) + ' items)...' : 'Run Full Sync Now' }}</span>
         </button>
       </div>
 

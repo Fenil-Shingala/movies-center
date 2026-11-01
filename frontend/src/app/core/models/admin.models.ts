@@ -14,6 +14,7 @@ export interface TmdbSyncResult {
   errors: number;
   duration: string;
   errorMessage?: string | null;
+  message?: string | null;
 }
 
 export interface AdminStatsOverview {
