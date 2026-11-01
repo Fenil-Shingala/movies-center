@@ -4,8 +4,6 @@ import { RouterLink } from '@angular/router';
 import { 
   LucideShield, 
   LucideLock, 
-  LucideDatabase, 
-  LucideEye, 
   LucideCookie, 
   LucideMail, 
   LucideClock, 
@@ -23,8 +21,6 @@ import { SeoService } from '../../core/services/seo.service';
     RouterLink,
     LucideShield, 
     LucideLock, 
-    LucideDatabase, 
-    LucideEye, 
     LucideCookie, 
     LucideMail, 
     LucideClock, 

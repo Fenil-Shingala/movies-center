@@ -3,10 +3,8 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { 
   LucideShield, 
-  LucideFileText, 
   LucideAlertTriangle, 
   LucideScale, 
-  LucideExternalLink, 
   LucideClock, 
   LucideCheckCircle2,
   LucideGlobe
@@ -20,10 +18,8 @@ import { SeoService } from '../../core/services/seo.service';
     CommonModule, 
     RouterLink,
     LucideShield, 
-    LucideFileText, 
     LucideAlertTriangle, 
     LucideScale, 
-    LucideExternalLink, 
     LucideClock, 
     LucideCheckCircle2,
     LucideGlobe

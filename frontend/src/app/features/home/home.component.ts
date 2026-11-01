@@ -5,7 +5,6 @@ import {
   LucideClock, 
   LucidePlay, 
   LucideBookmark, 
-  LucideCheck, 
   LucideX 
 } from '@lucide/angular';
 import { HomeService } from '../../core/services/home.service';
@@ -26,7 +25,6 @@ import { TopTenRowComponent } from './components/top-ten-row/top-ten-row.compone
     LucideClock, 
     LucidePlay, 
     LucideBookmark, 
-    LucideCheck, 
     LucideX, 
     HeroBannerComponent, 
     ContentRowComponent, 
