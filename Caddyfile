@@ -23,7 +23,7 @@
         X-XSS-Protection "1; mode=block"
         Referrer-Policy "strict-origin-when-cross-origin"
         Permissions-Policy "camera=(), microphone=(), geolocation=()"
-        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://hcaptcha.com https://*.hcaptcha.com https://app.posthog.com https://us.i.posthog.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://hcaptcha.com https://*.hcaptcha.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https://image.tmdb.org https://img.youtube.com https://*.bunny.net; frame-src 'self' https://vidsrc.to https://vidsrc.me https://superembed.stream https://autoembed.to https://2embed.cc https://www.youtube.com https://www.youtube-nocookie.com https://hcaptcha.com https://*.hcaptcha.com; connect-src 'self' https://image.tmdb.org https://api.themoviedb.org https://app.posthog.com https://us.i.posthog.com https://hcaptcha.com https://*.hcaptcha.com; media-src 'self' blob: https:; worker-src 'self' blob:;"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://hcaptcha.com https://*.hcaptcha.com https://app.posthog.com https://us.i.posthog.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://hcaptcha.com https://*.hcaptcha.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; frame-src 'self' https: blob: data:; connect-src 'self' https:; media-src 'self' blob: https:; worker-src 'self' blob:;"
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         -Server
     }

@@ -594,21 +594,21 @@ public class CatalogQueryService : ICatalogQueryService
         var standardSources = isSeries
             ? new List<TitleSourceDto>
             {
-                new(101, "2Embed", "ThirdPartyEmbed", $"https://www.2embed.cc/embedtv/{title.TmdbId}&s={s}&e={e}", "Auto", "Server 1 (2Embed)", 1, false),
-                new(102, "SmashyStream", "ThirdPartyEmbed", $"https://player.smashystream.com/playere.php?tmdb={title.TmdbId}&season={s}&episode={e}", "1080p/Multi", "Server 2 (SmashyStream)", 2, false),
-                new(103, "VidLink", "ThirdPartyEmbed", $"https://vidlink.pro/tv/{title.TmdbId}/{s}/{e}", "1080p HD", "Server 3 (VidLink HD)", 3, false),
+                new(101, "VidLink", "ThirdPartyEmbed", $"https://vidlink.pro/tv/{title.TmdbId}/{s}/{e}", "1080p HD", "Server 1 (VidLink HD)", 1, false),
+                new(102, "VidSrc", "ThirdPartyEmbed", $"https://vidsrc.to/embed/tv/{title.TmdbId}/{s}/{e}", "1080p HD", "Server 2 (VidSrc Pro)", 2, false),
+                new(103, "2Embed", "ThirdPartyEmbed", $"https://www.2embed.cc/embedtv/{title.TmdbId}&s={s}&e={e}", "Auto", "Server 3 (2Embed)", 3, false),
                 new(104, "VidSrc Mirror", "ThirdPartyEmbed", $"https://vidsrc.pm/embed/tv/{title.TmdbId}/{s}/{e}", "720p/1080p", "Server 4 (VidSrc Mirror)", 4, false),
                 new(105, "AutoEmbed", "ThirdPartyEmbed", $"https://autoembed.co/tv/tmdb/{title.TmdbId}-{s}-{e}", "1080p", "Server 5 (AutoEmbed)", 5, false),
-                new(106, "VidSrc", "ThirdPartyEmbed", $"https://vidsrc.to/embed/tv/{title.TmdbId}/{s}/{e}", "1080p HD", "Server 6 (VidSrc Pro)", 6, false)
+                new(106, "SmashyStream", "ThirdPartyEmbed", $"https://player.smashystream.com/playere.php?tmdb={title.TmdbId}&season={s}&episode={e}", "1080p/Multi", "Server 6 (SmashyStream)", 6, false)
             }
             : new List<TitleSourceDto>
             {
-                new(101, "2Embed", "ThirdPartyEmbed", $"https://www.2embed.cc/embed/{title.TmdbId}", "Auto", "Server 1 (2Embed)", 1, false),
-                new(102, "SmashyStream", "ThirdPartyEmbed", $"https://player.smashystream.com/playere.php?tmdb={title.TmdbId}", "1080p/Multi", "Server 2 (SmashyStream)", 2, false),
-                new(103, "VidLink", "ThirdPartyEmbed", $"https://vidlink.pro/movie/{title.TmdbId}", "1080p HD", "Server 3 (VidLink HD)", 3, false),
+                new(101, "VidLink", "ThirdPartyEmbed", $"https://vidlink.pro/movie/{title.TmdbId}", "1080p HD", "Server 1 (VidLink HD)", 1, false),
+                new(102, "VidSrc", "ThirdPartyEmbed", $"https://vidsrc.to/embed/movie/{title.TmdbId}", "1080p HD", "Server 2 (VidSrc Pro)", 2, false),
+                new(103, "2Embed", "ThirdPartyEmbed", $"https://www.2embed.cc/embed/{title.TmdbId}", "Auto", "Server 3 (2Embed)", 3, false),
                 new(104, "VidSrc Mirror", "ThirdPartyEmbed", $"https://vidsrc.pm/embed/movie/{title.TmdbId}", "720p/1080p", "Server 4 (VidSrc Mirror)", 4, false),
                 new(105, "AutoEmbed", "ThirdPartyEmbed", $"https://autoembed.co/movie/tmdb/{title.TmdbId}", "1080p", "Server 5 (AutoEmbed)", 5, false),
-                new(106, "VidSrc", "ThirdPartyEmbed", $"https://vidsrc.to/embed/movie/{title.TmdbId}", "1080p HD", "Server 6 (VidSrc Pro)", 6, false)
+                new(106, "SmashyStream", "ThirdPartyEmbed", $"https://player.smashystream.com/playere.php?tmdb={title.TmdbId}", "1080p/Multi", "Server 6 (SmashyStream)", 6, false)
             };
 
         foreach (var standard in standardSources)
