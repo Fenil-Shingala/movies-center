@@ -31,14 +31,61 @@
         <div class="toc-card glass-panel">
           <h3 class="toc-title">Table of Contents</h3>
           <nav class="toc-links">
-            <a href="#overview" class="toc-link">1. Overview</a>
-            <a href="#information-collected" class="toc-link">2. Information We Collect</a>
-            <a href="#cookies-storage" class="toc-link active-accent">3. Cookies &amp; Local Storage</a>
-            <a href="#third-parties" class="toc-link">4. Third-Party Services</a>
-            <a href="#security" class="toc-link">5. Data Security</a>
-            <a href="#user-rights" class="toc-link">6. Your Rights (GDPR &amp; CCPA)</a>
-            <a href="#children" class="toc-link">7. Children's Privacy</a>
-            <a href="#contact" class="toc-link">8. Contact Us</a>
+            <a 
+              href="#overview" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'overview'"
+              (click)="scrollToSection('overview', $event)"
+            >1. Overview</a>
+
+            <a 
+              href="#information-collected" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'information-collected'"
+              (click)="scrollToSection('information-collected', $event)"
+            >2. Information We Collect</a>
+
+            <a 
+              href="#cookies-storage" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'cookies-storage'"
+              (click)="scrollToSection('cookies-storage', $event)"
+            >3. Cookies &amp; Local Storage</a>
+
+            <a 
+              href="#third-parties" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'third-parties'"
+              (click)="scrollToSection('third-parties', $event)"
+            >4. Third-Party Services</a>
+
+            <a 
+              href="#security" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'security'"
+              (click)="scrollToSection('security', $event)"
+            >5. Data Security</a>
+
+            <a 
+              href="#user-rights" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'user-rights'"
+              (click)="scrollToSection('user-rights', $event)"
+            >6. Your Rights (GDPR &amp; CCPA)</a>
+
+            <a 
+              href="#children" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'children'"
+              (click)="scrollToSection('children', $event)"
+            >7. Children's Privacy</a>
+
+            <a 
+              href="#contact" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'contact'"
+              (click)="scrollToSection('contact', $event)"
+            >8. Contact Us</a>
           </nav>
         </div>
       </aside>

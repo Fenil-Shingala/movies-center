@@ -31,15 +31,61 @@
         <div class="toc-card glass-panel">
           <h3 class="toc-title">Table of Contents</h3>
           <nav class="toc-links">
-            <a href="#acceptance" class="toc-link">1. Acceptance of Terms</a>
-            <a href="#non-hosting" class="toc-link active-accent">2. Non-Hosting Disclaimer</a>
-            <a href="#dmca" class="toc-link">3. DMCA Copyright Policy</a>
-            <a href="#use-of-site" class="toc-link">4. Permitted Use &amp; Prohibitions</a>
-            <a href="#user-accounts" class="toc-link">5. Accounts &amp; Security</a>
-            <a href="#third-party-links" class="toc-link">6. Third-Party Links &amp; Players</a>
-            <a href="#intellectual-property" class="toc-link">7. Intellectual Property</a>
-            <a href="#disclaimers" class="toc-link">8. Disclaimers &amp; Limitations</a>
-            <a href="#contact" class="toc-link">9. Contact &amp; Takedown Requests</a>
+            <a 
+              href="#acceptance" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'acceptance'"
+              (click)="scrollToSection('acceptance', $event)"
+            >1. Acceptance of Terms</a>
+
+            <a 
+              href="#non-hosting" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'non-hosting'"
+              (click)="scrollToSection('non-hosting', $event)"
+            >2. Non-Hosting Disclaimer</a>
+
+            <a 
+              href="#dmca" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'dmca'"
+              (click)="scrollToSection('dmca', $event)"
+            >3. DMCA Copyright Policy</a>
+
+            <a 
+              href="#use-of-site" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'use-of-site'"
+              (click)="scrollToSection('use-of-site', $event)"
+            >4. Permitted Use &amp; Prohibitions</a>
+
+            <a 
+              href="#user-accounts" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'user-accounts'"
+              (click)="scrollToSection('user-accounts', $event)"
+            >5. Accounts &amp; Security</a>
+
+            <a 
+              href="#third-party-links" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'third-party-links'"
+              (click)="scrollToSection('third-party-links', $event)"
+            >6. Third-Party Links &amp; Players</a>
+
+            <a 
+              href="#intellectual-property" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'intellectual-property'"
+              (click)="scrollToSection('intellectual-property', $event)"
+            >7. Intellectual Property</a>
+
+            <a 
+              href="#disclaimers" 
+              class="toc-link" 
+              [class.active-accent]="activeSection() === 'disclaimers'"
+              (click)="scrollToSection('disclaimers', $event)"
+            >8. Disclaimers &amp; Limitations</a>
           </nav>
         </div>
       </aside>
@@ -230,41 +276,15 @@
           </p>
         </section>
 
-        <!-- Section 9: Contact -->
-        <section id="contact" class="legal-section glass-panel">
-          <div class="section-header">
-            <span class="section-number">09</span>
-            <h2 class="section-title">Contact &amp; Legal Inquiries</h2>
-          </div>
-          <p>
-            If you have any questions, comments, or legal concerns regarding these Terms of Service or wish to submit a DMCA takedown request, please reach out directly to our administration team:
-          </p>
-          <div class="contact-card">
-            <div class="contact-item">
-              <svg lucideMail class="contact-icon"></svg>
-              <div>
-                <strong>Legal &amp; DMCA Department:</strong>
-                <a href="mailto:admin.movies@gmail.com" class="link-highlight">admin.movies@gmail.com</a>
-              </div>
-            </div>
-            <div class="contact-item">
-              <svg lucideGlobe class="contact-icon"></svg>
-              <div>
-                <strong>Official Domain:</strong>
-                <span>https://moviescenter.site</span>
-              </div>
-            </div>
-          </div>
-          <div class="legal-page-actions">
-            <a routerLink="/privacy" class="btn btn-secondary">
-              <svg lucideShield class="btn-icon"></svg>
-              <span>View Privacy Policy</span>
-            </a>
-            <a routerLink="/" class="btn btn-primary">
-              <span>Back to Home</span>
-            </a>
-          </div>
-        </section>
+        <div class="legal-page-actions">
+          <a routerLink="/privacy" class="btn btn-secondary">
+            <svg lucideShield class="btn-icon"></svg>
+            <span>View Privacy Policy</span>
+          </a>
+          <a routerLink="/" class="btn btn-primary">
+            <span>Back to Home</span>
+          </a>
+        </div>
       </main>
     </div>
   </div>

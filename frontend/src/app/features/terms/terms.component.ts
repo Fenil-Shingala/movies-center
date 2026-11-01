@@ -1,5 +1,5 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, OnDestroy, signal, inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { 
   LucideShield, 
@@ -7,7 +7,6 @@ import {
   LucideAlertTriangle, 
   LucideScale, 
   LucideExternalLink, 
-  LucideMail, 
   LucideClock, 
   LucideCheckCircle2,
   LucideGlobe
@@ -25,7 +24,6 @@ import { SeoService } from '../../core/services/seo.service';
     LucideAlertTriangle, 
     LucideScale, 
     LucideExternalLink, 
-    LucideMail, 
     LucideClock, 
     LucideCheckCircle2,
     LucideGlobe
@@ -34,10 +32,16 @@ import { SeoService } from '../../core/services/seo.service';
   styleUrl: './terms.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TermsComponent implements OnInit {
+export class TermsComponent implements OnInit, OnDestroy {
   private readonly seoService = inject(SeoService);
+  private readonly platformId = inject(PLATFORM_ID);
+  readonly isBrowser = isPlatformBrowser(this.platformId);
 
   readonly lastUpdated = 'November 1, 2026';
+  readonly activeSection = signal<string>('acceptance');
+
+  private observer?: IntersectionObserver;
+  private scrollListener?: () => void;
 
   ngOnInit(): void {
     this.seoService.update({
@@ -46,5 +50,78 @@ export class TermsComponent implements OnInit {
       keywords: 'moviescenter terms, terms of service, dmca disclaimer, non-hosting policy, copyright compliance, moviescenter.site',
       url: 'https://moviescenter.site/terms'
     });
+
+    if (this.isBrowser) {
+      this.initScrollSpy();
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.observer?.disconnect();
+    if (this.scrollListener && this.isBrowser) {
+      window.removeEventListener('scroll', this.scrollListener);
+    }
+  }
+
+  scrollToSection(sectionId: string, event?: Event): void {
+    if (event) {
+      event.preventDefault();
+    }
+    this.activeSection.set(sectionId);
+
+    if (!this.isBrowser) return;
+
+    const el = document.getElementById(sectionId);
+    if (el) {
+      const navOffset = 85;
+      const bodyRect = document.body.getBoundingClientRect().top;
+      const elementRect = el.getBoundingClientRect().top;
+      const offsetPosition = elementRect - bodyRect - navOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+    }
+  }
+
+  private initScrollSpy(): void {
+    const sectionIds = [
+      'acceptance', 
+      'non-hosting', 
+      'dmca', 
+      'use-of-site', 
+      'user-accounts', 
+      'third-party-links', 
+      'intellectual-property', 
+      'disclaimers'
+    ];
+
+    const observerCallback: IntersectionObserverCallback = (entries) => {
+      const intersecting = entries.filter(e => e.isIntersecting);
+      if (intersecting.length > 0) {
+        intersecting.sort((a, b) => Math.abs(a.boundingClientRect.top - 90) - Math.abs(b.boundingClientRect.top - 90));
+        this.activeSection.set(intersecting[0].target.id);
+      }
+    };
+
+    this.observer = new IntersectionObserver(observerCallback, {
+      rootMargin: '-80px 0px -55% 0px',
+      threshold: [0, 0.2]
+    });
+
+    this.scrollListener = () => {
+      if (window.scrollY < 200) {
+        this.activeSection.set(sectionIds[0]);
+      }
+    };
+    window.addEventListener('scroll', this.scrollListener, { passive: true });
+
+    setTimeout(() => {
+      sectionIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) this.observer?.observe(el);
+      });
+    }, 150);
   }
 }

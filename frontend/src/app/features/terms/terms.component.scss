@@ -173,9 +173,12 @@
         font-size: 0.825rem;
         color: #94a3b8;
         text-decoration: none;
-        padding: 0.4rem 0.6rem;
+        padding: 0.45rem 0.65rem;
         border-radius: 6px;
-        transition: all 0.15s ease;
+        border-left: 3px solid transparent;
+        transition: all 0.2s ease;
+        display: block;
+        cursor: pointer;
 
         &:hover {
           color: #ffffff;
@@ -184,9 +187,12 @@
         }
 
         &.active-accent {
-          color: #f87171;
+          color: #ffffff;
           font-weight: 600;
-          background: rgba(229, 9, 20, 0.12);
+          background: rgba(229, 9, 20, 0.16);
+          border-left-color: #e50914;
+          box-shadow: 0 0 14px rgba(229, 9, 20, 0.2);
+          transform: translateX(2px);
         }
       }
     }
