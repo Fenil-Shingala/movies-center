@@ -55,6 +55,16 @@ export const routes: Routes = [
         title: 'Watch History - Movies Center'
       },
       {
+        path: 'terms',
+        loadComponent: () => import('./features/terms/terms.component').then(m => m.TermsComponent),
+        title: 'Terms of Service - Movies Center'
+      },
+      {
+        path: 'privacy',
+        loadComponent: () => import('./features/privacy/privacy.component').then(m => m.PrivacyComponent),
+        title: 'Privacy Policy - Movies Center'
+      },
+      {
         path: 'admin',
         loadComponent: () => import('./features/admin/admin.component').then(m => m.AdminComponent),
         canActivate: [adminGuard],

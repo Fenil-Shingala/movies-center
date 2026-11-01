@@ -65,43 +65,71 @@
               <svg lucideClock class="title-icon"></svg>
               <span>Continue Watching</span>
             </h2>
-            <a routerLink="/history" class="view-all-link">View History &rarr;</a>
+            <a routerLink="/history" class="view-all-link" aria-label="View complete watch history">
+              <span>View History</span>
+              <span class="arrow">&rarr;</span>
+            </a>
           </div>
 
           <div class="continue-watching-scroller">
             @for (item of userDataService.continueWatching(); track item.id) {
               <div class="continue-card">
-                <a [routerLink]="getWatchLink(item)" class="card-link">
+                <a [routerLink]="getWatchLink(item)" class="card-link" [attr.aria-label]="'Continue watching ' + item.title">
                   <div class="poster-container">
                     <img 
-                      [src]="getThumbnailUrl(item.backdropPath || item.posterPath)" 
+                      [src]="getPosterUrl(item)" 
                       [alt]="item.title" 
                       loading="lazy" 
-                      (error)="onThumbnailError($event)"
+                      (error)="onPosterError($event)"
                     />
 
+                    <!-- Top Action Buttons (Watchlist & Remove) -->
+                    <div class="card-top-actions">
+                      <button 
+                        type="button" 
+                        class="card-action-btn watchlist-btn"
+                        [class.active]="isInWatchlist(item.titleId)"
+                        [title]="isInWatchlist(item.titleId) ? 'In Watchlist' : 'Add to Watchlist'"
+                        [attr.aria-label]="isInWatchlist(item.titleId) ? 'In Watchlist' : 'Add to Watchlist'"
+                        (click)="toggleWatchlist(item, $event)"
+                      >
+                        <svg lucideBookmark class="icon" [class.filled]="isInWatchlist(item.titleId)"></svg>
+                      </button>
+
+                      <button 
+                        type="button" 
+                        class="card-action-btn remove-btn"
+                        title="Remove from Continue Watching"
+                        aria-label="Remove from Continue Watching"
+                        (click)="removeFromContinueWatching(item, $event)"
+                      >
+                        <svg lucideX class="icon"></svg>
+                      </button>
+                    </div>
+
+                    <!-- Center Hover Play Overlay -->
                     <div class="card-overlay">
                       <div class="play-btn">
                         <svg lucidePlay class="icon"></svg>
                       </div>
                     </div>
 
-                    <div class="progress-bar-track">
-                      <div class="progress-bar-fill" [style.width.%]="item.progressPercent"></div>
-                    </div>
-                  </div>
-
-                  <div class="card-meta">
-                    @if (item.title === 'Loading...') {
-                      <div class="card-title-skeleton skeleton"></div>
-                    } @else {
-                      <div class="card-title">{{ item.title }}</div>
-                    }
-                    <div class="card-subtext">
+                    <!-- Title & Episode Info Scrim (Overlay above bottom bar) -->
+                    <div class="card-title-scrim">
+                      @if (item.title === 'Loading...') {
+                        <div class="card-title-skeleton skeleton"></div>
+                      } @else {
+                        <div class="card-title-text" [title]="item.title">{{ item.title }}</div>
+                      }
                       @if (item.type === 'series' && item.seasonNumber) {
                         <span class="ep-badge">S{{ item.seasonNumber }}:E{{ item.episodeNumber }}</span>
                       }
-                      <span class="progress-text">{{ item.progressPercent }}%</span>
+                    </div>
+
+                    <!-- Bottom Bar (Watched X days ago - Red Website Theme) -->
+                    <div class="watched-footer-bar">
+                      <svg lucideClock class="bar-icon"></svg>
+                      <span class="watched-text">{{ getDaysAgo(item.watchedAt) }}</span>
                     </div>
                   </div>
                 </a>
