@@ -11,7 +11,9 @@ export const apiBaseUrlInterceptor: HttpInterceptorFn = (req, next) => {
   const platformId = inject(PLATFORM_ID);
 
   if (isPlatformServer(platformId) && req.url.startsWith('/api')) {
-    const backendOrigin = (typeof process !== 'undefined' && process.env?.['BACKEND_INTERNAL_URL']) || 'http://127.0.0.1:5142';
+    const isProd = typeof process !== 'undefined' && process.env?.['NODE_ENV'] === 'production';
+    const defaultBackend = isProd ? 'http://backend:8080' : 'http://127.0.0.1:5142';
+    const backendOrigin = (typeof process !== 'undefined' && process.env?.['BACKEND_INTERNAL_URL']) || defaultBackend;
     const serverReq = req.clone({
       url: `${backendOrigin}${req.url}`
     });

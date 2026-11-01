@@ -29,16 +29,30 @@
       }
     </div>
   } @else if (errorMessage()) {
-    <!-- Error State -->
-    <div class="container error-container">
-      <div class="error-card">
-        <h2 class="error-title">Content Unavailable</h2>
-        <p class="error-message">{{ errorMessage() }}</p>
-        <button type="button" class="btn btn-primary" (click)="loadHomeFeed()">
-          Retry Loading
-        </button>
+    @if (isBrowser) {
+      <!-- Browser Error State -->
+      <div class="container error-container">
+        <div class="error-card">
+          <h2 class="error-title">Unable to Load Feed</h2>
+          <p class="error-message">We couldn't connect to the streaming catalog right now.</p>
+          <button type="button" class="btn btn-primary" (click)="loadHomeFeed()">
+            Retry Loading
+          </button>
+        </div>
       </div>
-    </div>
+    } @else {
+      <!-- SSR Crawler Fallback (Prevents Google Soft 404 with rich SEO content) -->
+      <div class="container seo-fallback-container">
+        <div class="seo-fallback-card">
+          <h1 class="seo-title">Watch Free HD Movies &amp; Trending TV Series Online</h1>
+          <p class="seo-desc">Welcome to Movies Center (moviescenter.site) — stream thousands of full-length movies and trending web series in 1080p high definition with fast multi-server playback, subtitles, and zero subscriptions.</p>
+          <div class="seo-actions">
+            <a routerLink="/movies" class="btn btn-primary">Browse All Movies</a>
+            <a routerLink="/series" class="btn btn-secondary">Explore TV Series</a>
+          </div>
+        </div>
+      </div>
+    }
   } @else if (feed(); as currentFeed) {
     <!-- Live Content Feed -->
     <app-hero-banner [hero]="currentFeed.hero" />

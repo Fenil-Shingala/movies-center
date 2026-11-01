@@ -24,7 +24,7 @@ export class HomeComponent implements OnInit {
   private readonly seoService = inject(SeoService);
   readonly userDataService = inject(UserDataService);
   private readonly platformId = inject(PLATFORM_ID);
-
+  readonly isBrowser = isPlatformBrowser(this.platformId);
   readonly feed = signal<HomeFeed | null>(null);
   readonly isLoading = signal<boolean>(true);
   readonly errorMessage = signal<string | null>(null);

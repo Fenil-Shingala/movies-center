@@ -338,3 +338,49 @@
     line-height: 1.5;
   }
 }
+
+// SEO Crawler Fallback State (Zero Soft 404)
+.seo-fallback-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 4rem 1.5rem;
+}
+
+.seo-fallback-card {
+  background: linear-gradient(145deg, #181c2c, #0d0f17);
+  border: 1px solid rgba(229, 9, 20, 0.3);
+  border-radius: var(--radius-lg);
+  padding: 3.5rem 2.5rem;
+  max-width: 720px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+
+  .seo-title {
+    font-size: 2rem;
+    font-family: 'Oswald', sans-serif;
+    color: #ffffff;
+    line-height: 1.25;
+    margin: 0;
+  }
+
+  .seo-desc {
+    color: #cbd5e1;
+    font-size: 1.05rem;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .seo-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 0.5rem;
+  }
+}
