@@ -1,14 +1,20 @@
-/* 1. Offline Bar */
+/* ==========================================================================
+   PWA & Service Worker Prompts
+   ========================================================================== */
+
+/* 1. Offline Mode Bar (Fixed right below the fixed header) */
 .pwa-offline-bar {
-  position: sticky;
-  top: 0;
-  z-index: 9999;
+  position: fixed;
+  top: var(--nav-height);
+  left: 0;
+  right: 0;
+  z-index: 98;
   background: linear-gradient(90deg, #b45309 0%, #d97706 100%);
   color: #fff;
-  padding: 0.4rem 1rem;
+  padding: 0.45rem 1rem;
   font-size: 0.8rem;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   animation: slideDown 0.25s ease-out;
 
   .bar-content {
@@ -16,27 +22,250 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
+    max-width: var(--container-max-width);
+    margin: 0 auto;
 
     .bar-icon {
       width: 15px;
       height: 15px;
       flex-shrink: 0;
     }
+
+    .bar-text {
+      text-align: center;
+    }
   }
 }
 
-/* 2. Update Available Toast (Floating bottom right) */
+/* 2. Install App Banner (Smart cinema strip fixed cleanly below the header) */
+.pwa-install-banner {
+  position: fixed;
+  top: var(--nav-height);
+  left: 0;
+  right: 0;
+  z-index: 95;
+  background: linear-gradient(90deg, rgba(17, 20, 34, 0.98) 0%, rgba(26, 22, 43, 0.98) 50%, rgba(17, 20, 34, 0.98) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(229, 9, 20, 0.35);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55);
+  padding: 0.55rem 1.25rem;
+  animation: slideDown 0.25s ease-out;
+
+  .banner-container {
+    max-width: var(--container-max-width);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .banner-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    flex: 1;
+
+    .app-icon-wrap {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #e50914, #ff4d58);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(229, 9, 20, 0.4);
+
+      .app-icon {
+        width: 17px;
+        height: 17px;
+      }
+    }
+
+    .banner-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+
+      .banner-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        .title-text {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .pill-badge {
+          font-size: 0.65rem;
+          font-weight: 700;
+          padding: 0.1rem 0.4rem;
+          background: rgba(229, 9, 20, 0.2);
+          border: 1px solid rgba(229, 9, 20, 0.4);
+          color: #ff6b6b;
+          border-radius: 9999px;
+          flex-shrink: 0;
+        }
+      }
+
+      .banner-sub {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+  }
+
+  .banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+
+    .install-btn {
+      background: linear-gradient(135deg, #e50914, #b20710);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-size: 0.775rem;
+      font-weight: 600;
+      padding: 0.4rem 0.95rem;
+      border-radius: 9999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      box-shadow: 0 2px 10px rgba(229, 9, 20, 0.35);
+      transition: all 0.2s ease;
+      white-space: nowrap;
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(229, 9, 20, 0.5);
+      }
+
+      .btn-icon {
+        width: 14px;
+        height: 14px;
+      }
+    }
+
+    .close-banner-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+      }
+
+      .close-icon {
+        width: 16px;
+        height: 16px;
+      }
+    }
+  }
+
+  /* Responsive Mobile Tweaks: compact single-row smart banner */
+  @media (max-width: 640px) {
+    padding: 0.45rem 0.75rem;
+
+    .banner-container {
+      gap: 0.5rem;
+    }
+
+    .banner-left {
+      gap: 0.5rem;
+
+      .app-icon-wrap {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+
+        .app-icon {
+          width: 15px;
+          height: 15px;
+        }
+      }
+
+      .banner-info {
+        .banner-title {
+          font-size: 0.8125rem;
+        }
+
+        .banner-sub {
+          display: none;
+        }
+      }
+    }
+
+    .banner-actions {
+      gap: 0.35rem;
+
+      .install-btn {
+        padding: 0.35rem 0.75rem;
+        font-size: 0.75rem;
+
+        .btn-icon {
+          width: 13px;
+          height: 13px;
+        }
+      }
+
+      .close-banner-btn {
+        width: 26px;
+        height: 26px;
+
+        .close-icon {
+          width: 15px;
+          height: 15px;
+        }
+      }
+    }
+  }
+
+  @media (max-width: 380px) {
+    .banner-left .banner-info .pill-badge {
+      display: none;
+    }
+  }
+}
+
+/* 3. Update Available Toast (Floating bottom right on desktop, comfortably above mobile tab bar on mobile) */
 .pwa-update-toast {
   position: fixed;
   bottom: 1.5rem;
   right: 1.5rem;
   z-index: 9999;
   max-width: 440px;
-  background: linear-gradient(145deg, rgba(24, 28, 44, 0.98), rgba(14, 16, 26, 0.98));
-  border: 1px solid rgba(229, 9, 20, 0.4);
+  background: linear-gradient(145deg, rgba(22, 26, 42, 0.98), rgba(13, 15, 25, 0.98));
+  border: 1px solid rgba(229, 9, 20, 0.45);
   border-radius: 12px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(229, 9, 20, 0.2);
-  backdrop-filter: blur(12px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 24px rgba(229, 9, 20, 0.25);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   padding: 0.875rem 1.1rem;
   display: flex;
   align-items: center;
@@ -44,23 +273,19 @@
   gap: 1rem;
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 
-  @media (max-width: 480px) {
-    left: 1rem;
-    right: 1rem;
-    bottom: 1rem;
-  }
-
-  .toast-left {
+  .toast-body {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    min-width: 0;
+    flex: 1;
 
     .icon-wrap {
       width: 36px;
       height: 36px;
       border-radius: 50%;
       background: rgba(229, 9, 20, 0.15);
-      border: 1px solid rgba(229, 9, 20, 0.3);
+      border: 1px solid rgba(229, 9, 20, 0.35);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -77,17 +302,36 @@
       }
     }
 
-    .toast-title {
-      display: block;
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: #fff;
-    }
+    .toast-text {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
 
-    .toast-sub {
-      display: block;
-      font-size: 0.75rem;
-      color: #94a3b8;
+      .toast-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+
+        .toast-title {
+          font-size: 0.875rem;
+          font-weight: 700;
+          color: #fff;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .mobile-dismiss-btn {
+          display: none;
+        }
+      }
+
+      .toast-sub {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        line-height: 1.35;
+      }
     }
   }
 
@@ -103,7 +347,7 @@
       color: #fff;
       font-size: 0.775rem;
       font-weight: 600;
-      padding: 0.4rem 0.85rem;
+      padding: 0.45rem 0.95rem;
       border-radius: 6px;
       cursor: pointer;
       display: flex;
@@ -111,6 +355,7 @@
       gap: 0.35rem;
       box-shadow: 0 2px 8px rgba(229, 9, 20, 0.4);
       transition: all 0.2s ease;
+      white-space: nowrap;
 
       &:hover {
         transform: translateY(-1px);
@@ -147,134 +392,84 @@
       }
     }
   }
-}
 
-/* 3. Install App Banner (Subtle cinema strip) */
-.pwa-install-banner {
-  background: linear-gradient(90deg, #111422 0%, #1a162b 50%, #111422 100%);
-  border-bottom: 1px solid rgba(229, 9, 20, 0.25);
-  padding: 0.6rem 1.25rem;
-  animation: slideDown 0.25s ease-out;
-
-  .banner-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+  /* Critical Mobile Styling: Clears the bottom navigation bar and creates a clean card layout */
+  @media (max-width: 768px) {
+    left: 0.75rem;
+    right: 0.75rem;
+    max-width: none;
+    bottom: calc(var(--mobile-tab-height) + env(safe-area-inset-bottom, 0px) + 0.75rem);
   }
 
-  .banner-left {
-    display: flex;
-    align-items: center;
-    gap: 0.875rem;
+  @media (max-width: 540px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
 
-    .app-icon-wrap {
-      width: 34px;
-      height: 34px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #e50914, #ff4d58);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      box-shadow: 0 2px 8px rgba(229, 9, 20, 0.4);
+    .toast-body {
+      align-items: flex-start;
+      gap: 0.75rem;
+      width: 100%;
 
-      .app-icon {
-        width: 18px;
-        height: 18px;
-      }
-    }
+      .toast-text {
+        flex: 1;
 
-    .banner-info {
-      display: flex;
-      flex-direction: column;
+        .toast-header-row {
+          .toast-title {
+            font-size: 0.9rem;
+          }
 
-      .banner-title {
-        font-size: 0.85rem;
-        font-weight: 700;
-        color: #fff;
-        display: flex;
-        align-items: center;
-        gap: 0.45rem;
+          .mobile-dismiss-btn {
+            display: flex;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
 
-        .pill-badge {
-          font-size: 0.65rem;
-          font-weight: 700;
-          padding: 0.1rem 0.4rem;
-          background: rgba(229, 9, 20, 0.2);
-          border: 1px solid rgba(229, 9, 20, 0.35);
-          color: #ff6b6b;
-          border-radius: 9999px;
+            &:hover {
+              background: rgba(255, 255, 255, 0.08);
+              color: #fff;
+            }
+
+            .btn-icon {
+              width: 16px;
+              height: 16px;
+            }
+          }
         }
-      }
 
-      .banner-sub {
-        font-size: 0.75rem;
-        color: #94a3b8;
-
-        @media (max-width: 640px) {
-          display: none;
+        .toast-sub {
+          font-size: 0.775rem;
+          margin-top: 0.2rem;
         }
       }
     }
-  }
 
-  .banner-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    flex-shrink: 0;
+    .toast-actions {
+      width: 100%;
 
-    .install-btn {
-      background: linear-gradient(135deg, #e50914, #b20710);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      color: #fff;
-      font-size: 0.775rem;
-      font-weight: 600;
-      padding: 0.4rem 0.95rem;
-      border-radius: 9999px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-      box-shadow: 0 2px 10px rgba(229, 9, 20, 0.35);
-      transition: all 0.2s ease;
-
-      &:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 14px rgba(229, 9, 20, 0.5);
+      .desktop-dismiss-btn {
+        display: none;
       }
 
-      .btn-icon {
-        width: 14px;
-        height: 14px;
-      }
-    }
+      .update-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 0.55rem 1rem;
+        font-size: 0.825rem;
+        border-radius: 8px;
 
-    .close-banner-btn {
-      background: transparent;
-      border: none;
-      color: #94a3b8;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.15s ease;
-
-      &:hover {
-        background: rgba(255, 255, 255, 0.08);
-        color: #fff;
-      }
-
-      .close-icon {
-        width: 16px;
-        height: 16px;
+        .btn-icon {
+          width: 15px;
+          height: 15px;
+        }
       }
     }
   }

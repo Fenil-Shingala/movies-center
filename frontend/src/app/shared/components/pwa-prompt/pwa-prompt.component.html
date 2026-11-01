@@ -11,12 +11,17 @@
 <!-- 2. App Update Available Banner -->
 @if (pwaService.hasUpdate()) {
   <aside class="pwa-update-toast" role="alert" aria-live="assertive">
-    <div class="toast-left">
+    <div class="toast-body">
       <div class="icon-wrap pulse">
         <svg lucideRefreshCw class="toast-icon spin-slow"></svg>
       </div>
-      <div>
-        <span class="toast-title">New Version Available!</span>
+      <div class="toast-text">
+        <div class="toast-header-row">
+          <span class="toast-title">New Version Available!</span>
+          <button type="button" class="dismiss-btn mobile-dismiss-btn" (click)="dismissUpdate()" aria-label="Dismiss update alert">
+            <svg lucideX class="btn-icon"></svg>
+          </button>
+        </div>
         <span class="toast-sub">An updated version of Movies Center is ready.</span>
       </div>
     </div>
@@ -25,7 +30,7 @@
         <svg lucideRefreshCw class="btn-icon"></svg>
         <span>Update Now</span>
       </button>
-      <button type="button" class="dismiss-btn" (click)="dismissUpdate()" aria-label="Dismiss update alert">
+      <button type="button" class="dismiss-btn desktop-dismiss-btn" (click)="dismissUpdate()" aria-label="Dismiss update alert">
         <svg lucideX class="btn-icon"></svg>
       </button>
     </div>
@@ -33,7 +38,7 @@
 }
 
 <!-- 3. Install App Prompt Banner (Dismissible) -->
-@if (pwaService.canInstall() && !isInstallBannerDismissed()) {
+@if (pwaService.canInstall() && !isInstallBannerDismissed() && !pwaService.isOffline()) {
   <aside class="pwa-install-banner" role="banner">
     <div class="banner-container">
       <div class="banner-left">
@@ -42,7 +47,7 @@
         </div>
         <div class="banner-info">
           <span class="banner-title">
-            Install Movies Center App
+            <span class="title-text">Install Movies Center App</span>
             <span class="pill-badge">PWA</span>
           </span>
           <span class="banner-sub">Install for fast launching, fullscreen cinema mode, and offline shell access</span>

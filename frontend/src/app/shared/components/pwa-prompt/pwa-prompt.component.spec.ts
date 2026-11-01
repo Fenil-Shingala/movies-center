@@ -19,6 +19,9 @@ describe('PwaPromptComponent', () => {
   };
 
   beforeEach(async () => {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.clear();
+    }
     mockPwaService.canInstall.set(false);
     mockPwaService.isInstalled.set(false);
     mockPwaService.hasUpdate.set(false);
@@ -37,6 +40,9 @@ describe('PwaPromptComponent', () => {
   });
 
   afterEach(() => {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.clear();
+    }
     TestBed.resetTestingModule();
     vi.clearAllMocks();
   });
