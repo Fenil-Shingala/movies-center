@@ -15,6 +15,7 @@ import {
   LucideX 
 } from '@lucide/angular';
 import { CatalogService } from '../../core/services/catalog.service';
+import { SeoService } from '../../core/services/seo.service';
 import { AnalyticsService } from '../../core/services/analytics.service';
 import { MediaCard, PagedResult } from '../../core/models/media.models';
 import { MediaCardComponent } from '../home/components/media-card/media-card.component';
@@ -41,6 +42,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state/empty-s
 export class SearchComponent implements OnInit {
   private readonly catalogService = inject(CatalogService);
   private readonly analyticsService = inject(AnalyticsService);
+  private readonly seoService = inject(SeoService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly platformId = inject(PLATFORM_ID);
@@ -67,8 +69,18 @@ export class SearchComponent implements OnInit {
       this.currentPage.set(page > 0 ? page : 1);
 
       if (q.trim()) {
+        this.seoService.update({
+          title: `Search: "${q.trim()}"`,
+          description: `Watch and stream movies and TV series matching "${q.trim()}" in HD for free on Movies Center (moviescenter.site).`,
+          keywords: `${q.trim()}, watch ${q.trim()}, stream ${q.trim()}, moviescenter.site`
+        });
         this.executeSearch(q.trim(), type, this.currentPage());
       } else {
+        this.seoService.update({
+          title: 'Search Movies & TV Series',
+          description: 'Search across 15,000+ movies, web series, and TV shows in HD on Movies Center (moviescenter.site).',
+          keywords: 'search movies, find series, watch hd online, moviescenter.site'
+        });
         this.titles.set([]);
         this.totalCount.set(0);
         this.totalPages.set(1);

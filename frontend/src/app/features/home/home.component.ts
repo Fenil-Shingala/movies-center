@@ -3,6 +3,7 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { LucideClock, LucidePlay } from '@lucide/angular';
 import { HomeService } from '../../core/services/home.service';
+import { SeoService } from '../../core/services/seo.service';
 import { UserDataService } from '../../core/services/user-data.service';
 import { HomeFeed, WatchHistoryItem } from '../../core/models/media.models';
 import { DEFAULT_BACKDROP_IMAGE } from '../../core/constants/app.constants';
@@ -20,6 +21,7 @@ import { TopTenRowComponent } from './components/top-ten-row/top-ten-row.compone
 })
 export class HomeComponent implements OnInit {
   private readonly homeService = inject(HomeService);
+  private readonly seoService = inject(SeoService);
   readonly userDataService = inject(UserDataService);
   private readonly platformId = inject(PLATFORM_ID);
 
@@ -28,6 +30,7 @@ export class HomeComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
 
   ngOnInit(): void {
+    this.seoService.reset();
     this.loadHomeFeed();
   }
 

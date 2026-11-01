@@ -3,6 +3,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CatalogService } from '../../core/services/catalog.service';
+import { SeoService } from '../../core/services/seo.service';
 import { MediaCard, GenreItem, BrowseFilter, PagedResult } from '../../core/models/media.models';
 import { FilterBarComponent } from '../../shared/components/filter-bar/filter-bar.component';
 import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
@@ -25,6 +26,7 @@ import { MediaCardComponent } from '../../shared/components/media-card';
 })
 export class MoviesComponent implements OnInit {
   private readonly catalogService = inject(CatalogService);
+  private readonly seoService = inject(SeoService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly platformId = inject(PLATFORM_ID);
@@ -67,6 +69,12 @@ export class MoviesComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.seoService.update({
+      title: 'Explore HD Movies',
+      description: 'Stream thousands of full HD movies across action, comedy, sci-fi, horror, and drama for free on Movies Center (moviescenter.site).',
+      keywords: 'watch movies online, free hd movies, stream movies free, moviescenter.site, popular movies, top rated movies'
+    });
+
     this.loadGenres();
 
     this.route.queryParamMap.subscribe(params => {

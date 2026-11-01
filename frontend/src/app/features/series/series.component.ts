@@ -3,6 +3,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CatalogService } from '../../core/services/catalog.service';
+import { SeoService } from '../../core/services/seo.service';
 import { MediaCard, GenreItem, BrowseFilter, PagedResult } from '../../core/models/media.models';
 import { FilterBarComponent } from '../../shared/components/filter-bar/filter-bar.component';
 import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
@@ -25,6 +26,7 @@ import { MediaCardComponent } from '../../shared/components/media-card';
 })
 export class SeriesComponent implements OnInit {
   private readonly catalogService = inject(CatalogService);
+  private readonly seoService = inject(SeoService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly platformId = inject(PLATFORM_ID);
@@ -67,6 +69,12 @@ export class SeriesComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.seoService.update({
+      title: 'Watch TV Series Online - Free Full Seasons & Episodes',
+      description: 'Stream popular TV series, web series, and anime shows online in HD for free on Movies Center (moviescenter.site). Multi-server streaming with fast playback.',
+      keywords: 'watch series online, stream tv series free, free hd series, moviescenter.site, latest tv shows, watch seasons online'
+    });
+
     this.loadGenres();
 
     this.route.queryParamMap.subscribe(params => {

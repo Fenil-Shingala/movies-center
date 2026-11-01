@@ -1,6 +1,7 @@
 import { 
   Component, 
   OnInit, 
+  OnDestroy,
   inject, 
   signal, 
   computed, 
@@ -11,6 +12,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl, Title } from '@angular/platform-browser';
+import { SeoService } from '../../core/services/seo.service';
 import { 
   LucidePlay, 
   LucideStar, 
@@ -72,12 +74,13 @@ import { CommunityReviewsComponent } from './components/community-reviews/commun
   styleUrl: './title-detail.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TitleDetailComponent implements OnInit {
+export class TitleDetailComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly catalogService = inject(CatalogService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly titleService = inject(Title);
+  private readonly seoService = inject(SeoService);
   readonly userDataService = inject(UserDataService);
   readonly authService = inject(AuthService);
 
@@ -206,12 +209,38 @@ export class TitleDetailComponent implements OnInit {
         this.title.set(detail);
         this.isLoading.set(false);
 
-        // Update document title for SEO
-        if (detail.year) {
-          this.titleService.setTitle(`${detail.title} (${detail.year}) - Movies Center`);
-        } else {
-          this.titleService.setTitle(`${detail.title} - Movies Center`);
-        }
+        // Update SEO metadata & Social Sharing cards
+        const pageTitle = detail.year ? `${detail.title} (${detail.year})` : detail.title;
+        const description = detail.overview 
+          ? (detail.overview.length > 160 ? detail.overview.slice(0, 157) + '...' : detail.overview)
+          : `Stream ${detail.title} in HD on Movies Center.`;
+        const genres = detail.genres?.join(', ') || '';
+        const posterUrl = this.posterUrl() || 'https://moviescenter.site/images/og-banner.png';
+
+        this.seoService.update({
+          title: pageTitle,
+          description: description,
+          keywords: `${detail.title}, watch ${detail.title} online, stream ${detail.title} free, ${genres}, moviescenter.site`,
+          image: posterUrl,
+          type: detail.type === 'series' ? 'video.tv_show' : 'video.movie'
+        });
+
+        // Set Schema.org JSON-LD Structured Data
+        this.seoService.setJsonLd({
+          '@context': 'https://schema.org',
+          '@type': detail.type === 'series' ? 'TVSeries' : 'Movie',
+          'name': detail.title,
+          'image': posterUrl,
+          'description': detail.overview,
+          'datePublished': detail.releaseDate || detail.year?.toString(),
+          'aggregateRating': detail.rating ? {
+            '@type': 'AggregateRating',
+            'ratingValue': detail.rating,
+            'bestRating': 10,
+            'ratingCount': detail.voteCount || 50
+          } : undefined,
+          'genre': detail.genres
+        });
 
         // Set default season if series has seasons
         if (detail.type === 'series' && detail.seasons.length > 0) {
@@ -229,6 +258,11 @@ export class TitleDetailComponent implements OnInit {
         this.isLoading.set(false);
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.seoService.reset();
+    this.seoService.removeJsonLd();
   }
 
   loadRecommendations(id: number): void {
