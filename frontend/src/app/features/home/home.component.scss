@@ -1,10 +1,22 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .home-view {
   min-height: 100vh;
   padding-bottom: 2rem;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .content-container {
   margin-top: 1.5rem;
+  width: 100%;
+  max-width: 100%;
 
   @media (min-width: 768px) {
     margin-top: 2rem;
@@ -13,6 +25,8 @@
 
 .continue-watching-section {
   margin-bottom: 2.75rem;
+  width: 100%;
+  max-width: 100%;
 
   .section-header {
     display: flex;
@@ -94,6 +108,9 @@
     display: flex;
     gap: 1.25rem;
     overflow-x: auto;
+    width: 100%;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
     padding-bottom: 0.75rem;
     padding-top: 1.15rem;
     scrollbar-width: thin;

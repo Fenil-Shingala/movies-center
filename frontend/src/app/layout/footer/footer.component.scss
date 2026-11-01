@@ -1,4 +1,15 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .app-footer {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
   background-color: var(--bg-surface);
   border-top: 1px solid var(--border);
   padding: 3rem 1rem calc(var(--mobile-tab-height) + 2rem) 1rem;
@@ -14,6 +25,8 @@
 }
 
 .footer-container {
+  width: 100%;
+  box-sizing: border-box;
   max-width: var(--container-max-width);
   margin: 0 auto;
   display: flex;

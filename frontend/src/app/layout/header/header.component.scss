@@ -1,8 +1,17 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
 .app-header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   height: var(--nav-height);
   z-index: 100;
   background: linear-gradient(180deg, rgba(14, 14, 16, 0.95) 0%, rgba(14, 14, 16, 0.85) 100%);
@@ -27,6 +36,8 @@
   align-items: center;
   justify-content: space-between;
   height: 100%;
+  width: 100%;
+  box-sizing: border-box;
   max-width: var(--container-max-width);
   margin: 0 auto;
   padding: 0 0.75rem;

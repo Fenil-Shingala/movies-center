@@ -1,5 +1,14 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .top-ten-section {
   margin-bottom: 2.75rem;
+  width: 100%;
+  max-width: 100%;
 
   @media (min-width: 768px) {
     margin-bottom: 3.5rem;
@@ -190,6 +199,9 @@
 
 .carousel-wrapper {
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 
   @media (min-width: 768px) {
     &:hover .nav-arrow {
@@ -208,9 +220,19 @@
   padding: 1.25rem 0.25rem 1.5rem 0.25rem;
   margin: -1.25rem -0.25rem -1.5rem -0.25rem;
   scrollbar-width: none;
+  width: 100%;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
 
   &::-webkit-scrollbar {
     display: none;
+  }
+
+  @media (max-width: 640px) {
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
   }
 
   @media (min-width: 768px) {

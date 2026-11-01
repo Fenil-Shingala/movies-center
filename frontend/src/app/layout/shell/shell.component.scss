@@ -1,9 +1,19 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .app-layout {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
   position: relative;
   background-color: var(--bg-primary);
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .main-content {
@@ -11,4 +21,7 @@
   min-height: calc(100vh - var(--nav-height));
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
