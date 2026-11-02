@@ -56,7 +56,31 @@ public class AdminService : IAdminService
         if (!string.IsNullOrWhiteSpace(q))
         {
             var searchTerm = q.Trim();
-            query = query.Where(t => t.TitleText.Contains(searchTerm) || (t.OriginalTitle != null && t.OriginalTitle.Contains(searchTerm)));
+            var searchPattern = $"%{searchTerm}%";
+            string? dottedPattern = null;
+            string? spacedDottedPattern = null;
+            if (!searchTerm.Contains('.'))
+            {
+                var words = searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var transformed = words.Select(w => w.Length is >= 2 and <= 5 ? string.Join(".", w.ToCharArray()) : w);
+                dottedPattern = $"%{string.Join("%", transformed)}%";
+                if (words.Length == 1 && words[0].Length is >= 2 and <= 5)
+                {
+                    spacedDottedPattern = $"%{string.Join(". ", words[0].ToCharArray())}%";
+                }
+            }
+
+            query = query.Where(t => 
+                EF.Functions.Like(t.TitleText, searchPattern) || 
+                (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, searchPattern)) ||
+                (dottedPattern != null && (
+                    EF.Functions.Like(t.TitleText, dottedPattern) ||
+                    (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, dottedPattern))
+                )) ||
+                (spacedDottedPattern != null && (
+                    EF.Functions.Like(t.TitleText, spacedDottedPattern) ||
+                    (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, spacedDottedPattern))
+                )));
         }
 
         if (!string.IsNullOrWhiteSpace(type) && !type.Equals("all", StringComparison.OrdinalIgnoreCase))

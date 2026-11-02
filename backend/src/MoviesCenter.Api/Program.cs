@@ -148,6 +148,14 @@ try
     if (dbContext.Database.IsSqlServer())
     {
         dbContext.Database.Migrate();
+
+        var blankTitles = dbContext.Titles.Where(t => t.TitleText == string.Empty || t.TitleText == null).ToList();
+        if (blankTitles.Count > 0)
+        {
+            dbContext.Titles.RemoveRange(blankTitles);
+            dbContext.SaveChanges();
+            Log.Information("Cleaned up {Count} blank unindexed titles on startup.", blankTitles.Count);
+        }
     }
 }
 catch (Exception ex)
@@ -168,7 +176,7 @@ if (builder.Configuration.GetValue<bool>("Hangfire:Enabled"))
         var cronSchedule = builder.Configuration["TmdbSync:CronSchedule"] ?? "0 3 * * *";
         Hangfire.RecurringJob.AddOrUpdate<MoviesCenter.Application.Common.Interfaces.ITmdbSyncService>(
             "daily-tmdb-sync",
-            service => service.RunFullSyncAsync("HangfireJob", CancellationToken.None),
+            service => service.RunFullSyncAsync("HangfireJob", null, CancellationToken.None),
             cronSchedule
         );
     }

@@ -124,11 +124,43 @@ export class AdminComponent implements OnInit, OnDestroy {
   // TMDB Sync & Discovery
   readonly syncStatus = signal<TmdbSyncStatus | null>(null);
   readonly isSyncing = signal<boolean>(false);
+  readonly syncTargetLimit = signal<number>(250);
+  readonly syncLimitOptions = [
+    { label: '50 Titles (Quick)', value: 50 },
+    { label: '100 Titles (Standard)', value: 100 },
+    { label: '250 Titles (Recommended)', value: 250 },
+    { label: '500 Titles (Large)', value: 500 },
+    { label: '1,000 Titles (Extensive)', value: 1000 },
+    { label: '5,000 Titles (Deep)', value: 5000 },
+    { label: 'All (~20,000 Titles)', value: 0 }
+  ];
+  readonly isCustomSyncLimit = signal<boolean>(false);
+  readonly customSyncLimitInput = signal<number>(250);
+
+  setSyncLimit(val: number): void {
+    this.isCustomSyncLimit.set(false);
+    this.syncTargetLimit.set(val);
+  }
+
+  getEffectiveSyncLimit(): number {
+    return this.isCustomSyncLimit() ? (this.customSyncLimitInput() || 0) : this.syncTargetLimit();
+  }
+
+  getSyncLimitDisplay(): string {
+    const lim = this.getEffectiveSyncLimit();
+    return lim > 0 ? `${lim.toLocaleString()}` : 'All';
+  }
+
   readonly tmdbSearchQuery = signal<string>('');
   readonly tmdbSearchType = signal<'all' | 'movie' | 'series'>('all');
   readonly tmdbSearchResults = signal<TmdbSearchResultItem[]>([]);
   readonly isSearchingTmdb = signal<boolean>(false);
   readonly importingTmdbId = signal<number | null>(null);
+  readonly importedTmdbIds = signal<Set<number>>(new Set<number>());
+
+  isItemImported(tmdbId: number): boolean {
+    return this.importedTmdbIds().has(tmdbId);
+  }
 
   // Catalog Titles Management
   readonly titles = signal<AdminTitleListItem[]>([]);
@@ -275,11 +307,18 @@ export class AdminComponent implements OnInit, OnDestroy {
     });
   }
 
-  triggerTmdbSync(): void {
+  triggerTmdbSync(overrideLimit?: number): void {
+    const limit = overrideLimit !== undefined 
+      ? overrideLimit 
+      : this.getEffectiveSyncLimit();
+
     this.isSyncing.set(true);
-    this.adminService.triggerSync().subscribe({
+    this.adminService.triggerSync(limit > 0 ? limit : undefined).subscribe({
       next: (res) => {
-        this.showToast(res.message || 'Extensive catalog synchronization started in background...');
+        const desc = limit > 0 
+          ? `Fetching up to ${limit.toLocaleString()} new/updated titles from TMDB (duplicates skipped)...`
+          : 'Full catalog sync started from TMDB (duplicates skipped)...';
+        this.showToast(res.message || desc);
         this.startSyncPolling();
       },
       error: () => {
@@ -301,7 +340,10 @@ export class AdminComponent implements OnInit, OnDestroy {
           this.syncPollSub?.unsubscribe();
           this.syncPollSub = undefined;
           this.isSyncing.set(false);
-          this.showToast(`Sync completed: ${status.lastItemsSynced} titles synced!`);
+          const detailMsg = status.errorMessage && status.errorMessage.includes('duplicates skipped')
+            ? ` (${status.errorMessage})`
+            : '';
+          this.showToast(`Sync completed: ${status.lastItemsSynced} titles synced!${detailMsg}`);
           this.loadStats();
           this.loadTitles();
         }
@@ -338,8 +380,14 @@ export class AdminComponent implements OnInit, OnDestroy {
     this.adminService.importTmdbTitle(item.tmdbId, item.type).subscribe({
       next: () => {
         this.importingTmdbId.set(null);
+        this.importedTmdbIds.update(set => {
+          const next = new Set(set);
+          next.add(item.tmdbId);
+          return next;
+        });
         this.showToast(`Imported "${item.title}" into catalog.`);
         this.loadStats();
+        this.loadTitles();
       },
       error: () => {
         this.importingTmdbId.set(null);
@@ -373,6 +421,13 @@ export class AdminComponent implements OnInit, OnDestroy {
       next: (res) => {
         this.titles.set(res.items);
         this.titlesTotalCount.set(res.totalCount);
+        if (res.items && res.items.length > 0) {
+          this.importedTmdbIds.update(set => {
+            const next = new Set(set);
+            res.items.forEach(t => { if (t.tmdbId) next.add(t.tmdbId); });
+            return next;
+          });
+        }
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false)

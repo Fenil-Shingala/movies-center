@@ -58,8 +58,9 @@ export class AdminService {
     return this.http.post<{ message: string }>(`${this.adminApi}/tmdb/import`, { tmdbId, type });
   }
 
-  triggerSync(): Observable<TmdbSyncResult> {
-    return this.http.post<TmdbSyncResult>(`${this.adminApi}/tmdb/sync`, {});
+  triggerSync(limit?: number): Observable<TmdbSyncResult> {
+    const body = limit && limit > 0 ? { limit } : {};
+    return this.http.post<TmdbSyncResult>(`${this.adminApi}/tmdb/sync`, body);
   }
 
   getSyncStatus(): Observable<TmdbSyncStatus> {

@@ -25,6 +25,10 @@
     0 0 0 1px rgba(255, 255, 255, 0.05),
     0 0 40px rgba(229, 9, 20, 0.12);
   animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+
+  @media (max-width: 480px) {
+    padding: 1.75rem 1.25rem;
+  }
 }
 
 .close-btn {
@@ -315,21 +319,31 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
-  margin-top: 0.5rem;
-  font-size: 0.8rem;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+  font-size: 0.825rem;
   color: #94a3b8;
+  text-align: center;
+  line-height: 1.5;
+
+  span {
+    display: inline;
+  }
 
   .switch-link {
+    display: inline-flex;
+    align-items: center;
     background: transparent;
     border: none;
     color: #e50914;
-    font-size: 0.8rem;
+    font-size: 0.825rem;
     font-weight: 600;
     cursor: pointer;
     padding: 0;
     text-decoration: underline;
     text-underline-offset: 3px;
+    white-space: nowrap;
     transition: color 0.15s;
 
     &:hover {

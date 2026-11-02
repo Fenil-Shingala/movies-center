@@ -1,5 +1,9 @@
 namespace MoviesCenter.Application.Features.Admin.Dtos;
 
+public record TmdbSyncRequestDto(
+    int? Limit = null
+);
+
 public record TmdbSyncResultDto(
     bool Success,
     int ItemsSynced,

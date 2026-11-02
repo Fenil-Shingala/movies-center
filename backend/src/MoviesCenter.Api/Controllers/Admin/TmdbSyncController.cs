@@ -39,13 +39,17 @@ public class TmdbSyncController : ControllerBase
     }
 
     /// <summary>
-    /// Trigger an on-demand TMDB catalog synchronization.
+    /// Trigger an on-demand TMDB catalog synchronization with optional quantity limit.
     /// </summary>
     [HttpPost("sync")]
     [ProducesResponseType(typeof(TmdbSyncResultDto), StatusCodes.Status200OK)]
-    public async Task<ActionResult<TmdbSyncResultDto>> TriggerSync(CancellationToken cancellationToken)
+    public async Task<ActionResult<TmdbSyncResultDto>> TriggerSync(
+        [FromBody] TmdbSyncRequestDto? request = null,
+        [FromQuery] int? limit = null,
+        CancellationToken cancellationToken = default)
     {
-        var result = await _syncService.RunFullSyncAsync("Admin", cancellationToken);
+        var effectiveLimit = request?.Limit ?? limit;
+        var result = await _syncService.RunFullSyncAsync("Admin", effectiveLimit, cancellationToken);
         return Ok(result);
     }
 

@@ -54,7 +54,7 @@ public class TmdbSyncService : ITmdbSyncService
         );
     }
 
-    public Task<TmdbSyncResultDto> RunFullSyncAsync(string triggeredBy = "Admin", CancellationToken cancellationToken = default)
+    public Task<TmdbSyncResultDto> RunFullSyncAsync(string triggeredBy = "Admin", int? limit = null, CancellationToken cancellationToken = default)
     {
         if (SyncLock.CurrentCount == 0)
         {
@@ -64,13 +64,17 @@ public class TmdbSyncService : ITmdbSyncService
         // Launch in background so HTTP request returns immediately and does not time out
         _ = Task.Run(async () =>
         {
-            await ExecuteFullSyncBackgroundAsync(triggeredBy);
+            await ExecuteFullSyncBackgroundAsync(triggeredBy, limit);
         }, CancellationToken.None);
 
-        return Task.FromResult(new TmdbSyncResultDto(true, 0, 0, TimeSpan.Zero, null, "Extensive TMDB catalog synchronization initiated in background."));
+        var limitMsg = limit.HasValue && limit.Value > 0
+            ? $"TMDB synchronization initiated for up to {limit.Value:N0} new/updated titles (duplicates skipped)."
+            : "Extensive TMDB catalog synchronization initiated in background (duplicates skipped).";
+
+        return Task.FromResult(new TmdbSyncResultDto(true, 0, 0, TimeSpan.Zero, null, limitMsg));
     }
 
-    private async Task ExecuteFullSyncBackgroundAsync(string triggeredBy)
+    private async Task ExecuteFullSyncBackgroundAsync(string triggeredBy, int? limit = null)
     {
         if (!await SyncLock.WaitAsync(0))
         {
@@ -87,18 +91,20 @@ public class TmdbSyncService : ITmdbSyncService
         {
             StartedAt = DateTimeOffset.UtcNow,
             Status = "Running",
-            TriggeredBy = triggeredBy
+            TriggeredBy = limit.HasValue && limit.Value > 0 ? $"{triggeredBy} (Limit: {limit.Value})" : triggeredBy
         };
 
         db.TmdbSyncLogs.Add(syncLog);
         await db.SaveChangesAsync();
 
         var itemsSyncedCount = 0;
+        var duplicatesSkippedCount = 0;
         var errorCount = 0;
 
         try
         {
-            _logger.LogInformation("Starting extensive TMDB catalog synchronization triggered by {TriggeredBy}...", triggeredBy);
+            _logger.LogInformation("Starting TMDB catalog synchronization triggered by {TriggeredBy} with limit {Limit}...", 
+                triggeredBy, limit?.ToString() ?? "Unlimited");
 
             // Pre-fetch the VidLink/VidSrc provider once to avoid querying it repeatedly in loops
             var vidsrcProviderId = await db.SourceProviders
@@ -109,12 +115,18 @@ public class TmdbSyncService : ITmdbSyncService
             // 1. Sync genres
             await SyncGenresAsync(db, tmdbService, CancellationToken.None);
 
-            // 2. Generate comprehensive list of category and discover endpoints (~20,000 titles)
+            // 2. Generate comprehensive list of category and discover endpoints
             var categoryEndpoints = GenerateSyncEndpoints();
             var processedTmdbIds = new HashSet<(int TmdbId, string Type)>();
 
             foreach (var (endpoint, type, category) in categoryEndpoints)
             {
+                if (limit.HasValue && limit.Value > 0 && itemsSyncedCount >= limit.Value)
+                {
+                    _logger.LogInformation("Target sync limit of {Limit} items reached. Halting catalog scan.", limit.Value);
+                    break;
+                }
+
                 try
                 {
                     List<TmdbItemSummary>? items = null;
@@ -150,13 +162,26 @@ public class TmdbSyncService : ITmdbSyncService
                     var newOrUpdatedInBatch = 0;
                     foreach (var item in items)
                     {
+                        if (limit.HasValue && limit.Value > 0 && (itemsSyncedCount + newOrUpdatedInBatch) >= limit.Value)
+                        {
+                            break;
+                        }
+
                         var key = (item.Id, type);
                         if (!processedTmdbIds.Contains(key))
                         {
                             processedTmdbIds.Add(key);
                             existingTitlesMap.TryGetValue(item.Id, out var existingTitle);
-                            UpsertTitleSummary(db, existingTitle, item, category, vidsrcProviderId);
-                            newOrUpdatedInBatch++;
+                            var changed = UpsertTitleSummary(db, existingTitle, item, category, vidsrcProviderId);
+
+                            if (changed)
+                            {
+                                newOrUpdatedInBatch++;
+                            }
+                            else
+                            {
+                                duplicatesSkippedCount++;
+                            }
                         }
                     }
 
@@ -168,6 +193,12 @@ public class TmdbSyncService : ITmdbSyncService
                         syncLog.ItemsSynced = itemsSyncedCount;
                         await db.SaveChangesAsync();
                     }
+
+                    if (limit.HasValue && limit.Value > 0 && itemsSyncedCount >= limit.Value)
+                    {
+                        _logger.LogInformation("Reached sync limit of {Limit} items.", limit.Value);
+                        break;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -176,24 +207,33 @@ public class TmdbSyncService : ITmdbSyncService
                 }
             }
 
-            // 3. For the top 100 most popular titles, fetch full details (cast, trailers, seasons breakdown)
-            var topTitlesToEnrich = await db.Titles
-                .Where(t => t.IsActive && t.TmdbListCategory != null && (t.TmdbListCategory.Contains("trending") || t.TmdbListCategory.Contains("popular")))
+            // 3. Enrich details (cast, trailers, seasons breakdown)
+            // CRITICAL: DO NOT fetch duplicate details for titles that already have them in DB!
+            // Only fetch details from TMDB API for titles that lack cast, trailers, or seasons.
+            var enrichLimit = limit.HasValue && limit.Value > 0 ? Math.Min(limit.Value, 50) : 50;
+
+            var titlesToEnrich = await db.Titles
+                .Where(t => t.IsActive && (!t.TitleCasts.Any() || !t.Videos.Any() || (t.Type == "series" && !t.Seasons.Any())))
                 .OrderByDescending(t => t.Popularity)
-                .Take(100)
+                .Take(enrichLimit)
                 .ToListAsync();
 
-            foreach (var title in topTitlesToEnrich)
+            if (titlesToEnrich.Count > 0)
             {
-                try
+                _logger.LogInformation("Enriching {Count} titles missing full details from TMDB API...", titlesToEnrich.Count);
+
+                foreach (var title in titlesToEnrich)
                 {
-                    await EnrichTitleDetailsAsync(db, tmdbService, title, CancellationToken.None);
-                    await Task.Delay(35);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to enrich details for title {TitleText} (TMDB ID {TmdbId})", title.TitleText, title.TmdbId);
-                    errorCount++;
+                    try
+                    {
+                        await EnrichTitleDetailsAsync(db, tmdbService, title, CancellationToken.None);
+                        await Task.Delay(35);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to enrich details for title {TitleText} (TMDB ID {TmdbId})", title.TitleText, title.TmdbId);
+                        errorCount++;
+                    }
                 }
             }
 
@@ -205,10 +245,13 @@ public class TmdbSyncService : ITmdbSyncService
             syncLog.CompletedAt = DateTimeOffset.UtcNow;
             syncLog.ItemsSynced = itemsSyncedCount;
             syncLog.Errors = errorCount;
+            syncLog.ErrorMessage = duplicatesSkippedCount > 0
+                ? $"{duplicatesSkippedCount:N0} duplicates skipped (already up-to-date in DB)"
+                : null;
             await db.SaveChangesAsync();
 
-            _logger.LogInformation("Comprehensive TMDB catalog sync completed successfully in {Duration}s. Synced: {Synced}, Errors: {Errors}",
-                stopwatch.Elapsed.TotalSeconds, itemsSyncedCount, errorCount);
+            _logger.LogInformation("TMDB catalog sync completed successfully in {Duration:F1}s. Synced: {Synced}, Duplicates skipped: {Duplicates}, Errors: {Errors}",
+                stopwatch.Elapsed.TotalSeconds, itemsSyncedCount, duplicatesSkippedCount, errorCount);
         }
         catch (Exception ex)
         {
@@ -244,14 +287,42 @@ public class TmdbSyncService : ITmdbSyncService
                 existing = new Title
                 {
                     TmdbId = detail.TmdbId,
-                    Type = detail.Type
+                    Type = detail.Type,
+                    TitleText = detail.Title,
+                    OriginalTitle = detail.OriginalTitle ?? detail.Title,
+                    OriginalLanguage = detail.OriginalLanguage ?? "en",
+                    IsActive = true
                 };
                 _db.Titles.Add(existing);
             }
 
             ApplyFullDetailToEntity(existing, detail);
             await EnsureTitleSourceAsync(_db, existing, cancellationToken);
+
+            // Associate Genres if available
+            if (detail.GenreIds.Count > 0)
+            {
+                var existingGenreIds = await _db.Genres
+                    .Where(g => detail.GenreIds.Contains(g.Id))
+                    .Select(g => g.Id)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var gid in detail.GenreIds)
+                {
+                    if (existingGenreIds.Contains(gid) && !existing.TitleGenres.Any(tg => tg.GenreId == gid))
+                    {
+                        existing.TitleGenres.Add(new TitleGenre { Title = existing, GenreId = gid });
+                    }
+                }
+            }
+
             await _db.SaveChangesAsync(cancellationToken);
+
+            // Enrich Cast, Videos (trailers), Providers, Seasons
+            await EnrichRelatedEntitiesAsync(_db, existing, detail, cancellationToken);
+
+            // Repair any titles that might have been previously saved with blank TitleText
+            await RepairBlankTitlesAsync(_db, _tmdbService, cancellationToken);
 
             await _cacheService.RemoveAsync("home_feed_v1", cancellationToken);
             return true;
@@ -406,7 +477,7 @@ public class TmdbSyncService : ITmdbSyncService
         }
     }
 
-    private static void UpsertTitleSummary(
+    private static bool UpsertTitleSummary(
         ApplicationDbContext db, 
         Title? title, 
         TmdbItemSummary summary, 
@@ -419,42 +490,112 @@ public class TmdbSyncService : ITmdbSyncService
             title = new Title
             {
                 TmdbId = summary.Id,
-                Type = summary.Type
+                Type = summary.Type,
+                TitleText = summary.Title,
+                OriginalTitle = summary.OriginalTitle ?? summary.Title,
+                Overview = summary.Overview,
+                PosterPath = summary.PosterPath,
+                BackdropPath = summary.BackdropPath,
+                TmdbRating = (decimal)Math.Round(summary.VoteAverage, 1),
+                VoteCount = summary.VoteCount,
+                Popularity = summary.Popularity,
+                OriginalLanguage = summary.OriginalLanguage ?? "en",
+                IsActive = true,
+                LastTmdbSyncAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                TmdbListCategory = categoryTag
             };
+
+            if (summary.Type == "movie" && DateTime.TryParse(summary.ReleaseDate, out var rd))
+            {
+                title.ReleaseDate = rd;
+            }
+            else if (summary.Type == "series" && DateTime.TryParse(summary.ReleaseDate, out var fd))
+            {
+                title.FirstAirDate = fd;
+            }
+
+            // Associate genres
+            if (summary.GenreIds.Count > 0)
+            {
+                foreach (var gid in summary.GenreIds)
+                {
+                    title.TitleGenres.Add(new TitleGenre { Title = title, GenreId = gid });
+                }
+            }
+
+            // Auto-generate source (VidLink HD primary)
+            EnsureTitleSource(title, vidsrcProviderId);
+
             db.Titles.Add(title);
+            return true;
         }
 
-        title!.TitleText = summary.Title;
-        title.OriginalTitle = summary.OriginalTitle ?? summary.Title;
-        title.Overview = summary.Overview;
-        title.PosterPath = summary.PosterPath;
-        title.BackdropPath = summary.BackdropPath;
-        title.TmdbRating = (decimal)Math.Round(summary.VoteAverage, 1);
-        title.VoteCount = summary.VoteCount;
-        title.Popularity = summary.Popularity;
-        title.OriginalLanguage = summary.OriginalLanguage;
-        title.IsActive = true;
-        title.LastTmdbSyncAt = DateTimeOffset.UtcNow;
-        title.UpdatedAt = DateTime.UtcNow;
+        // Title already exists in DB! Check if data actually changed or is duplicate
+        var hasChanged = false;
 
-        if (summary.Type == "movie" && DateTime.TryParse(summary.ReleaseDate, out var rd))
+        if (string.IsNullOrWhiteSpace(title!.TitleText) || title.TitleText != summary.Title)
         {
-            title.ReleaseDate = rd;
-        }
-        else if (summary.Type == "series" && DateTime.TryParse(summary.ReleaseDate, out var fd))
-        {
-            title.FirstAirDate = fd;
+            title.TitleText = summary.Title;
+            hasChanged = true;
         }
 
-        // Tag category
+        if (title.OriginalTitle == null && summary.OriginalTitle != null)
+        {
+            title.OriginalTitle = summary.OriginalTitle;
+            hasChanged = true;
+        }
+
+        if (string.IsNullOrWhiteSpace(title.Overview) && !string.IsNullOrWhiteSpace(summary.Overview))
+        {
+            title.Overview = summary.Overview;
+            hasChanged = true;
+        }
+
+        if (title.PosterPath != summary.PosterPath && !string.IsNullOrEmpty(summary.PosterPath))
+        {
+            title.PosterPath = summary.PosterPath;
+            hasChanged = true;
+        }
+
+        if (title.BackdropPath != summary.BackdropPath && !string.IsNullOrEmpty(summary.BackdropPath))
+        {
+            title.BackdropPath = summary.BackdropPath;
+            hasChanged = true;
+        }
+
+        var newRating = (decimal)Math.Round(summary.VoteAverage, 1);
+        if (title.TmdbRating != newRating)
+        {
+            title.TmdbRating = newRating;
+            hasChanged = true;
+        }
+
+        if (title.VoteCount != summary.VoteCount)
+        {
+            title.VoteCount = summary.VoteCount;
+            hasChanged = true;
+        }
+
+        if (Math.Abs(title.Popularity - summary.Popularity) > 0.5)
+        {
+            title.Popularity = summary.Popularity;
+            hasChanged = true;
+        }
+
+        // Tag category if not already present
         var categories = string.IsNullOrEmpty(title.TmdbListCategory) 
             ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) 
             : new HashSet<string>(title.TmdbListCategory.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), StringComparer.OrdinalIgnoreCase);
 
-        categories.Add(categoryTag);
-        title.TmdbListCategory = string.Join(",", categories);
+        if (!categories.Contains(categoryTag))
+        {
+            categories.Add(categoryTag);
+            title.TmdbListCategory = string.Join(",", categories);
+            hasChanged = true;
+        }
 
-        // Associate genres
+        // Associate missing genres
         if (summary.GenreIds.Count > 0)
         {
             foreach (var gid in summary.GenreIds)
@@ -462,12 +603,27 @@ public class TmdbSyncService : ITmdbSyncService
                 if (!title.TitleGenres.Any(tg => tg.GenreId == gid))
                 {
                     title.TitleGenres.Add(new TitleGenre { Title = title, GenreId = gid });
+                    hasChanged = true;
                 }
             }
         }
 
-        // Auto-generate source (VidLink HD primary)
-        EnsureTitleSource(title, vidsrcProviderId);
+        // Auto-generate source (VidLink HD primary) if missing
+        if (!title.TitleSources.Any(ts => ts.IsActive))
+        {
+            EnsureTitleSource(title, vidsrcProviderId);
+            hasChanged = true;
+        }
+
+        if (hasChanged)
+        {
+            title.LastTmdbSyncAt = DateTimeOffset.UtcNow;
+            title.UpdatedAt = DateTime.UtcNow;
+            return true;
+        }
+
+        // Title is identical to DB record - duplicate skipped!
+        return false;
     }
 
     private static void EnsureTitleSource(Title title, int? vidsrcProviderId)
@@ -497,7 +653,11 @@ public class TmdbSyncService : ITmdbSyncService
         if (detail == null) return;
 
         ApplyFullDetailToEntity(title, detail);
+        await EnrichRelatedEntitiesAsync(db, title, detail, cancellationToken);
+    }
 
+    private static async Task EnrichRelatedEntitiesAsync(ApplicationDbContext db, Title title, TmdbFullDetail detail, CancellationToken cancellationToken)
+    {
         // Enrich Cast
         if (detail.Cast.Count > 0)
         {
@@ -620,8 +780,52 @@ public class TmdbSyncService : ITmdbSyncService
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    private static async Task RepairBlankTitlesAsync(ApplicationDbContext db, ITmdbService tmdbService, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var blankTitles = await db.Titles
+                .Include(t => t.TitleSources)
+                .Where(t => string.IsNullOrWhiteSpace(t.TitleText) || t.TitleText == "" || t.OriginalTitle == null)
+                .Take(25)
+                .ToListAsync(cancellationToken);
+
+            foreach (var t in blankTitles)
+            {
+                var detail = await tmdbService.GetFullDetailsAsync(t.TmdbId, t.Type, cancellationToken);
+                if (detail != null)
+                {
+                    ApplyFullDetailToEntity(t, detail);
+                    await EnsureTitleSourceAsync(db, t, cancellationToken);
+                    await EnrichRelatedEntitiesAsync(db, t, detail, cancellationToken);
+                }
+            }
+
+            if (blankTitles.Count > 0)
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+        }
+        catch
+        {
+            // Non-fatal repair failure
+        }
+    }
+
     private static void ApplyFullDetailToEntity(Title title, TmdbFullDetail detail)
     {
+        if (!string.IsNullOrWhiteSpace(detail.Title))
+        {
+            title.TitleText = detail.Title;
+        }
+        else if (string.IsNullOrWhiteSpace(title.TitleText))
+        {
+            title.TitleText = "Untitled";
+        }
+
+        title.OriginalTitle = !string.IsNullOrWhiteSpace(detail.OriginalTitle) ? detail.OriginalTitle : (detail.Title ?? title.OriginalTitle);
+        title.OriginalLanguage = !string.IsNullOrWhiteSpace(detail.OriginalLanguage) ? detail.OriginalLanguage : (string.IsNullOrWhiteSpace(title.OriginalLanguage) ? "en" : title.OriginalLanguage);
+        title.IsActive = true;
         title.Tagline = detail.Tagline;
         title.Overview = detail.Overview ?? title.Overview;
         title.PosterPath = detail.PosterPath ?? title.PosterPath;

@@ -6,6 +6,8 @@ export interface TmdbSyncStatus {
   lastErrors: number;
   triggeredBy?: string | null;
   errorMessage?: string | null;
+  targetLimit?: number | null;
+  duplicatesSkipped?: number | null;
 }
 
 export interface TmdbSyncResult {

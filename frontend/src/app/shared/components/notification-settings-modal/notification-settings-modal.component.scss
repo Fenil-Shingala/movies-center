@@ -340,6 +340,28 @@
       }
     }
   }
+
+  @media (max-width: 640px) {
+    flex-direction: column-reverse;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+
+    .footer-actions {
+      width: 100%;
+
+      .cancel-btn,
+      .save-btn {
+        flex: 1;
+        justify-content: center;
+        text-align: center;
+      }
+    }
+
+    .status-msg {
+      width: 100%;
+      text-align: center;
+    }
+  }
 }
 
 @keyframes spin {

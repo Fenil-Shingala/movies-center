@@ -195,7 +195,12 @@
               </div>
               <div class="info-row">
                 <span class="lbl"><svg lucideLayers class="info-icon"></svg> Last Updated:</span>
-                <span class="val badge-highlight">{{ s.lastSyncStatus.lastItemsSynced }} titles updated</span>
+                <span class="val badge-highlight">
+                  {{ s.lastSyncStatus.lastItemsSynced }} titles updated
+                  @if (s.lastSyncStatus.errorMessage && s.lastSyncStatus.errorMessage.includes('duplicates skipped')) {
+                    <small style="display: block; font-size: 0.72rem; color: #fbbf24; margin-top: 2px;">{{ s.lastSyncStatus.errorMessage }}</small>
+                  }
+                </span>
               </div>
               <div class="info-row">
                 <span class="lbl"><svg lucideRefreshCw class="info-icon"></svg> Recurring Schedule:</span>
@@ -203,13 +208,18 @@
               </div>
               <div class="info-row">
                 <span class="lbl"><svg lucideCheckCircle2 class="info-icon"></svg> Sync Worker:</span>
-                <span class="val text-success">Healthy & Online</span>
+                <span class="val text-success">Healthy & Online (Dedup Guard Active)</span>
               </div>
             </div>
             <div class="card-footer-action">
               <button type="button" class="btn btn-primary btn-block" [disabled]="isSyncing()" (click)="triggerTmdbSync()">
                 <svg lucideRefreshCw class="btn-icon" [class.spin]="isSyncing()"></svg>
-                <span>{{ isSyncing() ? 'Synchronizing (' + (syncStatus()?.lastItemsSynced ?? 0) + ' items)...' : 'Trigger Manual Sync Now' }}</span>
+                <span>
+                  {{ isSyncing() 
+                      ? 'Synchronizing (' + (syncStatus()?.lastItemsSynced ?? 0) + ' items)...' 
+                      : 'Trigger Sync (' + (getEffectiveSyncLimit() > 0 ? getEffectiveSyncLimit().toLocaleString() + ' Titles' : 'Full Catalog') + ')' 
+                  }}
+                </span>
               </button>
             </div>
           </div>
@@ -225,15 +235,100 @@
         <div class="pane-title-group">
           <div class="tmdb-brand-tag">
             <span class="tag-accent">TMDB 3.0</span>
-            <span>API Synchronizer</span>
+            <span>Smart Synchronizer</span>
           </div>
           <h2 class="pane-title">TMDB Catalog Synchronization & Live Import</h2>
-          <p class="pane-desc">Trigger full catalog synchronization across trending releases or search TMDB directly to import new movies and series on-demand with rich metadata, cast, stills, and trailers.</p>
+          <p class="pane-desc">Synchronize trending movies and series with automatic deduplication. Duplicate titles already in your database are skipped; only new and updated items are fetched from TMDB.</p>
         </div>
-        <button type="button" class="btn btn-primary sync-now-btn" [disabled]="isSyncing()" (click)="triggerTmdbSync()">
-          <svg lucideRefreshCw class="btn-icon" [class.spin]="isSyncing()"></svg>
-          <span>{{ isSyncing() ? 'Synchronizing (' + (syncStatus()?.lastItemsSynced ?? 0) + ' items)...' : 'Run Full Sync Now' }}</span>
-        </button>
+
+        <!-- Sync Quantity Option & Deduplication Controls -->
+        <div class="sync-config-box">
+          <div class="sync-config-header">
+            <span class="config-label">
+              <svg lucideLayers class="config-icon"></svg>
+              <span>How Many Titles To Fetch:</span>
+            </span>
+            <span class="config-selected-summary">
+              Target: <strong>{{ getSyncLimitDisplay() }} {{ getEffectiveSyncLimit() > 0 ? 'Titles' : '' }}</strong>
+            </span>
+          </div>
+
+          <div class="sync-pills-row">
+            @for (opt of syncLimitOptions; track opt.value) {
+              <button 
+                type="button" 
+                class="sync-pill-btn" 
+                [class.active]="!isCustomSyncLimit() && syncTargetLimit() === opt.value"
+                [disabled]="isSyncing()"
+                (click)="setSyncLimit(opt.value)">
+                {{ opt.label }}
+              </button>
+            }
+            <button 
+              type="button" 
+              class="sync-pill-btn" 
+              [class.active]="isCustomSyncLimit()"
+              [disabled]="isSyncing()"
+              (click)="isCustomSyncLimit.set(true)">
+              Custom Count
+            </button>
+          </div>
+
+          @if (isCustomSyncLimit()) {
+            <div class="custom-limit-input-wrap">
+              <input 
+                type="number" 
+                class="form-input custom-count-input" 
+                min="10" 
+                max="50000" 
+                step="50"
+                placeholder="Enter custom count (e.g. 350)"
+                [ngModel]="customSyncLimitInput()"
+                (ngModelChange)="customSyncLimitInput.set($event)"
+                [disabled]="isSyncing()"
+              />
+              <span class="custom-count-hint">Fetch up to {{ customSyncLimitInput() || 0 }} new or updated titles</span>
+            </div>
+          }
+
+          <div class="sync-features-bar">
+            <div class="feature-item">
+              <svg lucideShieldCheck class="feature-icon"></svg>
+              <span><strong>Duplicate Guard:</strong> Existing identical records are skipped without re-fetching details.</span>
+            </div>
+            <div class="feature-item">
+              <svg lucideSparkles class="feature-icon"></svg>
+              <span><strong>Incremental:</strong> Only new releases & modified metadata are stored in DB.</span>
+            </div>
+          </div>
+
+          <div class="sync-action-row">
+            <button type="button" class="btn btn-primary sync-now-btn" [disabled]="isSyncing()" (click)="triggerTmdbSync()">
+              <svg lucideRefreshCw class="btn-icon" [class.spin]="isSyncing()"></svg>
+              <span>
+                {{ isSyncing() 
+                    ? 'Synchronizing (' + (syncStatus()?.lastItemsSynced ?? 0) + (getEffectiveSyncLimit() > 0 ? ' / ' + getEffectiveSyncLimit() : '') + ' items)...' 
+                    : 'Fetch ' + (getEffectiveSyncLimit() > 0 ? getEffectiveSyncLimit().toLocaleString() + ' Titles Now' : 'Full Catalog Now') 
+                }}
+              </span>
+            </button>
+            @if (syncStatus(); as status) {
+              <div class="sync-live-status-pill" [class.running]="status.isRunning">
+                <span class="status-indicator-dot"></span>
+                <span class="status-text">
+                  @if (status.isRunning) {
+                    Live Syncing: {{ status.lastItemsSynced }} items processed...
+                  } @else {
+                    Last run: {{ status.lastItemsSynced }} synced · {{ status.lastStatus || 'Idle' }}
+                    @if (status.errorMessage && status.errorMessage.includes('duplicates skipped')) {
+                      <span class="duplicates-tag">({{ status.errorMessage }})</span>
+                    }
+                  }
+                </span>
+              </div>
+            }
+          </div>
+        </div>
       </div>
 
       <!-- Live TMDB Discovery Search -->
@@ -302,12 +397,17 @@
                   <p class="result-overview">{{ item.overview || 'No synopsis provided.' }}</p>
                   <button 
                     type="button" 
-                    class="btn btn-primary btn-sm import-btn"
-                    [disabled]="importingTmdbId() === item.tmdbId" 
+                    class="btn btn-sm import-btn"
+                    [class.btn-primary]="!isItemImported(item.tmdbId)"
+                    [class.imported]="isItemImported(item.tmdbId)"
+                    [disabled]="importingTmdbId() === item.tmdbId || isItemImported(item.tmdbId)" 
                     (click)="importTmdbTitle(item)">
                     @if (importingTmdbId() === item.tmdbId) {
                       <svg lucideRefreshCw class="btn-icon-sm spin"></svg>
                       <span>Importing Metadata...</span>
+                    } @else if (isItemImported(item.tmdbId)) {
+                      <svg lucideCheck class="btn-icon-sm"></svg>
+                      <span>Imported to Catalog</span>
                     } @else {
                       <svg lucidePlus class="btn-icon-sm"></svg>
                       <span>Import to Catalog</span>

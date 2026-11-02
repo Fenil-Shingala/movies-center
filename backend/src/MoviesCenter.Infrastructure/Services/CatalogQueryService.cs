@@ -229,9 +229,31 @@ public class CatalogQueryService : ICatalogQueryService
         if (!string.IsNullOrWhiteSpace(query.Query))
         {
             var searchTerm = query.Query.Trim();
+            var searchPattern = $"%{searchTerm}%";
+            string? dottedPattern = null;
+            string? spacedDottedPattern = null;
+            if (!searchTerm.Contains('.'))
+            {
+                var words = searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var transformed = words.Select(w => w.Length is >= 2 and <= 5 ? string.Join(".", w.ToCharArray()) : w);
+                dottedPattern = $"%{string.Join("%", transformed)}%";
+                if (words.Length == 1 && words[0].Length is >= 2 and <= 5)
+                {
+                    spacedDottedPattern = $"%{string.Join(". ", words[0].ToCharArray())}%";
+                }
+            }
+
             baseQuery = baseQuery.Where(t => 
-                EF.Functions.Like(t.TitleText, $"%{searchTerm}%") ||
-                (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, $"%{searchTerm}%")));
+                EF.Functions.Like(t.TitleText, searchPattern) ||
+                (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, searchPattern)) ||
+                (dottedPattern != null && (
+                    EF.Functions.Like(t.TitleText, dottedPattern) ||
+                    (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, dottedPattern))
+                )) ||
+                (spacedDottedPattern != null && (
+                    EF.Functions.Like(t.TitleText, spacedDottedPattern) ||
+                    (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, spacedDottedPattern))
+                )));
         }
 
         var totalCount = await baseQuery.CountAsync(cancellationToken);
@@ -270,6 +292,19 @@ public class CatalogQueryService : ICatalogQueryService
         }
 
         var searchTerm = query.Trim();
+        var searchPattern = $"%{searchTerm}%";
+        string? dottedPattern = null;
+        string? spacedDottedPattern = null;
+        if (!searchTerm.Contains('.'))
+        {
+            var words = searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var transformed = words.Select(w => w.Length is >= 2 and <= 5 ? string.Join(".", w.ToCharArray()) : w);
+            dottedPattern = $"%{string.Join("%", transformed)}%";
+            if (words.Length == 1 && words[0].Length is >= 2 and <= 5)
+            {
+                spacedDottedPattern = $"%{string.Join(". ", words[0].ToCharArray())}%";
+            }
+        }
         var safeLimit = limit is < 1 or > 20 ? 6 : limit;
 
         var suggestions = await _db.Titles
@@ -277,8 +312,16 @@ public class CatalogQueryService : ICatalogQueryService
             .Include(t => t.TitleGenres)
                 .ThenInclude(tg => tg.Genre)
             .Where(t => t.IsActive && (
-                EF.Functions.Like(t.TitleText, $"%{searchTerm}%") ||
-                (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, $"%{searchTerm}%"))
+                EF.Functions.Like(t.TitleText, searchPattern) ||
+                (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, searchPattern)) ||
+                (dottedPattern != null && (
+                    EF.Functions.Like(t.TitleText, dottedPattern) ||
+                    (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, dottedPattern))
+                )) ||
+                (spacedDottedPattern != null && (
+                    EF.Functions.Like(t.TitleText, spacedDottedPattern) ||
+                    (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, spacedDottedPattern))
+                ))
             ))
             .OrderByDescending(t => t.Popularity)
             .Take(safeLimit)
