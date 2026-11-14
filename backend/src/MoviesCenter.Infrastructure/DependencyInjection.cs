@@ -1,187 +1,93 @@
-using System.Text;
-using System.Threading.RateLimiting;
 using Hangfire;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using MoviesCenter.Application;
-using MoviesCenter.Domain.Constants;
-using MoviesCenter.Infrastructure;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using MoviesCenter.Domain.Entities.Identity;
 using MoviesCenter.Infrastructure.Data;
-using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+namespace MoviesCenter.Infrastructure;
 
-// Configure Serilog
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .CreateLogger();
-
-builder.Host.UseSerilog();
-
-// Add services to the container
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-
-// OpenAPI 
-builder.Services.AddOpenApi();
-
-// Clean Architecture services
-builder.Services.AddApplicationServices();
-builder.Services.AddInfrastructureServices(builder.Configuration);
-
-// JWT Authentication
-var jwtSecret = builder.Configuration["JWT_SECRET"] 
-    ?? builder.Configuration["Jwt:Secret"] 
-    ?? "super_secure_movies_center_jwt_secret_key_development_only_must_be_long_and_random_123456789";
-var jwtIssuer = builder.Configuration["JWT_ISSUER"] ?? builder.Configuration["Jwt:Issuer"] ?? "https://localhost:5001";
-var jwtAudience = builder.Configuration["JWT_AUDIENCE"] ?? builder.Configuration["Jwt:Audience"] ?? "http://localhost:4200";
-
-builder.Services.AddAuthentication(options =>
+public static class DependencyInjection
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.RequireHttpsMetadata = false; // Set to true in production
-    options.SaveToken = true;
-    options.TokenValidationParameters = new TokenValidationParameters
+    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
-        ValidateIssuer = true,
-        ValidIssuer = jwtIssuer,
-        ValidateAudience = true,
-        ValidAudience = jwtAudience,
-        ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero
-    };
-});
+        var connectionString = configuration.GetConnectionString("DefaultConnection") 
+            ?? configuration["DATABASE_CONNECTION_STRING"]
+            ?? "Server=(localdb)\\MSSQLLocalDB;Database=MoviesCenterDb;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True";
 
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole(AppConstants.Roles.Admin));
-});
+        services.AddDbContext<ApplicationDbContext>(options =>
+            options.UseSqlServer(connectionString, b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
 
-// CORS Configuration
-var corsOrigins = (builder.Configuration["CORS_ORIGINS"] ?? "http://localhost:4200,https://localhost:5001")
-    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("DefaultPolicy", policy =>
-    {
-        policy.WithOrigins(corsOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
-});
-
-// Rate Limiting
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                AutoReplenishment = true,
-                PermitLimit = 100,
-                QueueLimit = 10,
-                Window = TimeSpan.FromMinutes(1)
-            }));
-});
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/openapi/v1.json", $"{AppConstants.AppName} API v1");
-        c.RoutePrefix = "swagger";
-    });
-}
-
-// Security Headers Middleware
-app.Use(async (context, next) =>
-{
-    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
-    context.Response.Headers.Append("X-Frame-Options", "SAMEORIGIN");
-    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
-    context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
-    await next();
-});
-
-app.UseSerilogRequestLogging();
-app.UseCors("DefaultPolicy");
-app.UseRateLimiter();
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllers();
-
-// Health Check Endpoint
-app.MapGet("/health", () => Results.Ok(new
-{
-    Status = "Healthy",
-    Application = AppConstants.AppName,
-    Version = AppConstants.AppVersion,
-    TimestampUtc = DateTime.UtcNow
-})).AllowAnonymous();
-
-// Run migrations and seed data on startup if database is available
-try
-{
-    using var scope = app.Services.CreateScope();
-    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    // EnsureCreated / Migrate
-    if (dbContext.Database.IsSqlServer())
-    {
-        dbContext.Database.Migrate();
-    }
-}
-catch (Exception ex)
-{
-    Log.Warning(ex, "Could not apply database migrations on startup. Please ensure SQL Server is running.");
-}
-
-// Hangfire Dashboard and Recurring Daily Sync Job
-// Disabled unless Hangfire:Enabled=true. This must match the check in
-// MoviesCenter.Infrastructure/DependencyInjection.cs, because the dashboard
-// and recurring job need Hangfire to be registered there.
-if (string.Equals(builder.Configuration["Hangfire:Enabled"], "true", StringComparison.OrdinalIgnoreCase))
-{
-    try
-    {
-        app.UseHangfireDashboard("/admin/hangfire", new Hangfire.DashboardOptions
+        services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
         {
-            Authorization = [] // TODO: add an admin-only filter before enabling in production
+            options.Password.RequireDigit = true;
+            options.Password.RequireLowercase = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequireNonAlphanumeric = true;
+            options.Password.RequiredLength = 8;
+            options.User.RequireUniqueEmail = true;
+            options.SignIn.RequireConfirmedEmail = false;
+        })
+        .AddEntityFrameworkStores<ApplicationDbContext>()
+        .AddDefaultTokenProviders();
+
+        var redisConnectionString = configuration["REDIS_CONNECTION_STRING"] ?? configuration.GetConnectionString("Redis");
+        if (!string.IsNullOrEmpty(redisConnectionString))
+        {
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisConnectionString;
+                options.InstanceName = "MoviesCenter:";
+            });
+        }
+        else
+        {
+            services.AddDistributedMemoryCache();
+        }
+
+        services.AddSingleton<MoviesCenter.Application.Common.Interfaces.ICacheService, MoviesCenter.Infrastructure.Services.DistributedCacheService>();
+
+        services.AddHttpClient<MoviesCenter.Application.Common.Interfaces.ITmdbService, MoviesCenter.Infrastructure.Services.TmdbService>(client =>
+        {
+            var baseUrl = configuration["Tmdb:BaseUrl"] ?? "https://api.themoviedb.org/3/";
+            if (!baseUrl.EndsWith('/')) baseUrl += "/";
+            client.BaseAddress = new Uri(baseUrl);
+            client.Timeout = TimeSpan.FromSeconds(20);
         });
 
-        var cronSchedule = builder.Configuration["TmdbSync:CronSchedule"] ?? "0 3 * * *"; // Daily at 3 AM UTC
-        Hangfire.RecurringJob.AddOrUpdate<MoviesCenter.Application.Common.Interfaces.ITmdbSyncService>(
-            "daily-tmdb-sync",
-            service => service.RunFullSyncAsync("HangfireJob", CancellationToken.None),
-            cronSchedule
-        );
-    }
-    catch (Exception ex)
-    {
-        Log.Warning(ex, "Could not initialize Hangfire dashboard or recurring job.");
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.ITmdbSyncService, MoviesCenter.Infrastructure.Services.TmdbSyncService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.ICatalogQueryService, MoviesCenter.Infrastructure.Services.CatalogQueryService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.IJwtTokenService, MoviesCenter.Infrastructure.Services.JwtTokenService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.IAuthService, MoviesCenter.Infrastructure.Services.AuthService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.IUserDataService, MoviesCenter.Infrastructure.Services.UserDataService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.IRatingService, MoviesCenter.Infrastructure.Services.RatingService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.IAdminService, MoviesCenter.Infrastructure.Services.AdminService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.IEmailService, MoviesCenter.Infrastructure.Services.EmailService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.INotificationService, MoviesCenter.Infrastructure.Services.NotificationService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.IPushNotificationService, MoviesCenter.Infrastructure.Services.PushNotificationService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.IAnalyticsService, MoviesCenter.Infrastructure.Services.AnalyticsService>();
+        services.AddScoped<MoviesCenter.Application.Common.Interfaces.IReviewService, MoviesCenter.Infrastructure.Services.ReviewService>();
+
+        // Hangfire Background Processing
+        services.AddHangfire(config => config
+            .SetDataCompatibilityLevel(Hangfire.CompatibilityLevel.Version_180)
+            .UseSimpleAssemblyNameTypeSerializer()
+            .UseRecommendedSerializerSettings()
+            .UseSqlServerStorage(connectionString, new Hangfire.SqlServer.SqlServerStorageOptions
+            {
+                CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+                SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+                QueuePollInterval = TimeSpan.Zero,
+                UseRecommendedIsolationLevel = true,
+                DisableGlobalLocks = true
+            }));
+
+        services.AddHangfireServer(options =>
+        {
+            options.WorkerCount = 2;
+        });
+
+        return services;
     }
 }
-
-app.Run();
-
-// Required for WebApplicationFactory in integration tests
-public partial class Program { }
