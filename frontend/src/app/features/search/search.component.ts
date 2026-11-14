@@ -3,6 +3,7 @@ import {
   OnInit, 
   inject, 
   signal, 
+  computed,
   PLATFORM_ID, 
   ChangeDetectionStrategy 
 } from '@angular/core';
@@ -12,7 +13,8 @@ import {
   LucideSearch, 
   LucideFilm, 
   LucideTv, 
-  LucideX 
+  LucideX,
+  LucideSparkles
 } from '@lucide/angular';
 import { CatalogService } from '../../core/services/catalog.service';
 import { SeoService } from '../../core/services/seo.service';
@@ -31,6 +33,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state/empty-s
     LucideFilm, 
     LucideTv, 
     LucideX, 
+    LucideSparkles,
     MediaCardComponent, 
     PaginationComponent, 
     EmptyStateComponent
@@ -55,6 +58,11 @@ export class SearchComponent implements OnInit {
   readonly totalPages = signal<number>(1);
   readonly isLoading = signal<boolean>(false);
   readonly hasSearched = signal<boolean>(false);
+
+  readonly isTmdbDiscovered = computed(() => {
+    const list = this.titles();
+    return list.length > 0 && list.some(t => t.isExternal);
+  });
 
   readonly skeletonArray = Array.from({ length: 12 });
 

@@ -108,6 +108,21 @@
   letter-spacing: 0.04em;
 }
 
+.tmdb-badge-chip {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.625rem;
+  font-weight: 800;
+  background: rgba(1, 180, 228, 0.9);
+  color: #fff;
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  z-index: 2;
+}
+
 .card-overlay {
   position: absolute;
   bottom: 0;

@@ -19,6 +19,10 @@
     <!-- Type badge in top-left -->
     <div class="type-badge">{{ item().type === 'series' ? 'TV' : 'HD' }}</div>
 
+    @if (item().isExternal) {
+      <div class="tmdb-badge-chip" title="Discovered on TMDB • Click to stream & import">TMDB</div>
+    }
+
     <!-- Desktop Hover Overlay -->
     <div class="card-overlay">
       <h3 class="card-title">{{ item().title }}</h3>

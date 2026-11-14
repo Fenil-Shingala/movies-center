@@ -186,7 +186,10 @@ export class TitleDetailComponent implements OnInit, OnDestroy {
           if (typeof window !== 'undefined') {
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }
-          this.loadTitle(id);
+          const urlSegments = this.route.snapshot.url;
+          const firstSegment = urlSegments.length > 0 ? urlSegments[0].path : '';
+          const type = (firstSegment === 'movie' || firstSegment === 'series') ? firstSegment : undefined;
+          this.loadTitle(id, type);
         } else {
           this.isLoading.set(false);
           this.title.set(null);
@@ -202,9 +205,9 @@ export class TitleDetailComponent implements OnInit, OnDestroy {
     }
   }
 
-  loadTitle(id: number): void {
+  loadTitle(id: number, type?: string): void {
     this.isLoading.set(true);
-    this.catalogService.getTitleDetail(id).subscribe({
+    this.catalogService.getTitleDetail(id, type).subscribe({
       next: (detail: TitleDetail) => {
         this.title.set(detail);
         this.isLoading.set(false);

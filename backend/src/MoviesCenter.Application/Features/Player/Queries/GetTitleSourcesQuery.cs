@@ -7,7 +7,8 @@ namespace MoviesCenter.Application.Features.Player.Queries;
 public record GetTitleSourcesQuery(
     int TitleId,
     int? Season = null,
-    int? Episode = null
+    int? Episode = null,
+    string? Type = null
 ) : IRequest<List<TitleSourceDto>>;
 
 public class GetTitleSourcesQueryHandler : IRequestHandler<GetTitleSourcesQuery, List<TitleSourceDto>>
@@ -21,6 +22,6 @@ public class GetTitleSourcesQueryHandler : IRequestHandler<GetTitleSourcesQuery,
 
     public async Task<List<TitleSourceDto>> Handle(GetTitleSourcesQuery request, CancellationToken cancellationToken)
     {
-        return await _catalogService.GetTitleSourcesAsync(request.TitleId, request.Season, request.Episode, cancellationToken);
+        return await _catalogService.GetTitleSourcesAsync(request.TitleId, request.Season, request.Episode, request.Type, cancellationToken);
     }
 }

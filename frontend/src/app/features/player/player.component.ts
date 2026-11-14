@@ -298,7 +298,7 @@ export class PlayerComponent implements OnInit, OnDestroy {
 
     // Load Title detail if not loaded yet
     if (!this.title() || this.title()?.tmdbId !== id) {
-      this.catalogService.getTitleDetail(id).pipe(
+      this.catalogService.getTitleDetail(id, this.mediaType()).pipe(
         catchError(err => {
           console.error('Failed to load title details', err);
           return of(null);
@@ -311,7 +311,7 @@ export class PlayerComponent implements OnInit, OnDestroy {
     }
 
     // Load Sources
-    this.catalogService.getTitleSources(id, s, e).pipe(
+    this.catalogService.getTitleSources(id, s, e, this.mediaType()).pipe(
       catchError(err => {
         console.error('Failed to load video sources', err);
         return of([] as TitleSource[]);

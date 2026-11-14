@@ -442,6 +442,17 @@
       color: #fbbf24;
     }
   }
+
+  .tmdb-pill {
+    padding: 0.1rem 0.35rem;
+    border-radius: 2px;
+    font-size: 0.625rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    background-color: rgba(1, 180, 228, 0.2);
+    color: #38bdf8;
+    border: 1px solid rgba(1, 180, 228, 0.4);
+  }
 }
 
 .dropdown-footer {

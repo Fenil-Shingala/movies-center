@@ -79,6 +79,9 @@
                           {{ item.rating.toFixed(1) }}
                         </span>
                       }
+                      @if (item.isExternal) {
+                        <span class="tmdb-pill" title="Discovered on TMDB • Click to stream & import">TMDB</span>
+                      }
                     </div>
                   </div>
                 </button>

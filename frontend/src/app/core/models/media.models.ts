@@ -7,6 +7,7 @@ export interface MediaCard {
   rating: number;
   year: string;
   genres: string[];
+  isExternal?: boolean;
 }
 
 export interface HeroItem {
@@ -72,6 +73,7 @@ export interface SearchSuggestion {
   rating: number;
   year: string;
   genres: string[];
+  isExternal?: boolean;
 }
 
 export interface CastMember {

@@ -244,7 +244,7 @@ export class HeaderComponent implements OnDestroy {
 
   selectSuggestion(item: SearchSuggestion): void {
     this.closeSearch();
-    this.router.navigate(['/search'], { queryParams: { q: item.title } });
+    this.router.navigate([`/${item.type}`, item.tmdbId]);
   }
 
   getPosterUrl(path: string | null): string {

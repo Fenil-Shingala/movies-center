@@ -94,7 +94,9 @@ public record TmdbSearchResultItemDto(
     string? ReleaseDate,
     string? Year,
     double Rating,
-    string? Overview
+    string? Overview,
+    List<string>? Genres = null,
+    double Popularity = 0
 );
 
 public record ImportTmdbTitleRequest(

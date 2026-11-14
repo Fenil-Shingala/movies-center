@@ -70,7 +70,12 @@
     <div class="results-info-bar">
       <div class="info-text">
         @if (isLoading()) {
-          <span class="loading-label">Searching catalog...</span>
+          <span class="loading-label">Searching catalog & TMDB...</span>
+        } @else if (isTmdbDiscovered()) {
+          <div class="tmdb-pill-notice">
+            <svg lucideSparkles class="sparkle-icon"></svg>
+            <span>Found on TMDB: <strong class="highlight-count">{{ totalCount() }}</strong> {{ totalCount() === 1 ? 'title' : 'titles' }} for <strong class="highlight-term">"{{ queryText() }}"</strong> (Click any title to stream & add to catalog)</span>
+          </div>
         } @else {
           <span>Found <strong class="highlight-count">{{ totalCount() }}</strong> {{ totalCount() === 1 ? 'title' : 'titles' }} for <strong class="highlight-term">"{{ queryText() }}"</strong></span>
         }

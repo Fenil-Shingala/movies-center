@@ -4,7 +4,7 @@ using MoviesCenter.Application.Features.Catalog.Dtos;
 
 namespace MoviesCenter.Application.Features.Catalog.Queries;
 
-public record GetTitleDetailQuery(int Id) : IRequest<TitleDetailDto?>;
+public record GetTitleDetailQuery(int Id, string? Type = null) : IRequest<TitleDetailDto?>;
 
 public class GetTitleDetailQueryHandler : IRequestHandler<GetTitleDetailQuery, TitleDetailDto?>
 {
@@ -17,6 +17,6 @@ public class GetTitleDetailQueryHandler : IRequestHandler<GetTitleDetailQuery, T
 
     public async Task<TitleDetailDto?> Handle(GetTitleDetailQuery request, CancellationToken cancellationToken)
     {
-        return await _catalogService.GetTitleDetailAsync(request.Id, cancellationToken);
+        return await _catalogService.GetTitleDetailAsync(request.Id, request.Type, cancellationToken);
     }
 }

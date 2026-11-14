@@ -38,5 +38,6 @@ public record MediaCardDto(
     string? BackdropPath,
     double Rating,
     string Year,
-    List<string> Genres
+    List<string> Genres,
+    bool IsExternal = false
 );

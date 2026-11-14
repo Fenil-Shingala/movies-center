@@ -7,5 +7,6 @@ public record SearchSuggestionDto(
     string? PosterPath,
     double Rating,
     string Year,
-    List<string> Genres
+    List<string> Genres,
+    bool IsExternal = false
 );

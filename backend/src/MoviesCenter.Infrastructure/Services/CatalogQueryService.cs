@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using MoviesCenter.Application.Common.Interfaces;
 using MoviesCenter.Application.Common.Models;
 using MoviesCenter.Application.Features.Catalog.Dtos;
@@ -16,15 +17,26 @@ public class CatalogQueryService : ICatalogQueryService
 {
     private readonly ApplicationDbContext _db;
     private readonly ICacheService _cacheService;
+    private readonly ITmdbService _tmdbService;
+    private readonly ITmdbSyncService _tmdbSyncService;
+    private readonly ILogger<CatalogQueryService> _logger;
     private const string HomeFeedCacheKey = "home_feed_v1";
     private static readonly TimeSpan HomeFeedCacheDuration = TimeSpan.FromHours(1);
     private const string GenresCacheKey = "genres_all_v1";
     private static readonly TimeSpan GenresCacheDuration = TimeSpan.FromDays(1);
 
-    public CatalogQueryService(ApplicationDbContext db, ICacheService cacheService)
+    public CatalogQueryService(
+        ApplicationDbContext db, 
+        ICacheService cacheService,
+        ITmdbService tmdbService,
+        ITmdbSyncService tmdbSyncService,
+        ILogger<CatalogQueryService> logger)
     {
         _db = db;
         _cacheService = cacheService;
+        _tmdbService = tmdbService;
+        _tmdbSyncService = tmdbSyncService;
+        _logger = logger;
     }
 
     public async Task<HomeFeedDto> GetHomeFeedAsync(CancellationToken cancellationToken = default)
@@ -257,6 +269,40 @@ public class CatalogQueryService : ICatalogQueryService
         }
 
         var totalCount = await baseQuery.CountAsync(cancellationToken);
+
+        // Fallback to TMDB search if no titles are available in the local database
+        if (totalCount == 0 && !string.IsNullOrWhiteSpace(query.Query))
+        {
+            try
+            {
+                var tmdbResults = await _tmdbService.SearchTmdbAsync(query.Query, query.Type, cancellationToken);
+                if (tmdbResults.Count > 0)
+                {
+                    var tmdbItems = tmdbResults
+                        .Skip((page - 1) * pageSize)
+                        .Take(pageSize)
+                        .Select(r => new MediaCardDto(
+                            TmdbId: r.TmdbId,
+                            Type: r.Type,
+                            Title: r.Title,
+                            PosterPath: r.PosterPath,
+                            BackdropPath: r.BackdropPath,
+                            Rating: r.Rating,
+                            Year: r.Year ?? string.Empty,
+                            Genres: r.Genres ?? [],
+                            IsExternal: true
+                        )).ToList();
+
+                    var tmdbTotalPages = (int)Math.Ceiling(tmdbResults.Count / (double)pageSize);
+                    return new PagedResult<MediaCardDto>(tmdbItems, page, pageSize, tmdbResults.Count, tmdbTotalPages);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to query TMDB fallback for search query {Query}", query.Query);
+            }
+        }
+
         var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
         var queryable = baseQuery
@@ -278,7 +324,8 @@ public class CatalogQueryService : ICatalogQueryService
             BackdropPath: t.BackdropPath,
             Rating: (double)(t.TmdbRating ?? 0m),
             Year: t.ReleaseDate?.Year.ToString() ?? t.FirstAirDate?.Year.ToString() ?? string.Empty,
-            Genres: t.TitleGenres.Select(tg => tg.Genre.Name).Take(3).ToList()
+            Genres: t.TitleGenres.Select(tg => tg.Genre.Name).Take(3).ToList(),
+            IsExternal: false
         )).ToList();
 
         return new PagedResult<MediaCardDto>(items, page, pageSize, totalCount, totalPages);
@@ -327,6 +374,32 @@ public class CatalogQueryService : ICatalogQueryService
             .Take(safeLimit)
             .ToListAsync(cancellationToken);
 
+        // Fallback to TMDB suggestions if no suggestions found in local database
+        if (suggestions.Count == 0)
+        {
+            try
+            {
+                var tmdbResults = await _tmdbService.SearchTmdbAsync(searchTerm, null, cancellationToken);
+                if (tmdbResults.Count > 0)
+                {
+                    return tmdbResults.Take(safeLimit).Select(r => new SearchSuggestionDto(
+                        TmdbId: r.TmdbId,
+                        Type: r.Type,
+                        Title: r.Title,
+                        PosterPath: r.PosterPath,
+                        Rating: r.Rating,
+                        Year: r.Year ?? string.Empty,
+                        Genres: r.Genres?.Take(2).ToList() ?? [],
+                        IsExternal: true
+                    )).ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to query TMDB fallback suggestions for {Query}", searchTerm);
+            }
+        }
+
         return suggestions.Select(t => new SearchSuggestionDto(
             TmdbId: t.TmdbId,
             Type: t.Type,
@@ -334,7 +407,8 @@ public class CatalogQueryService : ICatalogQueryService
             PosterPath: t.PosterPath,
             Rating: (double)(t.TmdbRating ?? 0m),
             Year: t.ReleaseDate?.Year.ToString() ?? t.FirstAirDate?.Year.ToString() ?? string.Empty,
-            Genres: t.TitleGenres.Select(tg => tg.Genre.Name).Take(2).ToList()
+            Genres: t.TitleGenres.Select(tg => tg.Genre.Name).Take(2).ToList(),
+            IsExternal: false
         )).ToList();
     }
 
@@ -395,7 +469,7 @@ public class CatalogQueryService : ICatalogQueryService
         )).ToList();
     }
 
-    public async Task<TitleDetailDto?> GetTitleDetailAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<TitleDetailDto?> GetTitleDetailAsync(int id, string? type = null, CancellationToken cancellationToken = default)
     {
         var title = await _db.Titles
             .AsNoTracking()
@@ -410,6 +484,52 @@ public class CatalogQueryService : ICatalogQueryService
             .Include(t => t.Seasons)
                 .ThenInclude(s => s.Episodes)
             .FirstOrDefaultAsync(t => t.IsActive && (t.Id == id || t.TmdbId == id), cancellationToken);
+
+        if (title == null)
+        {
+            // Title not in database! Import on demand from TMDB
+            _logger.LogInformation("Title {Id} not found in database. Attempting on-demand import from TMDB...", id);
+
+            var resolvedType = type;
+            if (string.IsNullOrWhiteSpace(resolvedType) || string.Equals(resolvedType, "title", StringComparison.OrdinalIgnoreCase))
+            {
+                var movieCheck = await _tmdbService.GetFullDetailsAsync(id, "movie", cancellationToken);
+                if (movieCheck != null)
+                {
+                    resolvedType = "movie";
+                }
+                else
+                {
+                    var tvCheck = await _tmdbService.GetFullDetailsAsync(id, "series", cancellationToken);
+                    if (tvCheck != null)
+                    {
+                        resolvedType = "series";
+                    }
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(resolvedType))
+            {
+                var imported = await _tmdbSyncService.SyncSingleTitleAsync(id, resolvedType, cancellationToken);
+                if (imported)
+                {
+                    _logger.LogInformation("Successfully imported TMDB {Type} {Id} into database.", resolvedType, id);
+                    title = await _db.Titles
+                        .AsNoTracking()
+                        .AsSplitQuery()
+                        .Include(t => t.TitleGenres)
+                            .ThenInclude(tg => tg.Genre)
+                        .Include(t => t.TitleCasts)
+                            .ThenInclude(tc => tc.Person)
+                        .Include(t => t.Videos)
+                        .Include(t => t.TitleProviders)
+                            .ThenInclude(tp => tp.Provider)
+                        .Include(t => t.Seasons)
+                            .ThenInclude(s => s.Episodes)
+                        .FirstOrDefaultAsync(t => t.IsActive && (t.Id == id || t.TmdbId == id), cancellationToken);
+                }
+            }
+        }
 
         if (title == null)
         {
@@ -591,7 +711,7 @@ public class CatalogQueryService : ICatalogQueryService
         )).ToList();
     }
 
-    public async Task<List<TitleSourceDto>> GetTitleSourcesAsync(int titleId, int? season = null, int? episode = null, CancellationToken cancellationToken = default)
+    public async Task<List<TitleSourceDto>> GetTitleSourcesAsync(int titleId, int? season = null, int? episode = null, string? type = null, CancellationToken cancellationToken = default)
     {
         var title = await _db.Titles
             .AsNoTracking()
@@ -599,7 +719,18 @@ public class CatalogQueryService : ICatalogQueryService
 
         if (title == null)
         {
-            return [];
+            var resolvedType = !string.IsNullOrWhiteSpace(type) ? type : (season.HasValue ? "series" : "movie");
+            _logger.LogInformation("Title {TitleId} sources requested but title not in DB. Attempting import as {Type}...", titleId, resolvedType);
+            await _tmdbSyncService.SyncSingleTitleAsync(titleId, resolvedType, cancellationToken);
+
+            title = await _db.Titles
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.IsActive && (t.Id == titleId || t.TmdbId == titleId), cancellationToken);
+
+            if (title == null)
+            {
+                return [];
+            }
         }
 
         var sourcesQuery = _db.TitleSources

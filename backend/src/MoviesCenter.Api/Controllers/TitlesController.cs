@@ -60,9 +60,10 @@ public class TitlesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<TitleDetailDto>> GetTitleDetail(
         int id,
+        [FromQuery] string? type = null,
         CancellationToken cancellationToken = default)
     {
-        var query = new GetTitleDetailQuery(id);
+        var query = new GetTitleDetailQuery(id, type);
         var result = await _mediator.Send(query, cancellationToken);
 
         if (result == null)
@@ -125,9 +126,10 @@ public class TitlesController : ControllerBase
         int id,
         [FromQuery] int? season = null,
         [FromQuery] int? episode = null,
+        [FromQuery] string? type = null,
         CancellationToken cancellationToken = default)
     {
-        var query = new MoviesCenter.Application.Features.Player.Queries.GetTitleSourcesQuery(id, season, episode);
+        var query = new MoviesCenter.Application.Features.Player.Queries.GetTitleSourcesQuery(id, season, episode, type);
         var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
     }

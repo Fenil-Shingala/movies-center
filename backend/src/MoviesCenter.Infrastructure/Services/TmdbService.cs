@@ -363,6 +363,15 @@ public class TmdbService : ITmdbService
         if (string.IsNullOrWhiteSpace(query)) return results;
 
         var encodedQuery = Uri.EscapeDataString(query.Trim());
+        Dictionary<int, string> genreMap = [];
+        try
+        {
+            genreMap = await GetGenreMapAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not load genre map for TMDB search");
+        }
 
         if (string.IsNullOrEmpty(type) || type.Equals("movie", StringComparison.OrdinalIgnoreCase))
         {
@@ -372,17 +381,28 @@ public class TmdbService : ITmdbService
                 var movieResp = await _httpClient.GetFromJsonAsync<TmdbPagedResponse<TmdbMovieResult>>(movieUrl, JsonOptions, cancellationToken);
                 if (movieResp?.Results != null)
                 {
-                    results.AddRange(movieResp.Results.Take(12).Select(m => new MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto(
-                        TmdbId: m.Id,
-                        Title: m.Title ?? "Untitled Movie",
-                        Type: "movie",
-                        PosterPath: m.PosterPath,
-                        BackdropPath: m.BackdropPath,
-                        ReleaseDate: m.ReleaseDate,
-                        Year: ExtractYear(m.ReleaseDate),
-                        Rating: Math.Round(m.VoteAverage, 1),
-                        Overview: m.Overview
-                    )));
+                    results.AddRange(movieResp.Results.Take(12).Select(m => {
+                        var genres = m.GenreIds
+                            .Select(gid => genreMap.TryGetValue(gid, out var gname) ? gname : null)
+                            .Where(g => !string.IsNullOrEmpty(g))
+                            .Cast<string>()
+                            .Take(3)
+                            .ToList();
+
+                        return new MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto(
+                            TmdbId: m.Id,
+                            Title: m.Title ?? "Untitled Movie",
+                            Type: "movie",
+                            PosterPath: m.PosterPath,
+                            BackdropPath: m.BackdropPath,
+                            ReleaseDate: m.ReleaseDate,
+                            Year: ExtractYear(m.ReleaseDate),
+                            Rating: Math.Round(m.VoteAverage, 1),
+                            Overview: m.Overview,
+                            Genres: genres,
+                            Popularity: m.Popularity
+                        );
+                    }));
                 }
             }
             catch (Exception ex)
@@ -399,17 +419,28 @@ public class TmdbService : ITmdbService
                 var tvResp = await _httpClient.GetFromJsonAsync<TmdbPagedResponse<TmdbTvResult>>(tvUrl, JsonOptions, cancellationToken);
                 if (tvResp?.Results != null)
                 {
-                    results.AddRange(tvResp.Results.Take(12).Select(t => new MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto(
-                        TmdbId: t.Id,
-                        Title: t.Name ?? "Untitled Series",
-                        Type: "series",
-                        PosterPath: t.PosterPath,
-                        BackdropPath: t.BackdropPath,
-                        ReleaseDate: t.FirstAirDate,
-                        Year: ExtractYear(t.FirstAirDate),
-                        Rating: Math.Round(t.VoteAverage, 1),
-                        Overview: t.Overview
-                    )));
+                    results.AddRange(tvResp.Results.Take(12).Select(t => {
+                        var genres = t.GenreIds
+                            .Select(gid => genreMap.TryGetValue(gid, out var gname) ? gname : null)
+                            .Where(g => !string.IsNullOrEmpty(g))
+                            .Cast<string>()
+                            .Take(3)
+                            .ToList();
+
+                        return new MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto(
+                            TmdbId: t.Id,
+                            Title: t.Name ?? "Untitled Series",
+                            Type: "series",
+                            PosterPath: t.PosterPath,
+                            BackdropPath: t.BackdropPath,
+                            ReleaseDate: t.FirstAirDate,
+                            Year: ExtractYear(t.FirstAirDate),
+                            Rating: Math.Round(t.VoteAverage, 1),
+                            Overview: t.Overview,
+                            Genres: genres,
+                            Popularity: t.Popularity
+                        );
+                    }));
                 }
             }
             catch (Exception ex)
@@ -418,7 +449,7 @@ public class TmdbService : ITmdbService
             }
         }
 
-        return results.OrderByDescending(r => r.Rating).ToList();
+        return results.OrderByDescending(r => r.Popularity).ThenByDescending(r => r.Rating).ToList();
     }
 
     private static List<TmdbProviderItem> ExtractProviders(TmdbWatchProvidersResponse? wp)

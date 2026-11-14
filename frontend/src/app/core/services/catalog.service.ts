@@ -77,8 +77,12 @@ export class CatalogService {
     return this.http.get<SearchSuggestion[]>(`${this.apiUrl}/search/suggest`, { params });
   }
 
-  getTitleDetail(id: number): Observable<TitleDetail> {
-    return this.http.get<TitleDetail>(`${this.apiUrl}/titles/${id}`);
+  getTitleDetail(id: number, type?: string | null): Observable<TitleDetail> {
+    let params = new HttpParams();
+    if (type) {
+      params = params.set('type', type);
+    }
+    return this.http.get<TitleDetail>(`${this.apiUrl}/titles/${id}`, { params });
   }
 
   getTitleSeasons(id: number): Observable<SeasonItem[]> {
@@ -94,13 +98,16 @@ export class CatalogService {
     return this.http.get<MediaCard[]>(`${this.apiUrl}/titles/${id}/recommendations`, { params });
   }
 
-  getTitleSources(titleId: number, season?: number | null, episode?: number | null): Observable<TitleSource[]> {
+  getTitleSources(titleId: number, season?: number | null, episode?: number | null, type?: string | null): Observable<TitleSource[]> {
     let params = new HttpParams();
     if (season !== undefined && season !== null) {
       params = params.set('season', season.toString());
     }
     if (episode !== undefined && episode !== null) {
       params = params.set('episode', episode.toString());
+    }
+    if (type) {
+      params = params.set('type', type);
     }
     return this.http.get<TitleSource[]>(`${this.apiUrl}/titles/${titleId}/sources`, { params });
   }
