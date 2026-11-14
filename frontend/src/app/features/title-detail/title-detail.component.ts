@@ -186,8 +186,8 @@ export class TitleDetailComponent implements OnInit, OnDestroy {
           if (typeof window !== 'undefined') {
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }
-          const urlSegments = this.route.snapshot.url;
-          const firstSegment = urlSegments.length > 0 ? urlSegments[0].path : '';
+          const urlSegments = this.route.snapshot?.url ?? [];
+          const firstSegment = urlSegments.length > 0 ? urlSegments[0]?.path : '';
           const type = (firstSegment === 'movie' || firstSegment === 'series') ? firstSegment : undefined;
           this.loadTitle(id, type);
         } else {

@@ -90,7 +90,7 @@ describe('CatalogService', () => {
       hasNextPage: false
     };
 
-    service.searchTitles('dark', 'movie', 1, 24).subscribe(res => {
+    service.searchTitles('dark', 'movie', 'all', 1, 24).subscribe(res => {
       expect(res.items.length).toBe(1);
       expect(res.items[0].title).toBe('The Dark Knight');
     });

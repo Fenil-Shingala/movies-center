@@ -22,7 +22,7 @@ public class PlayerSourcesQueryHandlerTests
         };
 
         _mockCatalogQueryService
-            .Setup(s => s.GetTitleSourcesAsync(155, null, null, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetTitleSourcesAsync(155, null, null, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedSources);
 
         var handler = new GetTitleSourcesQueryHandler(_mockCatalogQueryService.Object);

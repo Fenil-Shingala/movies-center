@@ -52,6 +52,45 @@ public class SearchQueryHandlerTests
     }
 
     [Fact]
+    public async Task SearchTitles_WithCastSearchBy_ShouldPassSearchByParameter()
+    {
+        // Arrange
+        var query = new SearchTitlesQuery(
+            Query: "cillian murphy",
+            Type: "movie",
+            SearchBy: "cast",
+            Page: 1,
+            PageSize: 12
+        );
+
+        var expectedResult = new PagedResult<MediaCardDto>(
+            Items: new List<MediaCardDto>
+            {
+                new(872585, "movie", "Oppenheimer", "/oppenheimer.jpg", "/backdrop.jpg", 8.9, "2023", new List<string> { "Drama", "History" })
+            },
+            Page: 1,
+            PageSize: 12,
+            TotalCount: 1,
+            TotalPages: 1
+        );
+
+        _mockCatalogQueryService
+            .Setup(s => s.SearchTitlesAsync(query, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedResult);
+
+        var handler = new SearchTitlesQueryHandler(_mockCatalogQueryService.Object);
+
+        // Act
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Title.Should().Be("Oppenheimer");
+        _mockCatalogQueryService.Verify(s => s.SearchTitlesAsync(query, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task GetSearchSuggestions_ShouldReturnSuggestionsFromCatalogQueryService()
     {
         // Arrange

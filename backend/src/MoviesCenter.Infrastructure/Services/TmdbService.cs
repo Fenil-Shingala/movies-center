@@ -357,7 +357,7 @@ public class TmdbService : ITmdbService
         }
     }
 
-    public async Task<List<MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto>> SearchTmdbAsync(string query, string? type = null, CancellationToken cancellationToken = default)
+    public async Task<List<MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto>> SearchTmdbAsync(string query, string? type = null, string? searchBy = null, CancellationToken cancellationToken = default)
     {
         var results = new List<MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto>();
         if (string.IsNullOrWhiteSpace(query)) return results;
@@ -373,83 +373,339 @@ public class TmdbService : ITmdbService
             _logger.LogWarning(ex, "Could not load genre map for TMDB search");
         }
 
-        if (string.IsNullOrEmpty(type) || type.Equals("movie", StringComparison.OrdinalIgnoreCase))
+        var searchMovies = string.IsNullOrWhiteSpace(type) || 
+                           string.Equals(type, "all", StringComparison.OrdinalIgnoreCase) || 
+                           string.Equals(type, "movie", StringComparison.OrdinalIgnoreCase);
+
+        var searchTv = string.IsNullOrWhiteSpace(type) || 
+                       string.Equals(type, "all", StringComparison.OrdinalIgnoreCase) || 
+                       string.Equals(type, "series", StringComparison.OrdinalIgnoreCase) || 
+                       string.Equals(type, "tv", StringComparison.OrdinalIgnoreCase);
+
+        var searchByNorm = string.IsNullOrWhiteSpace(searchBy) ? "all" : searchBy.Trim().ToLowerInvariant();
+        var searchTitle = searchByNorm == "all" || searchByNorm == "title";
+        var searchCast = searchByNorm == "all" || searchByNorm == "cast" || searchByNorm == "actor";
+
+        if (searchTitle)
+        {
+            if (searchMovies)
+            {
+                try
+                {
+                    var movieUrl = $"search/movie?api_key={_apiKey}&query={encodedQuery}&page=1&include_adult=false";
+                    var movieResp = await _httpClient.GetFromJsonAsync<TmdbPagedResponse<TmdbMovieResult>>(movieUrl, JsonOptions, cancellationToken);
+                    if (movieResp?.Results != null)
+                    {
+                        var movieTake = searchTv ? 15 : 24;
+                        results.AddRange(movieResp.Results
+                            .Where(m => !string.IsNullOrWhiteSpace(m.Title))
+                            .Take(movieTake)
+                            .Select(m => {
+                                var genres = m.GenreIds
+                                    .Select(gid => genreMap.TryGetValue(gid, out var gname) ? gname : null)
+                                    .Where(g => !string.IsNullOrEmpty(g))
+                                    .Cast<string>()
+                                    .Take(3)
+                                    .ToList();
+
+                                return new MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto(
+                                    TmdbId: m.Id,
+                                    Title: m.Title ?? "Untitled Movie",
+                                    Type: "movie",
+                                    PosterPath: m.PosterPath,
+                                    BackdropPath: m.BackdropPath,
+                                    ReleaseDate: m.ReleaseDate,
+                                    Year: ExtractYear(m.ReleaseDate),
+                                    Rating: Math.Round(m.VoteAverage, 1),
+                                    Overview: m.Overview,
+                                    Genres: genres,
+                                    Popularity: m.Popularity
+                                );
+                            }));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to search TMDB movies for query {Query}", query);
+                }
+            }
+
+            if (searchTv)
+            {
+                try
+                {
+                    var tvUrl = $"search/tv?api_key={_apiKey}&query={encodedQuery}&page=1&include_adult=false";
+                    var tvResp = await _httpClient.GetFromJsonAsync<TmdbPagedResponse<TmdbTvResult>>(tvUrl, JsonOptions, cancellationToken);
+                    if (tvResp?.Results != null)
+                    {
+                        var tvTake = searchMovies ? 15 : 24;
+                        results.AddRange(tvResp.Results
+                            .Where(t => !string.IsNullOrWhiteSpace(t.Name))
+                            .Take(tvTake)
+                            .Select(t => {
+                                var genres = t.GenreIds
+                                    .Select(gid => genreMap.TryGetValue(gid, out var gname) ? gname : null)
+                                    .Where(g => !string.IsNullOrEmpty(g))
+                                    .Cast<string>()
+                                    .Take(3)
+                                    .ToList();
+
+                                return new MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto(
+                                    TmdbId: t.Id,
+                                    Title: t.Name ?? "Untitled Series",
+                                    Type: "series",
+                                    PosterPath: t.PosterPath,
+                                    BackdropPath: t.BackdropPath,
+                                    ReleaseDate: t.FirstAirDate,
+                                    Year: ExtractYear(t.FirstAirDate),
+                                    Rating: Math.Round(t.VoteAverage, 1),
+                                    Overview: t.Overview,
+                                    Genres: genres,
+                                    Popularity: t.Popularity
+                                );
+                            }));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to search TMDB series for query {Query}", query);
+                }
+            }
+        }
+
+        if (searchCast)
         {
             try
             {
-                var movieUrl = $"search/movie?api_key={_apiKey}&query={encodedQuery}&page=1";
-                var movieResp = await _httpClient.GetFromJsonAsync<TmdbPagedResponse<TmdbMovieResult>>(movieUrl, JsonOptions, cancellationToken);
-                if (movieResp?.Results != null)
+                var personUrl = $"search/person?api_key={_apiKey}&query={encodedQuery}&page=1&include_adult=false";
+                var personResp = await _httpClient.GetFromJsonAsync<TmdbPersonSearchResponse>(personUrl, JsonOptions, cancellationToken);
+                if (personResp?.Results != null && personResp.Results.Count > 0)
                 {
-                    results.AddRange(movieResp.Results.Take(12).Select(m => {
-                        var genres = m.GenreIds
-                            .Select(gid => genreMap.TryGetValue(gid, out var gname) ? gname : null)
-                            .Where(g => !string.IsNullOrEmpty(g))
-                            .Cast<string>()
-                            .Take(3)
-                            .ToList();
+                    var matchedPersons = personResp.Results
+                        .Where(p => !string.IsNullOrWhiteSpace(p.Name))
+                        .OrderByDescending(p => p.KnownForDepartment == "Acting")
+                        .ThenByDescending(p => p.Popularity)
+                        .Take(2)
+                        .ToList();
 
-                        return new MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto(
-                            TmdbId: m.Id,
-                            Title: m.Title ?? "Untitled Movie",
-                            Type: "movie",
-                            PosterPath: m.PosterPath,
-                            BackdropPath: m.BackdropPath,
-                            ReleaseDate: m.ReleaseDate,
-                            Year: ExtractYear(m.ReleaseDate),
-                            Rating: Math.Round(m.VoteAverage, 1),
-                            Overview: m.Overview,
-                            Genres: genres,
-                            Popularity: m.Popularity
-                        );
-                    }));
+                    foreach (var person in matchedPersons)
+                    {
+                        var creditsUrl = $"person/{person.Id}/combined_credits?api_key={_apiKey}";
+                        var creditsResp = await _httpClient.GetFromJsonAsync<TmdbPersonCombinedCreditsResponse>(creditsUrl, JsonOptions, cancellationToken);
+                        if (creditsResp?.Cast != null)
+                        {
+                            var castItems = creditsResp.Cast
+                                .Where(c => (searchMovies && c.MediaType == "movie") || (searchTv && c.MediaType == "tv"))
+                                .OrderByDescending(c => c.Popularity)
+                                .Take(20)
+                                .Select(c => {
+                                    var itemType = c.MediaType == "tv" ? "series" : "movie";
+                                    var itemTitle = itemType == "series" ? (c.Name ?? "Untitled Series") : (c.Title ?? "Untitled Movie");
+                                    var date = itemType == "series" ? c.FirstAirDate : c.ReleaseDate;
+                                    var genres = (c.GenreIds ?? [])
+                                        .Select(gid => genreMap.TryGetValue(gid, out var gname) ? gname : null)
+                                        .Where(g => !string.IsNullOrEmpty(g))
+                                        .Cast<string>()
+                                        .Take(3)
+                                        .ToList();
+
+                                    return new MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto(
+                                        TmdbId: c.Id,
+                                        Title: itemTitle,
+                                        Type: itemType,
+                                        PosterPath: c.PosterPath,
+                                        BackdropPath: c.BackdropPath,
+                                        ReleaseDate: date,
+                                        Year: ExtractYear(date),
+                                        Rating: Math.Round(c.VoteAverage, 1),
+                                        Overview: c.Overview,
+                                        Genres: genres,
+                                        Popularity: c.Popularity
+                                    );
+                                });
+
+                            results.AddRange(castItems);
+                        }
+                    }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to search TMDB movies for query {Query}", query);
+                _logger.LogWarning(ex, "Failed to search TMDB cast/person credits for query {Query}", query);
             }
         }
 
-        if (string.IsNullOrEmpty(type) || type.Equals("series", StringComparison.OrdinalIgnoreCase) || type.Equals("tv", StringComparison.OrdinalIgnoreCase))
-        {
-            try
-            {
-                var tvUrl = $"search/tv?api_key={_apiKey}&query={encodedQuery}&page=1";
-                var tvResp = await _httpClient.GetFromJsonAsync<TmdbPagedResponse<TmdbTvResult>>(tvUrl, JsonOptions, cancellationToken);
-                if (tvResp?.Results != null)
-                {
-                    results.AddRange(tvResp.Results.Take(12).Select(t => {
-                        var genres = t.GenreIds
-                            .Select(gid => genreMap.TryGetValue(gid, out var gname) ? gname : null)
-                            .Where(g => !string.IsNullOrEmpty(g))
-                            .Cast<string>()
-                            .Take(3)
-                            .ToList();
+        return results
+            .DistinctBy(r => r.TmdbId)
+            .OrderByDescending(r => r.Popularity)
+            .ThenByDescending(r => r.Rating)
+            .ToList();
+    }
 
-                        return new MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto(
-                            TmdbId: t.Id,
-                            Title: t.Name ?? "Untitled Series",
-                            Type: "series",
-                            PosterPath: t.PosterPath,
-                            BackdropPath: t.BackdropPath,
-                            ReleaseDate: t.FirstAirDate,
-                            Year: ExtractYear(t.FirstAirDate),
-                            Rating: Math.Round(t.VoteAverage, 1),
-                            Overview: t.Overview,
-                            Genres: genres,
-                            Popularity: t.Popularity
-                        );
-                    }));
+    public async Task<List<MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto>> GetRecommendationsAsync(int tmdbId, string type, CancellationToken cancellationToken = default)
+    {
+        var results = new List<MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto>();
+        if (tmdbId <= 0) return results;
+
+        Dictionary<int, string> genreMap = [];
+        try
+        {
+            genreMap = await GetGenreMapAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not load genre map for TMDB recommendations");
+        }
+
+        var isTv = string.Equals(type, "series", StringComparison.OrdinalIgnoreCase) || 
+                   string.Equals(type, "tv", StringComparison.OrdinalIgnoreCase);
+        var mediaEndpoint = isTv ? "tv" : "movie";
+
+        try
+        {
+            // 1. Primary: Official TMDB Recommendations algorithm
+            var recsUrl = $"{mediaEndpoint}/{tmdbId}/recommendations?api_key={_apiKey}&page=1";
+            if (isTv)
+            {
+                var tvResp = await _httpClient.GetFromJsonAsync<TmdbPagedResponse<TmdbTvResult>>(recsUrl, JsonOptions, cancellationToken);
+                if (tvResp?.Results != null && tvResp.Results.Count > 0)
+                {
+                    results.AddRange(tvResp.Results
+                        .Where(t => !string.IsNullOrWhiteSpace(t.Name))
+                        .Select(t => {
+                            var genres = t.GenreIds
+                                .Select(gid => genreMap.TryGetValue(gid, out var gname) ? gname : null)
+                                .Where(g => !string.IsNullOrEmpty(g))
+                                .Cast<string>()
+                                .Take(3)
+                                .ToList();
+
+                            return new MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto(
+                                TmdbId: t.Id,
+                                Title: t.Name ?? "Untitled Series",
+                                Type: "series",
+                                PosterPath: t.PosterPath,
+                                BackdropPath: t.BackdropPath,
+                                ReleaseDate: t.FirstAirDate,
+                                Year: ExtractYear(t.FirstAirDate),
+                                Rating: Math.Round(t.VoteAverage, 1),
+                                Overview: t.Overview,
+                                Genres: genres,
+                                Popularity: t.Popularity
+                            );
+                        }));
                 }
             }
-            catch (Exception ex)
+            else
             {
-                _logger.LogWarning(ex, "Failed to search TMDB series for query {Query}", query);
+                var movieResp = await _httpClient.GetFromJsonAsync<TmdbPagedResponse<TmdbMovieResult>>(recsUrl, JsonOptions, cancellationToken);
+                if (movieResp?.Results != null && movieResp.Results.Count > 0)
+                {
+                    results.AddRange(movieResp.Results
+                        .Where(m => !string.IsNullOrWhiteSpace(m.Title))
+                        .Select(m => {
+                            var genres = m.GenreIds
+                                .Select(gid => genreMap.TryGetValue(gid, out var gname) ? gname : null)
+                                .Where(g => !string.IsNullOrEmpty(g))
+                                .Cast<string>()
+                                .Take(3)
+                                .ToList();
+
+                            return new MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto(
+                                TmdbId: m.Id,
+                                Title: m.Title ?? "Untitled Movie",
+                                Type: "movie",
+                                PosterPath: m.PosterPath,
+                                BackdropPath: m.BackdropPath,
+                                ReleaseDate: m.ReleaseDate,
+                                Year: ExtractYear(m.ReleaseDate),
+                                Rating: Math.Round(m.VoteAverage, 1),
+                                Overview: m.Overview,
+                                Genres: genres,
+                                Popularity: m.Popularity
+                            );
+                        }));
+                }
+            }
+
+            // 2. Fallback to similar endpoint if recommendations returned fewer than 6
+            if (results.Count < 6)
+            {
+                var similarUrl = $"{mediaEndpoint}/{tmdbId}/similar?api_key={_apiKey}&page=1";
+                if (isTv)
+                {
+                    var tvResp = await _httpClient.GetFromJsonAsync<TmdbPagedResponse<TmdbTvResult>>(similarUrl, JsonOptions, cancellationToken);
+                    if (tvResp?.Results != null)
+                    {
+                        var existingIds = results.Select(r => r.TmdbId).ToHashSet();
+                        results.AddRange(tvResp.Results
+                            .Where(t => !string.IsNullOrWhiteSpace(t.Name) && !existingIds.Contains(t.Id))
+                            .Select(t => {
+                                var genres = t.GenreIds
+                                    .Select(gid => genreMap.TryGetValue(gid, out var gname) ? gname : null)
+                                    .Where(g => !string.IsNullOrEmpty(g))
+                                    .Cast<string>()
+                                    .Take(3)
+                                    .ToList();
+
+                                return new MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto(
+                                    TmdbId: t.Id,
+                                    Title: t.Name ?? "Untitled Series",
+                                    Type: "series",
+                                    PosterPath: t.PosterPath,
+                                    BackdropPath: t.BackdropPath,
+                                    ReleaseDate: t.FirstAirDate,
+                                    Year: ExtractYear(t.FirstAirDate),
+                                    Rating: Math.Round(t.VoteAverage, 1),
+                                    Overview: t.Overview,
+                                    Genres: genres,
+                                    Popularity: t.Popularity
+                                );
+                            }));
+                    }
+                }
+                else
+                {
+                    var movieResp = await _httpClient.GetFromJsonAsync<TmdbPagedResponse<TmdbMovieResult>>(similarUrl, JsonOptions, cancellationToken);
+                    if (movieResp?.Results != null)
+                    {
+                        var existingIds = results.Select(r => r.TmdbId).ToHashSet();
+                        results.AddRange(movieResp.Results
+                            .Where(m => !string.IsNullOrWhiteSpace(m.Title) && !existingIds.Contains(m.Id))
+                            .Select(m => {
+                                var genres = m.GenreIds
+                                    .Select(gid => genreMap.TryGetValue(gid, out var gname) ? gname : null)
+                                    .Where(g => !string.IsNullOrEmpty(g))
+                                    .Cast<string>()
+                                    .Take(3)
+                                    .ToList();
+
+                                return new MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto(
+                                    TmdbId: m.Id,
+                                    Title: m.Title ?? "Untitled Movie",
+                                    Type: "movie",
+                                    PosterPath: m.PosterPath,
+                                    BackdropPath: m.BackdropPath,
+                                    ReleaseDate: m.ReleaseDate,
+                                    Year: ExtractYear(m.ReleaseDate),
+                                    Rating: Math.Round(m.VoteAverage, 1),
+                                    Overview: m.Overview,
+                                    Genres: genres,
+                                    Popularity: m.Popularity
+                                );
+                            }));
+                    }
+                }
             }
         }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to fetch TMDB recommendations for {MediaEndpoint} {TmdbId}", mediaEndpoint, tmdbId);
+        }
 
-        return results.OrderByDescending(r => r.Popularity).ThenByDescending(r => r.Rating).ToList();
+        return results
+            .DistinctBy(r => r.TmdbId)
+            .ToList();
     }
 
     private static List<TmdbProviderItem> ExtractProviders(TmdbWatchProvidersResponse? wp)
@@ -865,6 +1121,51 @@ public class TmdbService : ITmdbService
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
+    }
+
+    private class TmdbPersonSearchResponse
+    {
+        public List<TmdbPersonResult>? Results { get; set; }
+    }
+
+    private class TmdbPersonResult
+    {
+        public int Id { get; set; }
+        public string? Name { get; set; }
+        [JsonPropertyName("known_for_department")]
+        public string? KnownForDepartment { get; set; }
+        public double Popularity { get; set; }
+        [JsonPropertyName("profile_path")]
+        public string? ProfilePath { get; set; }
+    }
+
+    private class TmdbPersonCombinedCreditsResponse
+    {
+        public List<TmdbPersonCreditCastItem>? Cast { get; set; }
+    }
+
+    private class TmdbPersonCreditCastItem
+    {
+        public int Id { get; set; }
+        public string? Title { get; set; }
+        public string? Name { get; set; }
+        [JsonPropertyName("media_type")]
+        public string? MediaType { get; set; }
+        public string? Character { get; set; }
+        [JsonPropertyName("poster_path")]
+        public string? PosterPath { get; set; }
+        [JsonPropertyName("backdrop_path")]
+        public string? BackdropPath { get; set; }
+        [JsonPropertyName("release_date")]
+        public string? ReleaseDate { get; set; }
+        [JsonPropertyName("first_air_date")]
+        public string? FirstAirDate { get; set; }
+        [JsonPropertyName("vote_average")]
+        public double VoteAverage { get; set; }
+        public double Popularity { get; set; }
+        public string? Overview { get; set; }
+        [JsonPropertyName("genre_ids")]
+        public List<int>? GenreIds { get; set; }
     }
     #endregion
 }

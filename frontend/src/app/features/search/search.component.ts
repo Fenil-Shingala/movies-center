@@ -14,7 +14,8 @@ import {
   LucideFilm, 
   LucideTv, 
   LucideX,
-  LucideSparkles
+  LucideSparkles,
+  LucideUsers
 } from '@lucide/angular';
 import { CatalogService } from '../../core/services/catalog.service';
 import { SeoService } from '../../core/services/seo.service';
@@ -34,6 +35,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state/empty-s
     LucideTv, 
     LucideX, 
     LucideSparkles,
+    LucideUsers,
     MediaCardComponent, 
     PaginationComponent, 
     EmptyStateComponent
@@ -52,6 +54,7 @@ export class SearchComponent implements OnInit {
 
   readonly queryText = signal<string>('');
   readonly selectedType = signal<'all' | 'movie' | 'series'>('all');
+  readonly selectedSearchBy = signal<'all' | 'title' | 'cast'>('all');
   readonly currentPage = signal<number>(1);
   readonly titles = signal<MediaCard[]>([]);
   readonly totalCount = signal<number>(0);
@@ -64,16 +67,23 @@ export class SearchComponent implements OnInit {
     return list.length > 0 && list.some(t => t.isExternal);
   });
 
+  readonly isAllExternal = computed(() => {
+    const list = this.titles();
+    return list.length > 0 && list.every(t => t.isExternal);
+  });
+
   readonly skeletonArray = Array.from({ length: 12 });
 
   ngOnInit(): void {
     this.route.queryParams.subscribe(params => {
       const q = params['q'] || '';
       const type = (params['type'] || 'all') as 'all' | 'movie' | 'series';
+      const searchBy = (params['searchBy'] || 'all') as 'all' | 'title' | 'cast';
       const page = params['page'] ? parseInt(params['page'], 10) : 1;
 
       this.queryText.set(q);
       this.selectedType.set(type);
+      this.selectedSearchBy.set(searchBy);
       this.currentPage.set(page > 0 ? page : 1);
 
       if (q.trim()) {
@@ -82,7 +92,7 @@ export class SearchComponent implements OnInit {
           description: `Watch and stream movies and TV series matching "${q.trim()}" in HD for free on Movies Center (moviescenter.site).`,
           keywords: `${q.trim()}, watch ${q.trim()}, stream ${q.trim()}, moviescenter.site`
         });
-        this.executeSearch(q.trim(), type, this.currentPage());
+        this.executeSearch(q.trim(), type, searchBy, this.currentPage());
       } else {
         this.seoService.update({
           title: 'Search Movies & TV Series',
@@ -114,6 +124,13 @@ export class SearchComponent implements OnInit {
     }
   }
 
+  setSearchBy(searchBy: 'all' | 'title' | 'cast'): void {
+    if (this.selectedSearchBy() !== searchBy) {
+      this.selectedSearchBy.set(searchBy);
+      this.updateQueryParams({ searchBy, page: 1 });
+    }
+  }
+
   onPageChange(page: number): void {
     if (page !== this.currentPage()) {
       this.currentPage.set(page);
@@ -137,11 +154,11 @@ export class SearchComponent implements OnInit {
     this.router.navigate(['/search'], { queryParams: {} });
   }
 
-  private executeSearch(query: string, type: 'all' | 'movie' | 'series', page: number): void {
+  private executeSearch(query: string, type: 'all' | 'movie' | 'series', searchBy: 'all' | 'title' | 'cast', page: number): void {
     this.isLoading.set(true);
     this.hasSearched.set(true);
 
-    this.catalogService.searchTitles(query, type, page, 24).subscribe({
+    this.catalogService.searchTitles(query, type, searchBy, page, 24).subscribe({
       next: (res: PagedResult<MediaCard>) => {
         this.titles.set(res.items);
         this.totalCount.set(res.totalCount);
@@ -158,7 +175,7 @@ export class SearchComponent implements OnInit {
     });
   }
 
-  private updateQueryParams(newParams: { q?: string; type?: string; page?: number }): void {
+  private updateQueryParams(newParams: { q?: string; type?: string; searchBy?: string; page?: number }): void {
     const currentParams = this.route.snapshot.queryParams;
     const queryParams: Record<string, string | number | null> = {
       ...currentParams,
@@ -170,6 +187,9 @@ export class SearchComponent implements OnInit {
     }
     if (queryParams['type'] === 'all') {
       delete queryParams['type'];
+    }
+    if (queryParams['searchBy'] === 'all') {
+      delete queryParams['searchBy'];
     }
     if (queryParams['page'] === 1) {
       delete queryParams['page'];

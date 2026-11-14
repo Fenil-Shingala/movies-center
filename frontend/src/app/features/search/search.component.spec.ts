@@ -74,6 +74,11 @@ describe('SearchComponent', () => {
     expect(component.selectedType()).toBe('series');
   });
 
+  it('should change searchBy filter', () => {
+    component.setSearchBy('cast');
+    expect(component.selectedSearchBy()).toBe('cast');
+  });
+
   it('should handle pagination change', () => {
     component.onPageChange(2);
     expect(component.currentPage()).toBe(2);

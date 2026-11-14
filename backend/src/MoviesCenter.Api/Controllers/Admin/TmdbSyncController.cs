@@ -34,7 +34,7 @@ public class TmdbSyncController : ControllerBase
             return Ok(new List<TmdbSearchResultItemDto>());
         }
 
-        var results = await _tmdbService.SearchTmdbAsync(q, type, cancellationToken);
+        var results = await _tmdbService.SearchTmdbAsync(q, type, searchBy: null, cancellationToken);
         return Ok(results);
     }
 

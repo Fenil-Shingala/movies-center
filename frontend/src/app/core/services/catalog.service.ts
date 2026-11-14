@@ -51,7 +51,13 @@ export class CatalogService {
     return this.http.get<PagedResult<MediaCard>>(`${this.apiUrl}/titles`, { params });
   }
 
-  searchTitles(query: string, type?: 'movie' | 'series' | 'all', page: number = 1, pageSize: number = 24): Observable<PagedResult<MediaCard>> {
+  searchTitles(
+    query: string, 
+    type?: 'movie' | 'series' | 'all', 
+    searchBy?: 'all' | 'title' | 'cast',
+    page: number = 1, 
+    pageSize: number = 24
+  ): Observable<PagedResult<MediaCard>> {
     let params = new HttpParams()
       .set('page', page.toString())
       .set('pageSize', pageSize.toString());
@@ -61,6 +67,9 @@ export class CatalogService {
     }
     if (type && type !== 'all') {
       params = params.set('type', type);
+    }
+    if (searchBy && searchBy !== 'all') {
+      params = params.set('searchBy', searchBy);
     }
 
     return this.http.get<PagedResult<MediaCard>>(`${this.apiUrl}/search`, { params });

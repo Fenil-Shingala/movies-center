@@ -26,6 +26,7 @@ public class SearchController : ControllerBase
     public async Task<ActionResult<PagedResult<MediaCardDto>>> Search(
         [FromQuery] string? q = null,
         [FromQuery] string? type = null,
+        [FromQuery] string? searchBy = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 24,
         CancellationToken cancellationToken = default)
@@ -33,6 +34,7 @@ public class SearchController : ControllerBase
         var query = new SearchTitlesQuery(
             Query: q,
             Type: type,
+            SearchBy: searchBy,
             Page: page,
             PageSize: pageSize
         );

@@ -612,6 +612,22 @@
   width: 110px;
   flex-shrink: 0;
   text-align: center;
+  display: block;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+
+  &:hover {
+    transform: translateY(-3px);
+
+    .actor-name {
+      color: var(--accent);
+    }
+
+    .cast-avatar {
+      border-color: var(--accent);
+    }
+  }
 
   .cast-avatar {
     width: 80px;

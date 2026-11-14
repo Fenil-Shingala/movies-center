@@ -8,6 +8,7 @@ namespace MoviesCenter.Application.Features.Search.Queries;
 public record SearchTitlesQuery(
     string? Query,
     string? Type = null,
+    string? SearchBy = null,
     int Page = 1,
     int PageSize = 24
 ) : IRequest<PagedResult<MediaCardDto>>;

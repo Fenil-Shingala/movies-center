@@ -11,7 +11,7 @@
         #searchInput
         type="text" 
         class="bar-search-input"
-        placeholder="Search by title, character, or keywords..."
+        placeholder="Search by title, actor, character, or keywords..."
         [value]="queryText()"
         (input)="onInputChange($event)"
         (keydown.enter)="onSearchSubmit()"
@@ -63,6 +63,44 @@
         Series
       </button>
     </div>
+
+    <!-- Search Target / Actor & Cast Filter -->
+    <div class="search-options-row">
+      <span class="options-label">Search in:</span>
+      <div class="option-pills" role="radiogroup" aria-label="Search filter">
+        <button 
+          type="button" 
+          class="option-pill" 
+          [class.active]="selectedSearchBy() === 'all'"
+          (click)="setSearchBy('all')"
+          role="radio"
+          [attr.aria-checked]="selectedSearchBy() === 'all'"
+        >
+          All (Title & Cast)
+        </button>
+        <button 
+          type="button" 
+          class="option-pill" 
+          [class.active]="selectedSearchBy() === 'title'"
+          (click)="setSearchBy('title')"
+          role="radio"
+          [attr.aria-checked]="selectedSearchBy() === 'title'"
+        >
+          Titles Only
+        </button>
+        <button 
+          type="button" 
+          class="option-pill" 
+          [class.active]="selectedSearchBy() === 'cast'"
+          (click)="setSearchBy('cast')"
+          role="radio"
+          [attr.aria-checked]="selectedSearchBy() === 'cast'"
+        >
+          <svg lucideUsers class="pill-icon"></svg>
+          Actor / Cast
+        </button>
+      </div>
+    </div>
   </header>
 
   <!-- Results Count / Info Bar -->
@@ -74,7 +112,11 @@
         } @else if (isTmdbDiscovered()) {
           <div class="tmdb-pill-notice">
             <svg lucideSparkles class="sparkle-icon"></svg>
-            <span>Found on TMDB: <strong class="highlight-count">{{ totalCount() }}</strong> {{ totalCount() === 1 ? 'title' : 'titles' }} for <strong class="highlight-term">"{{ queryText() }}"</strong> (Click any title to stream & add to catalog)</span>
+            @if (isAllExternal()) {
+              <span>Found on TMDB: <strong class="highlight-count">{{ totalCount() }}</strong> {{ totalCount() === 1 ? 'title' : 'titles' }} for <strong class="highlight-term">"{{ queryText() }}"</strong> (Click any title to stream & add to catalog)</span>
+            } @else {
+              <span>Found <strong class="highlight-count">{{ totalCount() }}</strong> {{ totalCount() === 1 ? 'title' : 'titles' }} for <strong class="highlight-term">"{{ queryText() }}"</strong> (includes TMDB titles &bull; Click to stream & import)</span>
+            }
           </div>
         } @else {
           <span>Found <strong class="highlight-count">{{ totalCount() }}</strong> {{ totalCount() === 1 ? 'title' : 'titles' }} for <strong class="highlight-term">"{{ queryText() }}"</strong></span>

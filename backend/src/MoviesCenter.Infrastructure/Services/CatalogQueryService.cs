@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using MoviesCenter.Application.Common.Interfaces;
 using MoviesCenter.Application.Common.Models;
+using MoviesCenter.Application.Features.Admin.Dtos;
 using MoviesCenter.Application.Features.Catalog.Dtos;
 using MoviesCenter.Application.Features.Catalog.Queries;
 using MoviesCenter.Application.Features.Home.Dtos;
@@ -232,11 +233,21 @@ public class CatalogQueryService : ICatalogQueryService
             .AsNoTracking()
             .Where(t => t.IsActive);
 
-        if (!string.IsNullOrWhiteSpace(query.Type) && !string.Equals(query.Type, "all", StringComparison.OrdinalIgnoreCase))
+        var normalizedType = string.IsNullOrWhiteSpace(query.Type) || string.Equals(query.Type, "all", StringComparison.OrdinalIgnoreCase)
+            ? "all"
+            : (string.Equals(query.Type, "series", StringComparison.OrdinalIgnoreCase) || string.Equals(query.Type, "tv", StringComparison.OrdinalIgnoreCase) ? "series" : "movie");
+
+        if (normalizedType != "all")
         {
-            var normalizedType = string.Equals(query.Type, "series", StringComparison.OrdinalIgnoreCase) ? "series" : "movie";
             baseQuery = baseQuery.Where(t => t.Type == normalizedType);
         }
+
+        var searchByNorm = string.IsNullOrWhiteSpace(query.SearchBy)
+            ? "all"
+            : query.SearchBy.Trim().ToLowerInvariant();
+
+        var searchTitle = searchByNorm == "all" || searchByNorm == "title";
+        var searchCast = searchByNorm == "all" || searchByNorm == "cast" || searchByNorm == "actor";
 
         if (!string.IsNullOrWhiteSpace(query.Query))
         {
@@ -247,86 +258,171 @@ public class CatalogQueryService : ICatalogQueryService
             if (!searchTerm.Contains('.'))
             {
                 var words = searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                var transformed = words.Select(w => w.Length is >= 2 and <= 5 ? string.Join(".", w.ToCharArray()) : w);
-                dottedPattern = $"%{string.Join("%", transformed)}%";
-                if (words.Length == 1 && words[0].Length is >= 2 and <= 5)
+                var isAcronymCandidate = words.Any(w => w.Length is >= 2 and <= 5 && w.All(c => char.IsUpper(c) || char.IsDigit(c)));
+                if (isAcronymCandidate)
                 {
-                    spacedDottedPattern = $"%{string.Join(". ", words[0].ToCharArray())}%";
+                    var transformed = words.Select(w => w.Length is >= 2 and <= 5 && w.All(c => char.IsUpper(c) || char.IsDigit(c)) ? string.Join(".", w.ToCharArray()) : w);
+                    dottedPattern = $"%{string.Join("%", transformed)}%";
+                    if (words.Length == 1 && words[0].Length is >= 2 and <= 5)
+                    {
+                        spacedDottedPattern = $"%{string.Join(". ", words[0].ToCharArray())}%";
+                    }
                 }
             }
 
-            baseQuery = baseQuery.Where(t => 
-                EF.Functions.Like(t.TitleText, searchPattern) ||
-                (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, searchPattern)) ||
-                (dottedPattern != null && (
-                    EF.Functions.Like(t.TitleText, dottedPattern) ||
-                    (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, dottedPattern))
-                )) ||
-                (spacedDottedPattern != null && (
-                    EF.Functions.Like(t.TitleText, spacedDottedPattern) ||
-                    (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, spacedDottedPattern))
-                )));
+            if (searchTitle && searchCast)
+            {
+                baseQuery = baseQuery.Where(t => 
+                    EF.Functions.Like(t.TitleText, searchPattern) ||
+                    (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, searchPattern)) ||
+                    (dottedPattern != null && (
+                        EF.Functions.Like(t.TitleText, dottedPattern) ||
+                        (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, dottedPattern))
+                    )) ||
+                    (spacedDottedPattern != null && (
+                        EF.Functions.Like(t.TitleText, spacedDottedPattern) ||
+                        (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, spacedDottedPattern))
+                    )) ||
+                    t.TitleCasts.Any(tc => 
+                        EF.Functions.Like(tc.Person.Name, searchPattern) ||
+                        (tc.Character != null && EF.Functions.Like(tc.Character, searchPattern))
+                    ));
+            }
+            else if (searchCast)
+            {
+                baseQuery = baseQuery.Where(t => 
+                    t.TitleCasts.Any(tc => 
+                        EF.Functions.Like(tc.Person.Name, searchPattern) ||
+                        (tc.Character != null && EF.Functions.Like(tc.Character, searchPattern))
+                    ));
+            }
+            else
+            {
+                baseQuery = baseQuery.Where(t => 
+                    EF.Functions.Like(t.TitleText, searchPattern) ||
+                    (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, searchPattern)) ||
+                    (dottedPattern != null && (
+                        EF.Functions.Like(t.TitleText, dottedPattern) ||
+                        (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, dottedPattern))
+                    )) ||
+                    (spacedDottedPattern != null && (
+                        EF.Functions.Like(t.TitleText, spacedDottedPattern) ||
+                        (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, spacedDottedPattern))
+                    )));
+            }
         }
 
-        var totalCount = await baseQuery.CountAsync(cancellationToken);
+        var localTotalCount = await baseQuery.CountAsync(cancellationToken);
 
-        // Fallback to TMDB search if no titles are available in the local database
-        if (totalCount == 0 && !string.IsNullOrWhiteSpace(query.Query))
+        // Fetch external TMDB titles if query term is provided
+        List<MediaCardDto> externalTmdbItems = [];
+        if (!string.IsNullOrWhiteSpace(query.Query))
         {
             try
             {
-                var tmdbResults = await _tmdbService.SearchTmdbAsync(query.Query, query.Type, cancellationToken);
-                if (tmdbResults.Count > 0)
+                var searchTerm = query.Query.Trim();
+                var tmdbCacheKey = $"tmdb_search_{normalizedType}_{searchByNorm}_{searchTerm.ToLowerInvariant()}";
+                var cached = await _cacheService.GetAsync<List<MediaCardDto>>(tmdbCacheKey, cancellationToken);
+                if (cached != null)
                 {
-                    var tmdbItems = tmdbResults
-                        .Skip((page - 1) * pageSize)
-                        .Take(pageSize)
-                        .Select(r => new MediaCardDto(
-                            TmdbId: r.TmdbId,
-                            Type: r.Type,
-                            Title: r.Title,
-                            PosterPath: r.PosterPath,
-                            BackdropPath: r.BackdropPath,
-                            Rating: r.Rating,
-                            Year: r.Year ?? string.Empty,
-                            Genres: r.Genres ?? [],
-                            IsExternal: true
-                        )).ToList();
+                    externalTmdbItems = cached;
+                }
+                else
+                {
+                    var tmdbResults = await _tmdbService.SearchTmdbAsync(searchTerm, normalizedType, searchByNorm, cancellationToken);
+                    if (tmdbResults.Count > 0)
+                    {
+                        externalTmdbItems = tmdbResults
+                            .DistinctBy(r => r.TmdbId)
+                            .Select(r => new MediaCardDto(
+                                TmdbId: r.TmdbId,
+                                Type: r.Type,
+                                Title: r.Title,
+                                PosterPath: r.PosterPath,
+                                BackdropPath: r.BackdropPath,
+                                Rating: r.Rating,
+                                Year: r.Year ?? string.Empty,
+                                Genres: r.Genres ?? [],
+                                IsExternal: true
+                            )).ToList();
 
-                    var tmdbTotalPages = (int)Math.Ceiling(tmdbResults.Count / (double)pageSize);
-                    return new PagedResult<MediaCardDto>(tmdbItems, page, pageSize, tmdbResults.Count, tmdbTotalPages);
+                        await _cacheService.SetAsync(tmdbCacheKey, externalTmdbItems, TimeSpan.FromMinutes(30), cancellationToken);
+                    }
+                }
+
+                // Deduplicate: exclude external TMDB items that already exist in our local database
+                if (externalTmdbItems.Count > 0)
+                {
+                    var tmdbIds = externalTmdbItems.Select(e => e.TmdbId).Distinct().ToList();
+                    var existingIds = await _db.Titles
+                        .AsNoTracking()
+                        .Where(t => t.IsActive && tmdbIds.Contains(t.TmdbId))
+                        .Select(t => t.TmdbId)
+                        .ToListAsync(cancellationToken);
+
+                    if (existingIds.Count > 0)
+                    {
+                        var existingSet = existingIds.ToHashSet();
+                        externalTmdbItems = externalTmdbItems.Where(e => !existingSet.Contains(e.TmdbId)).ToList();
+                    }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to query TMDB fallback for search query {Query}", query.Query);
+                _logger.LogWarning(ex, "Failed to query TMDB for search query {Query}", query.Query);
             }
         }
 
-        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+        var totalCount = localTotalCount + externalTmdbItems.Count;
+        var totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling(totalCount / (double)pageSize);
 
-        var queryable = baseQuery
-            .Include(t => t.TitleGenres)
-                .ThenInclude(tg => tg.Genre)
-            .OrderByDescending(t => t.Popularity)
-            .ThenByDescending(t => t.TmdbRating);
+        var startIndex = (page - 1) * pageSize;
+        var items = new List<MediaCardDto>();
 
-        var titles = await queryable
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        if (startIndex < localTotalCount)
+        {
+            var localSkip = startIndex;
+            var localTake = Math.Min(pageSize, localTotalCount - localSkip);
 
-        var items = titles.Select(t => new MediaCardDto(
-            TmdbId: t.TmdbId,
-            Type: t.Type,
-            Title: t.TitleText,
-            PosterPath: t.PosterPath,
-            BackdropPath: t.BackdropPath,
-            Rating: (double)(t.TmdbRating ?? 0m),
-            Year: t.ReleaseDate?.Year.ToString() ?? t.FirstAirDate?.Year.ToString() ?? string.Empty,
-            Genres: t.TitleGenres.Select(tg => tg.Genre.Name).Take(3).ToList(),
-            IsExternal: false
-        )).ToList();
+            var queryable = baseQuery
+                .AsSplitQuery()
+                .Include(t => t.TitleGenres)
+                    .ThenInclude(tg => tg.Genre)
+                .OrderByDescending(t => t.Popularity)
+                .ThenByDescending(t => t.TmdbRating);
+
+            var titles = await queryable
+                .Skip(localSkip)
+                .Take(localTake)
+                .ToListAsync(cancellationToken);
+
+            items.AddRange(titles.Select(t => new MediaCardDto(
+                TmdbId: t.TmdbId,
+                Type: t.Type,
+                Title: t.TitleText,
+                PosterPath: t.PosterPath,
+                BackdropPath: t.BackdropPath,
+                Rating: (double)(t.TmdbRating ?? 0m),
+                Year: t.ReleaseDate?.Year.ToString() ?? t.FirstAirDate?.Year.ToString() ?? string.Empty,
+                Genres: t.TitleGenres.Select(tg => tg.Genre.Name).Take(3).ToList(),
+                IsExternal: false
+            )));
+
+            var neededFromExternal = pageSize - items.Count;
+            if (neededFromExternal > 0 && externalTmdbItems.Count > 0)
+            {
+                items.AddRange(externalTmdbItems.Take(neededFromExternal));
+            }
+        }
+        else
+        {
+            var externalSkip = startIndex - localTotalCount;
+            if (externalSkip < externalTmdbItems.Count)
+            {
+                var externalTake = Math.Min(pageSize, externalTmdbItems.Count - externalSkip);
+                items.AddRange(externalTmdbItems.Skip(externalSkip).Take(externalTake));
+            }
+        }
 
         return new PagedResult<MediaCardDto>(items, page, pageSize, totalCount, totalPages);
     }
@@ -339,22 +435,35 @@ public class CatalogQueryService : ICatalogQueryService
         }
 
         var searchTerm = query.Trim();
+        var safeLimit = limit is < 1 or > 20 ? 6 : limit;
+        var cacheKey = $"suggest_{safeLimit}_{searchTerm.ToLowerInvariant()}";
+
+        var cached = await _cacheService.GetAsync<List<SearchSuggestionDto>>(cacheKey, cancellationToken);
+        if (cached != null)
+        {
+            return cached;
+        }
+
         var searchPattern = $"%{searchTerm}%";
         string? dottedPattern = null;
         string? spacedDottedPattern = null;
         if (!searchTerm.Contains('.'))
         {
             var words = searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var transformed = words.Select(w => w.Length is >= 2 and <= 5 ? string.Join(".", w.ToCharArray()) : w);
-            dottedPattern = $"%{string.Join("%", transformed)}%";
-            if (words.Length == 1 && words[0].Length is >= 2 and <= 5)
+            var isAcronymCandidate = words.Any(w => w.Length is >= 2 and <= 5 && w.All(c => char.IsUpper(c) || char.IsDigit(c)));
+            if (isAcronymCandidate)
             {
-                spacedDottedPattern = $"%{string.Join(". ", words[0].ToCharArray())}%";
+                var transformed = words.Select(w => w.Length is >= 2 and <= 5 && w.All(c => char.IsUpper(c) || char.IsDigit(c)) ? string.Join(".", w.ToCharArray()) : w);
+                dottedPattern = $"%{string.Join("%", transformed)}%";
+                if (words.Length == 1 && words[0].Length is >= 2 and <= 5)
+                {
+                    spacedDottedPattern = $"%{string.Join(". ", words[0].ToCharArray())}%";
+                }
             }
         }
-        var safeLimit = limit is < 1 or > 20 ? 6 : limit;
 
-        var suggestions = await _db.Titles
+        // Fetch up to 25 local candidates for relevance scoring in memory
+        var candidates = await _db.Titles
             .AsNoTracking()
             .Include(t => t.TitleGenres)
                 .ThenInclude(tg => tg.Genre)
@@ -368,48 +477,98 @@ public class CatalogQueryService : ICatalogQueryService
                 (spacedDottedPattern != null && (
                     EF.Functions.Like(t.TitleText, spacedDottedPattern) ||
                     (t.OriginalTitle != null && EF.Functions.Like(t.OriginalTitle, spacedDottedPattern))
-                ))
+                )) ||
+                t.TitleCasts.Any(tc => 
+                    EF.Functions.Like(tc.Person.Name, searchPattern) ||
+                    (tc.Character != null && EF.Functions.Like(tc.Character, searchPattern))
+                )
             ))
             .OrderByDescending(t => t.Popularity)
-            .Take(safeLimit)
+            .Take(25)
             .ToListAsync(cancellationToken);
 
-        // Fallback to TMDB suggestions if no suggestions found in local database
-        if (suggestions.Count == 0)
+        int ScoreTitleSuggestion(Title t, string term)
+        {
+            var title = t.TitleText ?? string.Empty;
+            if (string.Equals(title, term, StringComparison.OrdinalIgnoreCase)) return 1000;
+            if (title.StartsWith(term, StringComparison.OrdinalIgnoreCase)) return 800;
+            if (title.Contains(" " + term, StringComparison.OrdinalIgnoreCase)) return 600;
+            if (title.Contains(term, StringComparison.OrdinalIgnoreCase)) return 400;
+            if (t.OriginalTitle != null && string.Equals(t.OriginalTitle, term, StringComparison.OrdinalIgnoreCase)) return 350;
+            if (t.OriginalTitle != null && t.OriginalTitle.StartsWith(term, StringComparison.OrdinalIgnoreCase)) return 300;
+            if (t.OriginalTitle != null && t.OriginalTitle.Contains(term, StringComparison.OrdinalIgnoreCase)) return 200;
+            return 100;
+        }
+
+        var results = candidates
+            .Select(t => (Title: t, Score: ScoreTitleSuggestion(t, searchTerm)))
+            .OrderByDescending(x => x.Score)
+            .ThenByDescending(x => x.Title.Popularity)
+            .ThenByDescending(x => x.Title.TmdbRating)
+            .Take(safeLimit)
+            .Select(x => new SearchSuggestionDto(
+                TmdbId: x.Title.TmdbId,
+                Type: x.Title.Type,
+                Title: x.Title.TitleText,
+                PosterPath: x.Title.PosterPath,
+                Rating: (double)(x.Title.TmdbRating ?? 0m),
+                Year: x.Title.ReleaseDate?.Year.ToString() ?? x.Title.FirstAirDate?.Year.ToString() ?? string.Empty,
+                Genres: x.Title.TitleGenres.Select(tg => tg.Genre.Name).Take(2).ToList(),
+                IsExternal: false
+            ))
+            .ToList();
+
+        // Fill remaining suggestion slots from TMDB if local suggestions are fewer than requested limit
+        if (results.Count < safeLimit)
         {
             try
             {
-                var tmdbResults = await _tmdbService.SearchTmdbAsync(searchTerm, null, cancellationToken);
+                var existingTmdbIds = results.Select(r => r.TmdbId).ToHashSet();
+                var tmdbResults = await _tmdbService.SearchTmdbAsync(searchTerm, null, "all", cancellationToken);
                 if (tmdbResults.Count > 0)
                 {
-                    return tmdbResults.Take(safeLimit).Select(r => new SearchSuggestionDto(
-                        TmdbId: r.TmdbId,
-                        Type: r.Type,
-                        Title: r.Title,
-                        PosterPath: r.PosterPath,
-                        Rating: r.Rating,
-                        Year: r.Year ?? string.Empty,
-                        Genres: r.Genres?.Take(2).ToList() ?? [],
-                        IsExternal: true
-                    )).ToList();
+                    int ScoreTmdbSuggestion(TmdbSearchResultItemDto item, string term)
+                    {
+                        var title = item.Title ?? string.Empty;
+                        if (string.Equals(title, term, StringComparison.OrdinalIgnoreCase)) return 1000;
+                        if (title.StartsWith(term, StringComparison.OrdinalIgnoreCase)) return 800;
+                        if (title.Contains(" " + term, StringComparison.OrdinalIgnoreCase)) return 600;
+                        if (title.Contains(term, StringComparison.OrdinalIgnoreCase)) return 400;
+                        return 200;
+                    }
+
+                    var additional = tmdbResults
+                        .Where(r => !existingTmdbIds.Contains(r.TmdbId))
+                        .DistinctBy(r => r.TmdbId)
+                        .Select(r => (Item: r, Score: ScoreTmdbSuggestion(r, searchTerm)))
+                        .OrderByDescending(x => x.Score)
+                        .ThenByDescending(x => x.Item.Popularity)
+                        .Take(safeLimit - results.Count)
+                        .Select(x => new SearchSuggestionDto(
+                            TmdbId: x.Item.TmdbId,
+                            Type: x.Item.Type,
+                            Title: x.Item.Title,
+                            PosterPath: x.Item.PosterPath,
+                            Rating: x.Item.Rating,
+                            Year: x.Item.Year ?? string.Empty,
+                            Genres: x.Item.Genres?.Take(2).ToList() ?? [],
+                            IsExternal: true
+                        ));
+                    results.AddRange(additional);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to query TMDB fallback suggestions for {Query}", searchTerm);
+                _logger.LogWarning(ex, "Failed to query TMDB suggestions for {Query}", searchTerm);
             }
         }
 
-        return suggestions.Select(t => new SearchSuggestionDto(
-            TmdbId: t.TmdbId,
-            Type: t.Type,
-            Title: t.TitleText,
-            PosterPath: t.PosterPath,
-            Rating: (double)(t.TmdbRating ?? 0m),
-            Year: t.ReleaseDate?.Year.ToString() ?? t.FirstAirDate?.Year.ToString() ?? string.Empty,
-            Genres: t.TitleGenres.Select(tg => tg.Genre.Name).Take(2).ToList(),
-            IsExternal: false
-        )).ToList();
+        if (results.Count > 0)
+        {
+            await _cacheService.SetAsync(cacheKey, results, TimeSpan.FromMinutes(15), cancellationToken);
+        }
+
+        return results;
     }
 
     private async Task<List<MediaCardDto>> GetTitlesInternalAsync(string category, string type, int limit, CancellationToken cancellationToken)
@@ -869,66 +1028,177 @@ public class CatalogQueryService : ICatalogQueryService
         var title = await _db.Titles
             .AsNoTracking()
             .Include(t => t.TitleGenres)
+                .ThenInclude(tg => tg.Genre)
+            .Include(t => t.TitleCasts)
             .FirstOrDefaultAsync(t => (t.Id == id || t.TmdbId == id) && t.IsActive, cancellationToken);
 
-        if (title == null)
+        var resultList = new List<MediaCardDto>();
+        var seenTmdbIds = new HashSet<int>();
+        var targetTmdbId = title?.TmdbId ?? id;
+        seenTmdbIds.Add(targetTmdbId);
+
+        // 2. Query TMDB Recommendations (collaborative filtering & deep film similarity)
+        var targetType = title?.Type ?? "movie";
+        List<MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto> tmdbRecs = [];
+        try
         {
-            return [];
+            tmdbRecs = await _tmdbService.GetRecommendationsAsync(targetTmdbId, targetType, cancellationToken);
+            if (tmdbRecs.Count == 0 && title == null)
+            {
+                // If title was not found locally and type is unknown, try series as fallback
+                tmdbRecs = await _tmdbService.GetRecommendationsAsync(targetTmdbId, "series", cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to fetch TMDB recommendations for title ID {Id}", id);
         }
 
-        var targetGenreIds = title.TitleGenres.Select(tg => tg.GenreId).ToList();
-        var recommendedTitles = new List<Title>();
-
-        // 2. Query titles sharing genres of same type (movie vs series)
-        if (targetGenreIds.Count > 0)
+        if (tmdbRecs.Count > 0)
         {
-            recommendedTitles = await _db.Titles
+            var recTmdbIds = tmdbRecs.Select(r => r.TmdbId).Distinct().ToList();
+            var localMatches = await _db.Titles
                 .AsNoTracking()
                 .Include(t => t.TitleGenres)
                     .ThenInclude(tg => tg.Genre)
-                .Where(t => t.IsActive && t.Type == title.Type && t.Id != title.Id)
-                .Where(t => t.TitleGenres.Any(tg => targetGenreIds.Contains(tg.GenreId)))
-                .OrderByDescending(t => t.TitleGenres.Count(tg => targetGenreIds.Contains(tg.GenreId)))
-                .ThenByDescending(t => t.Popularity)
-                .ThenByDescending(t => t.TmdbRating)
-                .Take(safeLimit)
-                .ToListAsync(cancellationToken);
+                .Where(t => t.IsActive && recTmdbIds.Contains(t.TmdbId))
+                .ToDictionaryAsync(t => t.TmdbId, cancellationToken);
+
+            foreach (var rec in tmdbRecs)
+            {
+                if (!seenTmdbIds.Add(rec.TmdbId)) continue;
+
+                if (localMatches.TryGetValue(rec.TmdbId, out var local))
+                {
+                    resultList.Add(new MediaCardDto(
+                        TmdbId: local.TmdbId,
+                        Type: local.Type,
+                        Title: local.TitleText,
+                        PosterPath: local.PosterPath,
+                        BackdropPath: local.BackdropPath,
+                        Rating: (double)(local.TmdbRating ?? 0m),
+                        Year: local.ReleaseDate?.Year.ToString() ?? local.FirstAirDate?.Year.ToString() ?? string.Empty,
+                        Genres: local.TitleGenres.Select(tg => tg.Genre.Name).Take(3).ToList(),
+                        IsExternal: false
+                    ));
+                }
+                else
+                {
+                    resultList.Add(new MediaCardDto(
+                        TmdbId: rec.TmdbId,
+                        Type: rec.Type,
+                        Title: rec.Title,
+                        PosterPath: rec.PosterPath,
+                        BackdropPath: rec.BackdropPath,
+                        Rating: rec.Rating,
+                        Year: rec.Year ?? string.Empty,
+                        Genres: rec.Genres ?? [],
+                        IsExternal: true
+                    ));
+                }
+
+                if (resultList.Count >= safeLimit) break;
+            }
         }
 
-        // 3. Backfill with popular titles of same type if recommendations are fewer than limit
-        if (recommendedTitles.Count < safeLimit)
+        // 3. Fallback / Supplement: High-accuracy local matching using shared actors, multiple genres & era proximity
+        if (resultList.Count < safeLimit && title != null)
         {
-            var existingIds = recommendedTitles.Select(t => t.Id).Append(title.Id).ToList();
-            var remaining = safeLimit - recommendedTitles.Count;
+            var targetGenreIds = title.TitleGenres.Select(tg => tg.GenreId).ToHashSet();
+            var targetPersonIds = title.TitleCasts.Select(tc => tc.PersonId).ToHashSet();
+            var targetYear = title.ReleaseDate?.Year ?? title.FirstAirDate?.Year;
 
+            if (targetGenreIds.Count > 0 || targetPersonIds.Count > 0)
+            {
+                var candidates = await _db.Titles
+                    .AsNoTracking()
+                    .Include(t => t.TitleGenres)
+                        .ThenInclude(tg => tg.Genre)
+                    .Include(t => t.TitleCasts)
+                    .Where(t => t.IsActive && t.Type == title.Type && t.Id != title.Id && !seenTmdbIds.Contains(t.TmdbId))
+                    .Where(t => (targetGenreIds.Count > 0 && t.TitleGenres.Any(tg => targetGenreIds.Contains(tg.GenreId))) ||
+                                (targetPersonIds.Count > 0 && t.TitleCasts.Any(tc => targetPersonIds.Contains(tc.PersonId))))
+                    .Take(50)
+                    .ToListAsync(cancellationToken);
+
+                var scored = candidates
+                    .Select(c => {
+                        double score = 0;
+                        var sharedCast = targetPersonIds.Count > 0 ? c.TitleCasts.Count(tc => targetPersonIds.Contains(tc.PersonId)) : 0;
+                        score += sharedCast * 50.0;
+
+                        var sharedGenres = targetGenreIds.Count > 0 ? c.TitleGenres.Count(tg => targetGenreIds.Contains(tg.GenreId)) : 0;
+                        score += sharedGenres * 20.0;
+
+                        var cYear = c.ReleaseDate?.Year ?? c.FirstAirDate?.Year;
+                        if (targetYear.HasValue && cYear.HasValue)
+                        {
+                            var diff = Math.Abs(targetYear.Value - cYear.Value);
+                            if (diff <= 3) score += 15.0;
+                            else if (diff <= 7) score += 10.0;
+                            else if (diff <= 12) score += 5.0;
+                        }
+
+                        var total = score + (double)(c.TmdbRating ?? 0m) + Math.Min(c.Popularity / 20.0, 10.0);
+                        return (Item: c, TotalScore: total);
+                    })
+                    .OrderByDescending(x => x.TotalScore)
+                    .Select(x => x.Item)
+                    .Take(safeLimit - resultList.Count);
+
+                foreach (var c in scored)
+                {
+                    if (seenTmdbIds.Add(c.TmdbId))
+                    {
+                        resultList.Add(new MediaCardDto(
+                            TmdbId: c.TmdbId,
+                            Type: c.Type,
+                            Title: c.TitleText,
+                            PosterPath: c.PosterPath,
+                            BackdropPath: c.BackdropPath,
+                            Rating: (double)(c.TmdbRating ?? 0m),
+                            Year: c.ReleaseDate?.Year.ToString() ?? c.FirstAirDate?.Year.ToString() ?? string.Empty,
+                            Genres: c.TitleGenres.Select(tg => tg.Genre.Name).Take(3).ToList(),
+                            IsExternal: false
+                        ));
+                    }
+                }
+            }
+        }
+
+        // 4. Backfill with popular titles of same type only if still fewer than limit
+        if (resultList.Count < safeLimit && title != null)
+        {
+            var remaining = safeLimit - resultList.Count;
             var backfill = await _db.Titles
                 .AsNoTracking()
                 .Include(t => t.TitleGenres)
                     .ThenInclude(tg => tg.Genre)
-                .Where(t => t.IsActive && t.Type == title.Type && !existingIds.Contains(t.Id))
+                .Where(t => t.IsActive && t.Type == title.Type && !seenTmdbIds.Contains(t.TmdbId))
                 .OrderByDescending(t => t.Popularity)
                 .ThenByDescending(t => t.TmdbRating)
                 .Take(remaining)
                 .ToListAsync(cancellationToken);
 
-            recommendedTitles.AddRange(backfill);
+            resultList.AddRange(backfill.Select(t => new MediaCardDto(
+                TmdbId: t.TmdbId,
+                Type: t.Type,
+                Title: t.TitleText,
+                PosterPath: t.PosterPath,
+                BackdropPath: t.BackdropPath,
+                Rating: (double)(t.TmdbRating ?? 0m),
+                Year: t.ReleaseDate?.Year.ToString() ?? t.FirstAirDate?.Year.ToString() ?? string.Empty,
+                Genres: t.TitleGenres.Select(tg => tg.Genre.Name).Take(3).ToList(),
+                IsExternal: false
+            )));
         }
 
-        var result = recommendedTitles.Select(t => new MediaCardDto(
-            TmdbId: t.TmdbId,
-            Type: t.Type,
-            Title: t.TitleText,
-            PosterPath: t.PosterPath,
-            BackdropPath: t.BackdropPath,
-            Rating: (double)(t.TmdbRating ?? 0m),
-            Year: t.ReleaseDate?.Year.ToString() ?? t.FirstAirDate?.Year.ToString() ?? string.Empty,
-            Genres: t.TitleGenres.Select(tg => tg.Genre.Name).Take(3).ToList()
-        )).ToList();
+        if (resultList.Count > 0)
+        {
+            await _cacheService.SetAsync(cacheKey, resultList, TimeSpan.FromHours(6), cancellationToken);
+        }
 
-        // Cache for 6 hours
-        await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromHours(6), cancellationToken);
-
-        return result;
+        return resultList;
     }
 
     public async Task<List<MediaCardDto>> GetTop10Async(string type = "all", CancellationToken cancellationToken = default)

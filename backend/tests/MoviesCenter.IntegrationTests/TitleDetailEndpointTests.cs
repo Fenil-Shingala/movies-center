@@ -12,7 +12,10 @@ public class TitleDetailEndpointTests : IClassFixture<WebApplicationFactory<Prog
 
     public TitleDetailEndpointTests(WebApplicationFactory<Program> factory)
     {
-        _client = factory.CreateClient();
+        _client = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Hangfire:Enabled", "false");
+        }).CreateClient();
     }
 
     [Fact]
@@ -69,5 +72,31 @@ public class TitleDetailEndpointTests : IClassFixture<WebApplicationFactory<Prog
         var content = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(content);
         doc.RootElement.ValueKind.Should().Be(JsonValueKind.Array);
+    }
+
+    [Fact]
+    public async Task GetTitleRecommendations_ShouldReturn200AndList()
+    {
+        // First get an active title tmdbId or id from browse
+        var browseResp = await _client.GetAsync("/api/v1/titles?page=1&pageSize=1");
+        browseResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var browseContent = await browseResp.Content.ReadAsStringAsync();
+        using var browseDoc = JsonDocument.Parse(browseContent);
+        var items = browseDoc.RootElement.GetProperty("items");
+
+        if (items.GetArrayLength() > 0)
+        {
+            var firstItem = items[0];
+            var tmdbId = firstItem.GetProperty("tmdbId").GetInt32();
+
+            // Act
+            var recResp = await _client.GetAsync($"/api/v1/titles/{tmdbId}/recommendations?limit=6");
+
+            // Assert
+            recResp.StatusCode.Should().Be(HttpStatusCode.OK);
+            var recContent = await recResp.Content.ReadAsStringAsync();
+            using var recDoc = JsonDocument.Parse(recContent);
+            recDoc.RootElement.ValueKind.Should().Be(JsonValueKind.Array);
+        }
     }
 }

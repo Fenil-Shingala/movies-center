@@ -12,7 +12,10 @@ public class SearchEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
     public SearchEndpointTests(WebApplicationFactory<Program> factory)
     {
-        _client = factory.CreateClient();
+        _client = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Hangfire:Enabled", "false");
+        }).CreateClient();
     }
 
     [Fact]
@@ -34,6 +37,23 @@ public class SearchEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         page.GetInt32().Should().Be(1);
         pageSize.GetInt32().Should().Be(10);
+        items.ValueKind.Should().Be(JsonValueKind.Array);
+    }
+
+    [Fact]
+    public async Task Search_WithSearchByCast_ShouldReturn200AndPagedResult()
+    {
+        // Act
+        var response = await _client.GetAsync("/api/v1/search?q=cillian&searchBy=cast&page=1&pageSize=10");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var content = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(content);
+        var root = doc.RootElement;
+
+        root.TryGetProperty("items", out var items).Should().BeTrue();
+        root.TryGetProperty("totalCount", out _).Should().BeTrue();
         items.ValueKind.Should().Be(JsonValueKind.Array);
     }
 

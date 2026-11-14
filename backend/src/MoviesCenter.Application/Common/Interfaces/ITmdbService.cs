@@ -19,5 +19,6 @@ public interface ITmdbService
     Task<List<TmdbItemSummary>> GetListEndpointAsync(string endpoint, string type, CancellationToken cancellationToken = default);
     Task<TmdbFullDetail?> GetFullDetailsAsync(int tmdbId, string type, CancellationToken cancellationToken = default);
     Task<List<TmdbEpisodeSummary>> GetSeasonEpisodesAsync(int tmdbId, int seasonNumber, CancellationToken cancellationToken = default);
-    Task<List<MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto>> SearchTmdbAsync(string query, string? type = null, CancellationToken cancellationToken = default);
+    Task<List<MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto>> SearchTmdbAsync(string query, string? type = null, string? searchBy = null, CancellationToken cancellationToken = default);
+    Task<List<MoviesCenter.Application.Features.Admin.Dtos.TmdbSearchResultItemDto>> GetRecommendationsAsync(int tmdbId, string type, CancellationToken cancellationToken = default);
 }

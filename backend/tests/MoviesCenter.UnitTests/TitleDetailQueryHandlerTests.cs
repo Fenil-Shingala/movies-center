@@ -52,7 +52,7 @@ public class TitleDetailQueryHandlerTests
         );
 
         _mockCatalogQueryService
-            .Setup(s => s.GetTitleDetailAsync(155, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetTitleDetailAsync(155, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedTitle);
 
         var handler = new GetTitleDetailQueryHandler(_mockCatalogQueryService.Object);

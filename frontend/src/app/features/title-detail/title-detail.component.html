@@ -195,13 +195,13 @@
           </h2>
           <div class="cast-row-scroller">
             @for (actor of item.cast; track actor.personId) {
-              <div class="cast-card">
+              <a [routerLink]="['/search']" [queryParams]="{ q: actor.name, searchBy: 'cast' }" class="cast-card clickable-cast" [title]="'Search more movies featuring ' + actor.name">
                 <div class="cast-avatar">
                   @if (getProfileUrl(actor.profilePath); as profileSrc) {
                     <img 
                       [src]="profileSrc" 
                       [alt]="actor.name" 
-                      loading="lazy"
+                      loading="lazy" 
                       (error)="handleImageError($event, actor.name)"
                     />
                   } @else {
@@ -210,7 +210,7 @@
                 </div>
                 <div class="actor-name">{{ actor.name }}</div>
                 <div class="character-name">{{ actor.character }}</div>
-              </div>
+              </a>
             }
           </div>
         </section>
