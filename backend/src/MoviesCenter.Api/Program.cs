@@ -148,14 +148,6 @@ try
     if (dbContext.Database.IsSqlServer())
     {
         dbContext.Database.Migrate();
-
-        var blankTitles = dbContext.Titles.Where(t => t.TitleText == string.Empty || t.TitleText == null).ToList();
-        if (blankTitles.Count > 0)
-        {
-            dbContext.Titles.RemoveRange(blankTitles);
-            dbContext.SaveChanges();
-            Log.Information("Cleaned up {Count} blank unindexed titles on startup.", blankTitles.Count);
-        }
     }
 }
 catch (Exception ex)
@@ -163,8 +155,11 @@ catch (Exception ex)
     Log.Warning(ex, "Could not apply database migrations on startup. Please ensure SQL Server is running.");
 }
 
-// Hangfire is disabled unless Hangfire:Enabled=true
-if (builder.Configuration.GetValue<bool>("Hangfire:Enabled"))
+// Hangfire Dashboard and Recurring Daily Sync Job
+// Disabled unless Hangfire:Enabled=true. This must match the check in
+// MoviesCenter.Infrastructure/DependencyInjection.cs, because the dashboard
+// and recurring job need Hangfire to be registered there.
+if (string.Equals(builder.Configuration["Hangfire:Enabled"], "true", StringComparison.OrdinalIgnoreCase))
 {
     try
     {
@@ -173,10 +168,10 @@ if (builder.Configuration.GetValue<bool>("Hangfire:Enabled"))
             Authorization = [] // TODO: add an admin-only filter before enabling in production
         });
 
-        var cronSchedule = builder.Configuration["TmdbSync:CronSchedule"] ?? "0 3 * * *";
+        var cronSchedule = builder.Configuration["TmdbSync:CronSchedule"] ?? "0 3 * * *"; // Daily at 3 AM UTC
         Hangfire.RecurringJob.AddOrUpdate<MoviesCenter.Application.Common.Interfaces.ITmdbSyncService>(
             "daily-tmdb-sync",
-            service => service.RunFullSyncAsync("HangfireJob", null, CancellationToken.None),
+            service => service.RunFullSyncAsync("HangfireJob", CancellationToken.None),
             cronSchedule
         );
     }
