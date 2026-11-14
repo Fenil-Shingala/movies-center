@@ -69,24 +69,33 @@ public static class DependencyInjection
         services.AddScoped<MoviesCenter.Application.Common.Interfaces.IAnalyticsService, MoviesCenter.Infrastructure.Services.AnalyticsService>();
         services.AddScoped<MoviesCenter.Application.Common.Interfaces.IReviewService, MoviesCenter.Infrastructure.Services.ReviewService>();
 
+        // -----------------------------------------------------------------------
         // Hangfire Background Processing
-        services.AddHangfire(config => config
-            .SetDataCompatibilityLevel(Hangfire.CompatibilityLevel.Version_180)
-            .UseSimpleAssemblyNameTypeSerializer()
-            .UseRecommendedSerializerSettings()
-            .UseSqlServerStorage(connectionString, new Hangfire.SqlServer.SqlServerStorageOptions
-            {
-                CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
-                SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
-                QueuePollInterval = TimeSpan.Zero,
-                UseRecommendedIsolationLevel = true,
-                DisableGlobalLocks = true
-            }));
-
-        services.AddHangfireServer(options =>
+        // DISABLED in production — only registers when Hangfire:Enabled = true.
+        // To enable locally, set "Hangfire": { "Enabled": true } in
+        // appsettings.Development.json  OR  env var  Hangfire__Enabled=true.
+        // Never set this to true in appsettings.Production.json.
+        // -----------------------------------------------------------------------
+        if (configuration.GetValue<bool>("Hangfire:Enabled"))
         {
-            options.WorkerCount = 2;
-        });
+            services.AddHangfire(config => config
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UseSqlServerStorage(connectionString, new Hangfire.SqlServer.SqlServerStorageOptions
+                {
+                    CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+                    SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+                    QueuePollInterval = TimeSpan.Zero,
+                    UseRecommendedIsolationLevel = true,
+                    DisableGlobalLocks = true
+                }));
+
+            services.AddHangfireServer(options =>
+            {
+                options.WorkerCount = 2;
+            });
+        }
 
         return services;
     }

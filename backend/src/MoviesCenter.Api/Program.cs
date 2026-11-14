@@ -163,7 +163,12 @@ catch (Exception ex)
     Log.Warning(ex, "Could not apply database migrations on startup. Please ensure SQL Server is running.");
 }
 
-// Hangfire is disabled unless Hangfire:Enabled=true
+// -----------------------------------------------------------------------
+// Hangfire Dashboard & Recurring Job
+// DISABLED in production — only runs when Hangfire:Enabled = true.
+// In production, appsettings.json has Hangfire:Enabled = false (default).
+// Set Hangfire:Enabled = true in appsettings.Development.json for local dev.
+// -----------------------------------------------------------------------
 if (builder.Configuration.GetValue<bool>("Hangfire:Enabled"))
 {
     try
