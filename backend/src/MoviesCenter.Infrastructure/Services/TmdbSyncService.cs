@@ -20,6 +20,7 @@ public class TmdbSyncService : ITmdbSyncService
     private readonly ILogger<TmdbSyncService> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
     private static readonly SemaphoreSlim SyncLock = new(1, 1);
+    private static CancellationTokenSource? _syncCts;
 
     public TmdbSyncService(
         ApplicationDbContext db,
@@ -41,17 +42,72 @@ public class TmdbSyncService : ITmdbSyncService
             .OrderByDescending(l => l.StartedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        var isRunning = SyncLock.CurrentCount == 0 || (latestLog != null && latestLog.Status == "Running");
+        var isLocallyRunning = SyncLock.CurrentCount == 0;
+
+        // Auto-heal orphaned / zombie "Running" logs if the lock is actually released
+        if (!isLocallyRunning && latestLog != null && latestLog.Status == "Running")
+        {
+            latestLog.Status = "Completed";
+            latestLog.CompletedAt = DateTimeOffset.UtcNow;
+            latestLog.ErrorMessage = "Auto-recovered: previous sync process was terminated or completed.";
+            try
+            {
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to auto-heal zombie TmdbSyncLog record {Id}", latestLog.Id);
+            }
+        }
 
         return new TmdbSyncStatusDto(
-            IsRunning: isRunning,
+            IsRunning: isLocallyRunning,
             LastRunAt: latestLog?.StartedAt,
-            LastStatus: latestLog?.Status,
+            LastStatus: isLocallyRunning ? "Running" : (latestLog?.Status ?? "None"),
             LastItemsSynced: latestLog?.ItemsSynced ?? 0,
             LastErrors: latestLog?.Errors ?? 0,
             TriggeredBy: latestLog?.TriggeredBy,
             ErrorMessage: latestLog?.ErrorMessage
         );
+    }
+
+    public async Task<bool> CancelSyncAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (_syncCts != null && !_syncCts.IsCancellationRequested)
+            {
+                _syncCts.Cancel();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Exception while triggering cancellation token");
+        }
+
+        try
+        {
+            var runningLogs = await _db.TmdbSyncLogs
+                .Where(l => l.Status == "Running")
+                .ToListAsync(cancellationToken);
+
+            if (runningLogs.Count > 0)
+            {
+                foreach (var log in runningLogs)
+                {
+                    log.Status = "Cancelled";
+                    log.CompletedAt = DateTimeOffset.UtcNow;
+                    log.ErrorMessage = "Synchronization was cancelled by admin.";
+                }
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update sync log status on cancel.");
+        }
+
+        return true;
     }
 
     public Task<TmdbSyncResultDto> RunFullSyncAsync(string triggeredBy = "Admin", int? limit = null, CancellationToken cancellationToken = default)
@@ -61,10 +117,14 @@ public class TmdbSyncService : ITmdbSyncService
             return Task.FromResult(new TmdbSyncResultDto(false, 0, 0, TimeSpan.Zero, "A TMDB synchronization is already in progress.", "A TMDB synchronization is already in progress."));
         }
 
+        _syncCts?.Dispose();
+        _syncCts = new CancellationTokenSource();
+        var token = _syncCts.Token;
+
         // Launch in background so HTTP request returns immediately and does not time out
         _ = Task.Run(async () =>
         {
-            await ExecuteFullSyncBackgroundAsync(triggeredBy, limit);
+            await ExecuteFullSyncBackgroundAsync(triggeredBy, limit, token);
         }, CancellationToken.None);
 
         var limitMsg = limit.HasValue && limit.Value > 0
@@ -74,9 +134,9 @@ public class TmdbSyncService : ITmdbSyncService
         return Task.FromResult(new TmdbSyncResultDto(true, 0, 0, TimeSpan.Zero, null, limitMsg));
     }
 
-    private async Task ExecuteFullSyncBackgroundAsync(string triggeredBy, int? limit = null)
+    private async Task ExecuteFullSyncBackgroundAsync(string triggeredBy, int? limit, CancellationToken cancellationToken)
     {
-        if (!await SyncLock.WaitAsync(0))
+        if (!await SyncLock.WaitAsync(0, cancellationToken))
         {
             return;
         }
@@ -95,7 +155,7 @@ public class TmdbSyncService : ITmdbSyncService
         };
 
         db.TmdbSyncLogs.Add(syncLog);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(CancellationToken.None);
 
         var itemsSyncedCount = 0;
         var duplicatesSkippedCount = 0;
@@ -110,10 +170,10 @@ public class TmdbSyncService : ITmdbSyncService
             var vidsrcProviderId = await db.SourceProviders
                 .Where(sp => sp.Slug == AppConstants.Providers.VidSrc)
                 .Select(sp => (int?)sp.Id)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(cancellationToken);
 
             // 1. Sync genres
-            await SyncGenresAsync(db, tmdbService, CancellationToken.None);
+            await SyncGenresAsync(db, tmdbService, cancellationToken);
 
             // 2. Generate comprehensive list of category and discover endpoints
             var categoryEndpoints = GenerateSyncEndpoints();
@@ -121,6 +181,12 @@ public class TmdbSyncService : ITmdbSyncService
 
             foreach (var (endpoint, type, category) in categoryEndpoints)
             {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogInformation("Sync cancellation requested by user.");
+                    break;
+                }
+
                 if (limit.HasValue && limit.Value > 0 && itemsSyncedCount >= limit.Value)
                 {
                     _logger.LogInformation("Target sync limit of {Limit} items reached. Halting catalog scan.", limit.Value);
@@ -134,22 +200,24 @@ public class TmdbSyncService : ITmdbSyncService
                     // Retry up to 3 times with polite backoff if rate limited (429)
                     for (int attempt = 1; attempt <= 3; attempt++)
                     {
+                        if (cancellationToken.IsCancellationRequested) break;
                         try
                         {
-                            items = await tmdbService.GetListEndpointAsync(endpoint, type, CancellationToken.None);
+                            items = await tmdbService.GetListEndpointAsync(endpoint, type, cancellationToken);
                             break;
                         }
                         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
                         {
                             _logger.LogWarning("TMDB rate limit hit on {Endpoint}. Retrying in 2.5s (attempt {Attempt}/3)...", endpoint, attempt);
-                            await Task.Delay(2500);
+                            await Task.Delay(2500, cancellationToken);
                         }
                     }
 
+                    if (cancellationToken.IsCancellationRequested) break;
                     if (items == null || items.Count == 0) continue;
 
                     // Micro-pause between TMDB requests (polite rate limiting)
-                    await Task.Delay(35);
+                    await Task.Delay(35, cancellationToken);
 
                     // Batch load existing titles from DB for this page of items (1 single query instead of 20)
                     var batchTmdbIds = items.Select(i => i.Id).Distinct().ToList();
@@ -157,7 +225,7 @@ public class TmdbSyncService : ITmdbSyncService
                         .Include(t => t.TitleGenres)
                         .Include(t => t.TitleSources)
                         .Where(t => batchTmdbIds.Contains(t.TmdbId))
-                        .ToDictionaryAsync(t => t.TmdbId);
+                        .ToDictionaryAsync(t => t.TmdbId, cancellationToken);
 
                     var newOrUpdatedInBatch = 0;
                     foreach (var item in items)
@@ -191,7 +259,7 @@ public class TmdbSyncService : ITmdbSyncService
 
                         // Periodically commit live itemsSyncedCount to TmdbSyncLog so live progress is visible in UI
                         syncLog.ItemsSynced = itemsSyncedCount;
-                        await db.SaveChangesAsync();
+                        await db.SaveChangesAsync(CancellationToken.None);
                     }
 
                     if (limit.HasValue && limit.Value > 0 && itemsSyncedCount >= limit.Value)
@@ -200,6 +268,11 @@ public class TmdbSyncService : ITmdbSyncService
                         break;
                     }
                 }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogInformation("Sync loop cancelled.");
+                    break;
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Failed syncing list endpoint {Endpoint}", endpoint);
@@ -207,38 +280,55 @@ public class TmdbSyncService : ITmdbSyncService
                 }
             }
 
-            // 3. Enrich details (cast, trailers, seasons breakdown)
-            // CRITICAL: DO NOT fetch duplicate details for titles that already have them in DB!
-            // Only fetch details from TMDB API for titles that lack cast, trailers, or seasons.
-            var enrichLimit = limit.HasValue && limit.Value > 0 ? Math.Min(limit.Value, 50) : 50;
-
-            var titlesToEnrich = await db.Titles
-                .Where(t => t.IsActive && (!t.TitleCasts.Any() || !t.Videos.Any() || (t.Type == "series" && !t.Seasons.Any())))
-                .OrderByDescending(t => t.Popularity)
-                .Take(enrichLimit)
-                .ToListAsync();
-
-            if (titlesToEnrich.Count > 0)
+            // Check if cancellation requested
+            if (cancellationToken.IsCancellationRequested)
             {
-                _logger.LogInformation("Enriching {Count} titles missing full details from TMDB API...", titlesToEnrich.Count);
+                stopwatch.Stop();
+                syncLog.Status = "Cancelled";
+                syncLog.CompletedAt = DateTimeOffset.UtcNow;
+                syncLog.ItemsSynced = itemsSyncedCount;
+                syncLog.Errors = errorCount;
+                syncLog.ErrorMessage = "Sync cancelled by user.";
+                await db.SaveChangesAsync(CancellationToken.None);
+                return;
+            }
 
-                foreach (var title in titlesToEnrich)
+            // 3. Enrich details (cast, trailers, seasons breakdown)
+            // CRITICAL: When limit is specified (e.g. 50, 100, 250, 1000), immediately finalize!
+            // Do NOT run a blocking enrichment loop that keeps status as "Running" for minutes.
+            // All titles have cast/trailers enriched on-demand when viewed or imported.
+            // Only when limit is unlimited (null or 0), do a small batch of 10 titles.
+            if ((!limit.HasValue || limit.Value <= 0) && !cancellationToken.IsCancellationRequested)
+            {
+                var titlesToEnrich = await db.Titles
+                    .Where(t => t.IsActive && (!t.TitleCasts.Any() || !t.Videos.Any() || (t.Type == "series" && !t.Seasons.Any())))
+                    .OrderByDescending(t => t.Popularity)
+                    .Take(10)
+                    .ToListAsync(cancellationToken);
+
+                if (titlesToEnrich.Count > 0)
                 {
-                    try
+                    _logger.LogInformation("Enriching {Count} titles missing full details from TMDB API...", titlesToEnrich.Count);
+
+                    foreach (var title in titlesToEnrich)
                     {
-                        await EnrichTitleDetailsAsync(db, tmdbService, title, CancellationToken.None);
-                        await Task.Delay(35);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to enrich details for title {TitleText} (TMDB ID {TmdbId})", title.TitleText, title.TmdbId);
-                        errorCount++;
+                        if (cancellationToken.IsCancellationRequested) break;
+                        try
+                        {
+                            await EnrichTitleDetailsAsync(db, tmdbService, title, cancellationToken);
+                            await Task.Delay(35, cancellationToken);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to enrich details for title {TitleText} (TMDB ID {TmdbId})", title.TitleText, title.TmdbId);
+                            errorCount++;
+                        }
                     }
                 }
             }
 
             // 4. Invalidate home feed cache so new catalog immediately reflects
-            await cacheService.RemoveAsync("home_feed_v1");
+            await cacheService.RemoveAsync("home_feed_v1", CancellationToken.None);
 
             stopwatch.Stop();
             syncLog.Status = "Completed";
@@ -248,10 +338,20 @@ public class TmdbSyncService : ITmdbSyncService
             syncLog.ErrorMessage = duplicatesSkippedCount > 0
                 ? $"{duplicatesSkippedCount:N0} duplicates skipped (already up-to-date in DB)"
                 : null;
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(CancellationToken.None);
 
             _logger.LogInformation("TMDB catalog sync completed successfully in {Duration:F1}s. Synced: {Synced}, Duplicates skipped: {Duplicates}, Errors: {Errors}",
                 stopwatch.Elapsed.TotalSeconds, itemsSyncedCount, duplicatesSkippedCount, errorCount);
+        }
+        catch (OperationCanceledException)
+        {
+            stopwatch.Stop();
+            _logger.LogInformation("TMDB catalog sync was cancelled.");
+            syncLog.Status = "Cancelled";
+            syncLog.CompletedAt = DateTimeOffset.UtcNow;
+            syncLog.ItemsSynced = itemsSyncedCount;
+            syncLog.ErrorMessage = "Synchronization cancelled by user.";
+            await db.SaveChangesAsync(CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -262,7 +362,7 @@ public class TmdbSyncService : ITmdbSyncService
             syncLog.CompletedAt = DateTimeOffset.UtcNow;
             syncLog.ErrorMessage = ex.Message;
             syncLog.Errors = errorCount + 1;
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(CancellationToken.None);
         }
         finally
         {
@@ -664,10 +764,14 @@ public class TmdbSyncService : ITmdbSyncService
             var oldCasts = await db.TitleCasts.Where(tc => tc.TitleId == title.Id).ToListAsync(cancellationToken);
             db.TitleCasts.RemoveRange(oldCasts);
 
+            var castTmdbIds = detail.Cast.Select(c => c.PersonTmdbId).Distinct().ToList();
+            var existingPeople = await db.People
+                .Where(p => castTmdbIds.Contains(p.TmdbId))
+                .ToDictionaryAsync(p => p.TmdbId, cancellationToken);
+
             foreach (var c in detail.Cast)
             {
-                var person = await db.People.FirstOrDefaultAsync(p => p.TmdbId == c.PersonTmdbId, cancellationToken);
-                if (person == null)
+                if (!existingPeople.TryGetValue(c.PersonTmdbId, out var person))
                 {
                     person = new Person
                     {
@@ -676,7 +780,7 @@ public class TmdbSyncService : ITmdbSyncService
                         ProfilePath = c.ProfilePath
                     };
                     db.People.Add(person);
-                    await db.SaveChangesAsync(cancellationToken);
+                    existingPeople[c.PersonTmdbId] = person;
                 }
                 else if (string.IsNullOrEmpty(person.ProfilePath) && !string.IsNullOrEmpty(c.ProfilePath))
                 {
@@ -686,7 +790,7 @@ public class TmdbSyncService : ITmdbSyncService
                 db.TitleCasts.Add(new TitleCast
                 {
                     TitleId = title.Id,
-                    PersonId = person.Id,
+                    Person = person,
                     Character = c.Character,
                     DisplayOrder = c.DisplayOrder
                 });
@@ -718,10 +822,14 @@ public class TmdbSyncService : ITmdbSyncService
             var oldProviders = await db.TitleProviders.Where(tp => tp.TitleId == title.Id).ToListAsync(cancellationToken);
             db.TitleProviders.RemoveRange(oldProviders);
 
+            var providerTmdbIds = detail.Providers.Select(p => p.ProviderTmdbId).Distinct().ToList();
+            var existingProviders = await db.Providers
+                .Where(p => providerTmdbIds.Contains(p.TmdbId))
+                .ToDictionaryAsync(p => p.TmdbId, cancellationToken);
+
             foreach (var p in detail.Providers)
             {
-                var provider = await db.Providers.FirstOrDefaultAsync(pr => pr.TmdbId == p.ProviderTmdbId, cancellationToken);
-                if (provider == null)
+                if (!existingProviders.TryGetValue(p.ProviderTmdbId, out var provider))
                 {
                     provider = new Provider
                     {
@@ -730,13 +838,13 @@ public class TmdbSyncService : ITmdbSyncService
                         LogoPath = p.LogoPath
                     };
                     db.Providers.Add(provider);
-                    await db.SaveChangesAsync(cancellationToken);
+                    existingProviders[p.ProviderTmdbId] = provider;
                 }
 
                 db.TitleProviders.Add(new TitleProvider
                 {
                     TitleId = title.Id,
-                    ProviderId = provider.Id,
+                    Provider = provider,
                     Type = p.Type,
                     Country = p.Country
                 });

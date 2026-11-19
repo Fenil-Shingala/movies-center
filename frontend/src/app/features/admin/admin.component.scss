@@ -565,6 +565,42 @@
 
   .card-footer-action {
     margin-top: 1.25rem;
+
+    .footer-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+
+      .btn-block {
+        flex: 1;
+      }
+
+      .cancel-btn {
+        padding: 0.65rem 1rem;
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.35);
+        border-radius: 8px;
+        color: #f87171;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(239, 68, 68, 0.22);
+          border-color: #ef4444;
+          color: #ffffff;
+        }
+
+        .btn-icon {
+          width: 15px;
+          height: 15px;
+        }
+      }
+    }
   }
 }
 
@@ -824,6 +860,37 @@
           &:disabled {
             opacity: 0.65;
             cursor: not-allowed;
+          }
+        }
+
+        .cancel-sync-btn {
+          padding: 0.65rem 1.15rem;
+          font-size: 0.875rem;
+          font-weight: 600;
+          background: rgba(239, 68, 68, 0.12);
+          border: 1px solid rgba(239, 68, 68, 0.35);
+          border-radius: 8px;
+          color: #f87171;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.45rem;
+          transition: all 0.2s ease;
+
+          @media (max-width: 640px) {
+            width: 100%;
+            justify-content: center;
+          }
+
+          &:hover {
+            background: rgba(239, 68, 68, 0.22);
+            border-color: #ef4444;
+            color: #ffffff;
+          }
+
+          .btn-icon {
+            width: 16px;
+            height: 16px;
           }
         }
 

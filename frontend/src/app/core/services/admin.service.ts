@@ -63,6 +63,10 @@ export class AdminService {
     return this.http.post<TmdbSyncResult>(`${this.adminApi}/tmdb/sync`, body);
   }
 
+  cancelSync(): Observable<{ success: boolean; message: string }> {
+    return this.http.post<{ success: boolean; message: string }>(`${this.adminApi}/tmdb/sync/cancel`, {});
+  }
+
   getSyncStatus(): Observable<TmdbSyncStatus> {
     return this.http.get<TmdbSyncStatus>(`${this.adminApi}/tmdb/sync/status`);
   }

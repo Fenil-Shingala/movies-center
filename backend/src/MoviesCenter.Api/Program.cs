@@ -156,6 +156,20 @@ try
             dbContext.SaveChanges();
             Log.Information("Cleaned up {Count} blank unindexed titles on startup.", blankTitles.Count);
         }
+
+        // Auto-heal any stale "Running" sync logs from previous server sessions
+        var staleLogs = dbContext.TmdbSyncLogs.Where(l => l.Status == "Running").ToList();
+        if (staleLogs.Count > 0)
+        {
+            foreach (var log in staleLogs)
+            {
+                log.Status = "Completed";
+                log.CompletedAt = DateTimeOffset.UtcNow;
+                log.ErrorMessage = "Auto-healed on server restart.";
+            }
+            dbContext.SaveChanges();
+            Log.Information("Auto-healed {Count} stale TMDB sync log(s) to 'Completed' on startup.", staleLogs.Count);
+        }
     }
 }
 catch (Exception ex)

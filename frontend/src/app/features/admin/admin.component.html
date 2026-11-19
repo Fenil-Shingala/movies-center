@@ -134,7 +134,7 @@
                 <span class="pill-dot"></span>
                 {{ s.lastSyncStatus.lastStatus || 'Active' }}
               </span>
-              <span class="kpi-sub">Hangfire Sync Active</span>
+              <span class="kpi-sub">On-Demand Sync Ready</span>
             </div>
           </div>
         </div>
@@ -203,8 +203,8 @@
                 </span>
               </div>
               <div class="info-row">
-                <span class="lbl"><svg lucideRefreshCw class="info-icon"></svg> Recurring Schedule:</span>
-                <span class="val">Daily at 03:00 UTC (Hangfire)</span>
+                <span class="lbl"><svg lucideRefreshCw class="info-icon"></svg> Sync Mode:</span>
+                <span class="val">On-Demand Smart Sync</span>
               </div>
               <div class="info-row">
                 <span class="lbl"><svg lucideCheckCircle2 class="info-icon"></svg> Sync Worker:</span>
@@ -212,15 +212,25 @@
               </div>
             </div>
             <div class="card-footer-action">
-              <button type="button" class="btn btn-primary btn-block" [disabled]="isSyncing()" (click)="triggerTmdbSync()">
-                <svg lucideRefreshCw class="btn-icon" [class.spin]="isSyncing()"></svg>
-                <span>
-                  {{ isSyncing() 
-                      ? 'Synchronizing (' + (syncStatus()?.lastItemsSynced ?? 0) + ' items)...' 
-                      : 'Trigger Sync (' + (getEffectiveSyncLimit() > 0 ? getEffectiveSyncLimit().toLocaleString() + ' Titles' : 'Full Catalog') + ')' 
-                  }}
-                </span>
-              </button>
+              <div class="footer-actions-group">
+                <button type="button" class="btn btn-primary btn-block" [disabled]="isSyncing()" (click)="triggerTmdbSync()">
+                  <svg lucideRefreshCw class="btn-icon" [class.spin]="isSyncing()"></svg>
+                  <span>
+                    {{ isSyncing() 
+                        ? ((getEffectiveSyncLimit() > 0 && (syncStatus()?.lastItemsSynced ?? 0) >= getEffectiveSyncLimit())
+                            ? 'Finalizing (' + (syncStatus()?.lastItemsSynced ?? 0) + ' items)...'
+                            : 'Synchronizing (' + (syncStatus()?.lastItemsSynced ?? 0) + ' items)...')
+                        : 'Trigger Sync (' + (getEffectiveSyncLimit() > 0 ? getEffectiveSyncLimit().toLocaleString() + ' Titles' : 'Full Catalog') + ')' 
+                    }}
+                  </span>
+                </button>
+                @if (isSyncing() || syncStatus()?.isRunning) {
+                  <button type="button" class="btn btn-danger-outline cancel-btn" (click)="cancelSync()" title="Cancel active synchronization">
+                    <svg lucideX class="btn-icon"></svg>
+                    <span>Cancel</span>
+                  </button>
+                }
+              </div>
             </div>
           </div>
         </div>
@@ -307,11 +317,19 @@
               <svg lucideRefreshCw class="btn-icon" [class.spin]="isSyncing()"></svg>
               <span>
                 {{ isSyncing() 
-                    ? 'Synchronizing (' + (syncStatus()?.lastItemsSynced ?? 0) + (getEffectiveSyncLimit() > 0 ? ' / ' + getEffectiveSyncLimit() : '') + ' items)...' 
+                    ? ((getEffectiveSyncLimit() > 0 && (syncStatus()?.lastItemsSynced ?? 0) >= getEffectiveSyncLimit())
+                        ? 'Finalizing (' + (syncStatus()?.lastItemsSynced ?? 0) + ' items)...'
+                        : 'Synchronizing (' + (syncStatus()?.lastItemsSynced ?? 0) + (getEffectiveSyncLimit() > 0 ? ' / ' + getEffectiveSyncLimit() : '') + ' items)...') 
                     : 'Fetch ' + (getEffectiveSyncLimit() > 0 ? getEffectiveSyncLimit().toLocaleString() + ' Titles Now' : 'Full Catalog Now') 
                 }}
               </span>
             </button>
+            @if (isSyncing() || syncStatus()?.isRunning) {
+              <button type="button" class="btn btn-danger-outline cancel-sync-btn" (click)="cancelSync()" title="Cancel active synchronization">
+                <svg lucideX class="btn-icon"></svg>
+                <span>Cancel Sync</span>
+              </button>
+            }
             @if (syncStatus(); as status) {
               <div class="sync-live-status-pill" [class.running]="status.isRunning">
                 <span class="status-indicator-dot"></span>

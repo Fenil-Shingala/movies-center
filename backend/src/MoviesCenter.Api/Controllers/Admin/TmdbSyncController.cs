@@ -65,6 +65,17 @@ public class TmdbSyncController : ControllerBase
     }
 
     /// <summary>
+    /// Cancel an in-progress TMDB synchronization or reset a stuck status.
+    /// </summary>
+    [HttpPost("sync/cancel")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> CancelSync(CancellationToken cancellationToken = default)
+    {
+        var result = await _syncService.CancelSyncAsync(cancellationToken);
+        return Ok(new { success = result, message = "TMDB synchronization cancelled." });
+    }
+
+    /// <summary>
     /// Import or refresh a single title directly from TMDB into the SQL database.
     /// </summary>
     [HttpPost("import")]

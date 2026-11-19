@@ -300,9 +300,31 @@ export class AdminComponent implements OnInit, OnDestroy {
     this.adminService.getSyncStatus().subscribe({
       next: (res) => {
         this.syncStatus.set(res);
-        if (res.isRunning && !this.syncPollSub) {
-          this.startSyncPolling();
+        if (res.isRunning) {
+          if (!this.syncPollSub) {
+            this.startSyncPolling();
+          }
+        } else {
+          if (this.isSyncing()) {
+            this.isSyncing.set(false);
+          }
         }
+      }
+    });
+  }
+
+  cancelSync(): void {
+    this.adminService.cancelSync().subscribe({
+      next: (res) => {
+        this.showToast(res.message || 'TMDB synchronization cancelled.');
+        this.syncPollSub?.unsubscribe();
+        this.syncPollSub = undefined;
+        this.isSyncing.set(false);
+        this.loadSyncStatus();
+        this.loadStats();
+      },
+      error: () => {
+        this.showToast('Failed to cancel sync.');
       }
     });
   }
@@ -331,7 +353,7 @@ export class AdminComponent implements OnInit, OnDestroy {
   startSyncPolling(): void {
     this.syncPollSub?.unsubscribe();
     this.isSyncing.set(true);
-    this.syncPollSub = interval(2500).pipe(
+    this.syncPollSub = interval(2000).pipe(
       switchMap(() => this.adminService.getSyncStatus())
     ).subscribe({
       next: (status) => {
